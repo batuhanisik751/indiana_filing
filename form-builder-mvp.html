@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Indiana Court Form Helper (MVP)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #EEF3F2; --surface: #FFFFFF; --ink: #142B30; --muted: #4F6468; --line: #CFDBDA;
+  --accent: #0E6B66; --accent-ink: #FFFFFF;
+  --ok: #1E7A3C; --ok-bg: #E7F4EA;
+  --warn: #A8452E; --warn-bg: #FBEDE8;
+  --check: #8A5A00; --check-bg: #FFF4D9;
+  --mark: #FFE39A; --paper: #FFFFFF; --paper-ink: #1B1B1B; --paper-line: #D9D9D2; --miss: #B3261E;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0E1A1C; --surface: #16272A; --ink: #E4EEED; --muted: #9DB2B3; --line: #2B4043;
+    --accent: #4FC1B7; --accent-ink: #062321;
+    --ok: #7FD69A; --ok-bg: #16301F; --warn: #F09A80; --warn-bg: #3A2019; --check: #F2C25A; --check-bg: #372B10;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0E1A1C; --surface: #16272A; --ink: #E4EEED; --muted: #9DB2B3; --line: #2B4043;
+  --accent: #4FC1B7; --accent-ink: #062321;
+  --ok: #7FD69A; --ok-bg: #16301F; --warn: #F09A80; --warn-bg: #3A2019; --check: #F2C25A; --check-bg: #372B10;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 1.125rem; line-height: 1.55; }
+.wrap { max-width: 36rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+header.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+.brand { font-weight: 700; font-size: 1rem; }
+.privacy { font-size: .85rem; color: var(--muted); text-align: right; }
+h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }
+h2.q { font-size: 1.55rem; line-height: 1.2; margin: 0 0 .75rem; }
+p { margin: 0 0 1rem; }
+.help { color: var(--muted); margin: 0 0 1.25rem; }
+.need { font-size: .9rem; color: var(--muted); margin: .75rem 0 0; }
+
+/* progress */
+.bar { height: .5rem; background: var(--line); border-radius: 4px; overflow: hidden; margin-bottom: .5rem; }
+.bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
+.barlabel { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
+
+input[type=text], input[type=tel], input[type=email], input[type=date], input[type=time], input[type=number], textarea, select {
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: .85rem 1rem;
+}
+textarea { min-height: 8rem; resize: vertical; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+input[type=file] { font: inherit; width: 100%; }
+.choices { display: grid; gap: .6rem; }
+.choice { display: flex; gap: .75rem; align-items: flex-start; background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: .85rem 1rem; cursor: pointer; }
+.choice input { margin-top: .3rem; accent-color: var(--accent); width: 1.15rem; height: 1.15rem; flex: none; }
+.choice:has(input:checked) { border-color: var(--accent); }
+.choice:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.pick { display: block; width: 100%; text-align: left; background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: .75rem; font-weight: 400; }
+.pick strong { display: block; font-size: 1.1rem; }
+.pick span { color: var(--muted); font-size: .95rem; }
+.pick:hover { border-color: var(--accent); }
+
+.err { color: var(--warn); font-weight: 700; margin: .75rem 0 0; min-height: 1.4rem; }
+.nav { display: flex; justify-content: space-between; gap: .75rem; margin-top: 1.75rem; }
+button { font: inherit; font-weight: 700; border-radius: 10px; padding: .85rem 1.2rem; cursor: pointer; border: 2px solid transparent; }
+button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button.small { padding: .4rem .8rem; font-size: .95rem; }
+button:focus-visible, .pick:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+a { color: var(--accent); }
+.note { background: var(--surface); border-left: 4px solid var(--accent); border-radius: 6px; padding: .85rem 1rem; margin: 1rem 0; font-size: 1rem; }
+
+/* summary */
+.status { border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1.25rem; }
+.status.ready { background: var(--ok-bg); border: 2px solid var(--ok); }
+.status.notready { background: var(--warn-bg); border: 2px solid var(--warn); }
+.status strong { display: block; font-size: 1.15rem; }
+ul.flags { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+ul.flags li { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; padding: .7rem .2rem; border-bottom: 1px solid var(--line); }
+.tag { font-size: .8rem; font-weight: 700; border-radius: 4px; padding: .1rem .45rem; white-space: nowrap; }
+.tag.missing { color: var(--warn); background: var(--warn-bg); }
+.tag.check { color: var(--check); background: var(--check-bg); }
+.tag.ok { color: var(--ok); background: var(--ok-bg); }
+.flagtext small { display: block; color: var(--muted); font-size: .9rem; }
+
+.sheet { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); border-radius: 4px; padding: 1.5rem 1.25rem; margin: .75rem 0; font-family: Georgia, "Times New Roman", serif; font-size: .98rem; line-height: 1.6; overflow-x: auto; }
+.sheet h3 { text-align: center; font-size: 1rem; margin: 1.25rem 0 1rem; letter-spacing: .02em; }
+.sheet .cap { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: .92rem; }
+.sheet .parties { margin: 1rem 0; }
+.sheet .sig { margin-top: 1.25rem; }
+.sheet .cos { margin-top: 1.75rem; border-top: 1px solid var(--paper-line); padding-top: 1rem; }
+.f { background: linear-gradient(transparent 55%, var(--mark) 55%); padding: 0 .1em; }
+.miss { color: var(--miss); font-weight: 700; font-family: "Atkinson Hyperlegible", system-ui, sans-serif; font-size: .9em; }
+.draftnote { font-size: .85rem; color: var(--muted); }
+footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="brand">Indiana Court Form Helper</span>
+    <span class="privacy">Nothing you type or attach is saved or sent.</span>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <footer>This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</footer>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG
+   Form templates below are MODELED on Indiana requirements for the MVP.
+   Before real use, replace each template's wording and fields with the
+   exact state-approved form (Indiana Legal Help / courts.in.gov forms).
+   ===================================================================== */
+
+// Indiana counties in official county-number order (01 Adams ... 92 Whitley).
+const COUNTIES = ["Adams","Allen","Bartholomew","Benton","Blackford","Boone","Brown","Carroll","Cass","Clark","Clay","Clinton","Crawford","Daviess","Dearborn","Decatur","DeKalb","Delaware","Dubois","Elkhart","Fayette","Floyd","Fountain","Franklin","Fulton","Gibson","Grant","Greene","Hamilton","Hancock","Harrison","Hendricks","Henry","Howard","Huntington","Jackson","Jasper","Jay","Jefferson","Jennings","Johnson","Knox","Kosciusko","LaGrange","Lake","LaPorte","Lawrence","Madison","Marion","Marshall","Martin","Miami","Monroe","Montgomery","Morgan","Newton","Noble","Ohio","Orange","Owen","Parke","Perry","Pike","Porter","Posey","Pulaski","Putnam","Randolph","Ripley","Rush","St. Joseph","Scott","Shelby","Spencer","Starke","Steuben","Sullivan","Switzerland","Tippecanoe","Tipton","Union","Vanderburgh","Vermillion","Vigo","Wabash","Warren","Warrick","Washington","Wayne","Wells","White","Whitley"];
+
+const SECTIONS = ["Your case", "About you", "Your request", "Serving the other side", "Attachments", "Sign"];
+
+// Shared question blocks
+const CASE_STEPS = [
+  { id: "county", sec: 0, type: "select", label: "County", options: COUNTIES,
+    q: "Which county is your case in?",
+    help: "This is the county named at the top of your court papers, not necessarily the county you live in." },
+  { id: "court", sec: 0, type: "text", label: "Court name",
+    q: "What is the full name of the court?",
+    help: "Copy it exactly as it appears at the top of your court papers." },
+  { id: "caseNumber", sec: 0, type: "text", label: "Case number",
+    q: "What is your case number?",
+    help: "Indiana case numbers have four parts, like 02D01-2610-EV-001234. The first two digits are the county number. Copy it exactly from your papers.",
+    upper: true },
+  { id: "plaintiff", sec: 0, type: "text", label: "Plaintiff",
+    q: "Who is the plaintiff?", help: "The plaintiff is the person or company that started the case. Copy the name exactly as written on your papers." },
+  { id: "defendant", sec: 0, type: "text", label: "Defendant",
+    q: "Who is the defendant?", help: "The defendant is the person the case was filed against. Copy the name exactly as written on your papers." },
+  { id: "role", sec: 0, type: "choice", label: "Your role", q: "Which one are you?",
+    options: [["defendant", "I am the defendant"], ["plaintiff", "I am the plaintiff"]] },
+];
+
+const YOU_STEPS = [
+  { id: "name", sec: 1, type: "text", label: "Your full name", q: "What is your full legal name?",
+    help: "Use the same name the court has for you on your case." },
+  { id: "address", sec: 1, type: "text", label: "Mailing address", q: "What is your mailing address?",
+    help: "Indiana Trial Rule 11.1 requires people without a lawyer to list a mailing address on what they file. The court sends notices here." },
+  { id: "phone", sec: 1, type: "tel", label: "Phone number", q: "What is your phone number?",
+    help: "Trial Rule 11.1 asks for a phone number if you have one." },
+  { id: "email", sec: 1, type: "email", label: "Email", optional: true, q: "What is your email address?",
+    help: "Trial Rule 11.1 asks for an email if you have one. Leave blank if you don’t." },
+];
+
+const SERVICE_STEPS = [
+  { id: "svcName", sec: 3, type: "text", label: "Who you served", service: true,
+    q: "Who will you send a copy of this form to?",
+    help: "Most forms must be sent to the other side too. This is called “service.” If the other side has a lawyer, it is usually sent to their lawyer. Use the name exactly as it appears on your papers." },
+  { id: "svcAddress", sec: 3, type: "text", label: "Their address", service: true,
+    q: "What address or email will you send it to?", help: "Use the address or email listed for them on your court papers." },
+  { id: "svcMethod", sec: 3, type: "choice", label: "How you’ll send it", service: true,
+    q: "How will you send them a copy?",
+    help: "The certificate of service tells the court how the other side got their copy.",
+    options: [["first-class U.S. mail", "U.S. mail"], ["email", "Email"], ["hand delivery", "Handing it to them"], ["the Indiana E-Filing System", "Through the e-filing system"]] },
+  { id: "svcDate", sec: 3, type: "date", label: "Date you send it", service: true,
+    q: "On what date will you send it?", help: "Use the date you actually mail, email or deliver it." },
+];
+
+const SIGN_STEPS = [
+  { id: "signature", sec: 5, type: "text", label: "Signature",
+    q: "Type your full name to sign.",
+    help: "Typing your name works as your signature on electronically filed documents. By signing, you confirm the facts are true to the best of your knowledge and that anything you cite is real (Trial Rule 11.1). It should match your name exactly." },
+  { id: "signDate", sec: 5, type: "date", label: "Date signed", q: "Today’s date", help: "The date you are signing this form." },
+];
+
+// Situations. Each picks its own form-specific questions, attachments and template.
+const FORMS = {
+  continuance: {
+    title: "Motion for Continuance",
+    pick: "I need to ask the court to move my hearing date",
+    blurb: "For when you can’t make your scheduled court date.",
+    service: true,
+    attachments: [],
+    steps: [
+      { id: "hearingDate", sec: 2, type: "date", label: "Current hearing date", q: "When is your hearing scheduled now?", help: "The date printed on your notice of hearing." },
+      { id: "hearingTime", sec: 2, type: "time", label: "Current hearing time", q: "At what time?", help: "The time printed next to the date." },
+      { id: "reason", sec: 2, type: "textarea", label: "Reason for the request",
+        q: "Why are you asking to move the hearing?",
+        help: "Explain in your own words. The judge decides whether to move it. This tool can’t tell you what to write." },
+      { id: "otherSide", sec: 2, type: "choice", label: "Other side’s position",
+        q: "Does the other side agree to moving the hearing?",
+        help: "Some courts want to know this. Choose “I don’t know” if you haven’t asked.",
+        options: [["agrees", "They agree"], ["objects", "They do not agree"], ["unknown", "I don’t know"]] },
+    ],
+    body: (F, a) => `
+      <p>${F("name")}, the ${F("role")} in this case, asks the Court to continue the hearing now set for ${F("hearingDate")} at ${F("hearingTime")}.</p>
+      <p>The reason for this request is: ${F("reason")}</p>
+      <p>Position of the other party: ${F("otherSide")}.</p>
+      <p>${F("name")} asks the Court to reset the hearing to a later date.</p>`,
+  },
+
+  appearance: {
+    title: "Appearance by Self-Represented Party",
+    pick: "I need to tell the court I’m representing myself",
+    blurb: "Gives the court your contact information so you get notices.",
+    service: true,
+    attachments: [],
+    steps: [
+      { id: "emailNotice", sec: 2, type: "choice", label: "Notices by email",
+        q: "Do you agree to receive court notices by email?",
+        help: "If you say yes, check your email often. Notices can include hearing dates.",
+        options: [["do", "Yes"], ["do not", "No"]] },
+    ],
+    body: (F, a) => `
+      <p>${F("name")} enters an appearance in this case as a self-represented ${F("role")}.</p>
+      <p>Mailing address: ${F("address")}<br>Telephone: ${F("phone")}<br>Email: ${a.email ? F("email") : "none"}</p>
+      <p>${F("name")} ${F("emailNotice")} agree to receive notices by email.</p>`,
+  },
+
+  feewaiver: {
+    title: "Verified Motion to Proceed Without Paying Fees",
+    pick: "I can’t afford the court’s filing fee",
+    blurb: "Asks the court to let you go forward without paying fees.",
+    service: false,
+    attachments: [
+      { key: "income", label: "Proof of income", help: "A document that shows what you earn or receive, such as a recent pay stub or a benefits letter." },
+    ],
+    steps: [
+      { id: "household", sec: 2, type: "number", label: "People in household", q: "How many people live in your household, including you?", help: "Count everyone you support who lives with you." },
+      { id: "income", sec: 2, type: "number", label: "Monthly household income", q: "What is your total monthly household income, in dollars?", help: "Add up money everyone in your household gets each month before taxes: wages, benefits, child support and so on." },
+      { id: "benefits", sec: 2, type: "choice", label: "Public benefits", q: "Does anyone in your household receive public benefits?", help: "For example SNAP, TANF, SSI or Medicaid.",
+        options: [["do", "Yes"], ["do not", "No"]] },
+    ],
+    body: (F, a) => `
+      <p>${F("name")}, the ${F("role")} in this case, asks the Court to allow this case to proceed without payment of filing fees and costs because ${F("name")} is unable to pay them.</p>
+      <p>Number of people in household: ${F("household")}<br>Total monthly household income: $${F("income")}<br>Members of the household ${F("benefits")} receive public benefits.</p>
+      <p>I affirm, under the penalties for perjury, that the foregoing representations are true.</p>`,
+  },
+};
+/* ===================================================================== */
+
+let formKey = null, steps = [], answers = {}, files = {};
+let mode = "pick", cur = 0, returnToSummary = false;
+const app = document.getElementById("app");
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const empty = v => v === undefined || v === null || String(v).trim() === "";
+const visible = () => steps.filter(s => !s.showIf || s.showIf(answers));
+
+function buildSteps(key) {
+  const f = FORMS[key];
+  const att = f.attachments.map(x => ({ id: "att_" + x.key, sec: 4, type: "file", label: x.label, attach: true, q: `Attach: ${x.label}`, help: x.help }));
+  return [...CASE_STEPS, ...YOU_STEPS, ...f.steps, ...(f.service ? SERVICE_STEPS : []), ...att, ...SIGN_STEPS];
+}
+
+function fmtDate(v) { const d = new Date(v + "T00:00"); return isNaN(d) ? v : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); }
+function fmtTime(v) { const [h, m] = v.split(":").map(Number); return `${(h % 12) || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "a.m." : "p.m."}`; }
+
+function shown(step) {
+  const v = step.attach ? files[step.id] : answers[step.id];
+  if (empty(v)) return "";
+  if (step.type === "choice") { const o = step.options.find(o => o[0] === v); return o ? (step.id === "role" || step.id === "svcMethod" || step.id === "emailNotice" || step.id === "benefits" ? o[0] : o[1]) : v; }
+  if (step.type === "date") return fmtDate(v);
+  if (step.type === "time") return fmtTime(v);
+  return v;
+}
+
+/* ---------- checks: run only at the end ---------- */
+const CASE_RE = /^(\d{2})[A-Z]\d{2}-\d{4}-[A-Z]{2}-\d{6}$/;
+function runChecks() {
+  const f = FORMS[formKey];
+  const vis = visible();
+  const flags = [];
+  const byId = id => vis.find(s => s.id === id);
+
+  // Key items, in the order clerks tend to look for them
+  if (empty(answers.signature)) flags.push({ level: "missing", title: "Signature", why: "Your form isn’t signed.", fix: "signature" });
+  else if (answers.signature.trim().toLowerCase() !== String(answers.name || "").trim().toLowerCase())
+    flags.push({ level: "check", title: "Signature", why: "Your signature doesn’t match the name you gave. They should be the same.", fix: "signature" });
+
+  if (empty(answers.county)) flags.push({ level: "missing", title: "County", why: "The county is blank.", fix: "county" });
+
+  if (empty(answers.caseNumber)) flags.push({ level: "missing", title: "Case number", why: "The case number is blank.", fix: "caseNumber" });
+  else {
+    const m = answers.caseNumber.trim().match(CASE_RE);
+    if (!m) flags.push({ level: "check", title: "Case number", why: "It doesn’t look like an Indiana case number (for example 02D01-2610-EV-001234). Compare it with your papers.", fix: "caseNumber" });
+    else if (answers.county) {
+      const code = String(COUNTIES.indexOf(answers.county) + 1).padStart(2, "0");
+      if (m[1] !== code) flags.push({ level: "check", title: "Case number", why: `The first two digits (${m[1]}) don’t match ${answers.county} County’s number (${code}). One of them may be wrong.`, fix: "caseNumber" });
+    }
+  }
+
+  if (f.service) {
+    const gap = SERVICE_STEPS.find(s => empty(answers[s.id]));
+    if (gap) flags.push({ level: "missing", title: "Certificate of service", why: `Incomplete: “${gap.label}” is blank.`, fix: gap.id });
+  }
+
+  f.attachments.forEach(x => {
+    if (empty(files["att_" + x.key])) flags.push({ level: "missing", title: "Required attachment", why: `${x.label} is not attached.`, fix: "att_" + x.key });
+  });
+
+  // Everything else that is required but blank
+  const handled = new Set(["signature", "county", "caseNumber", ...SERVICE_STEPS.map(s => s.id)]);
+  vis.forEach(s => {
+    if (handled.has(s.id) || s.attach || s.optional) return;
+    if (empty(answers[s.id])) flags.push({ level: "missing", title: s.label, why: "This is blank.", fix: s.id });
+  });
+  if (!empty(answers.email) && !/^\S+@\S+\.\S+$/.test(answers.email)) flags.push({ level: "check", title: "Email", why: "This email looks incomplete.", fix: "email" });
+
+  const total = vis.filter(s => !s.optional && !s.service).length + (f.service ? 1 : 0);
+  return { flags, total };
+}
+
+/* ---------- screens ---------- */
+function renderPick() {
+  app.innerHTML = `
+    <h1>What do you need to do?</h1>
+    <p class="help">Pick the one that fits. We’ll ask one question at a time and fill in the court form for you.</p>
+    ${Object.entries(FORMS).map(([k, f]) => `<button class="pick" data-k="${k}"><strong>${esc(f.pick)}</strong><span>${esc(f.blurb)}</span></button>`).join("")}
+    <div class="note">You’ll see the finished form at the end, with anything missing flagged, before you file it yourself.</div>`;
+  app.querySelectorAll(".pick").forEach(b => b.onclick = () => {
+    formKey = b.dataset.k; steps = buildSteps(formKey); answers = {}; files = {}; cur = 0; mode = "step"; render();
+  });
+}
+
+function renderStep() {
+  const vis = visible();
+  const step = vis[cur];
+  const pct = Math.round((cur / vis.length) * 100);
+  const v = step.attach ? "" : answers[step.id];
+  let input;
+  if (step.type === "choice") {
+    input = `<div class="choices" role="radiogroup" aria-labelledby="q">${step.options.map(([val, lab]) =>
+      `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${v === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
+  } else if (step.type === "select") {
+    input = `<select id="ans" aria-labelledby="q"><option value="">Choose a county</option>${step.options.map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  } else if (step.type === "textarea") {
+    input = `<textarea id="ans" aria-labelledby="q">${esc(v)}</textarea>`;
+  } else if (step.type === "file") {
+    const had = files[step.id];
+    input = `<input id="ans" type="file" aria-labelledby="q" accept=".pdf,.jpg,.jpeg,.png">${had ? `<p class="need">Attached: ${esc(had)}</p>` : ""}`;
+  } else {
+    const extra = step.type === "number" ? ' min="0" inputmode="numeric"' : "";
+    input = `<input id="ans" type="${step.type}" aria-labelledby="q" value="${esc(v)}"${extra} autocomplete="${step.type === "tel" ? "tel" : step.type === "email" ? "email" : "off"}">`;
+  }
+  app.innerHTML = `
+    <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+    <div class="barlabel"><span>${esc(SECTIONS[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
+    <h2 class="q" id="q">${esc(step.q)}</h2>
+    <p class="help">${esc(step.help || "")}</p>
+    ${input}
+    <p class="need">${step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."}</p>
+    <p class="err" id="err" role="alert"></p>
+    <div class="nav">
+      <button class="ghost" id="back">${returnToSummary ? "Back to summary" : "Back"}</button>
+      <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
+    </div>`;
+  const el = app.querySelector("#ans, input[name=ans]"); if (el) el.focus();
+  document.getElementById("back").onclick = () => {
+    if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
+    if (cur === 0) { mode = "pick"; return render(); }
+    cur--; render();
+  };
+  document.getElementById("next").onclick = () => save(step);
+  app.querySelectorAll("input:not([type=radio]):not([type=file]), select").forEach(i =>
+    i.addEventListener("keydown", e => { if (e.key === "Enter") save(step); }));
+}
+
+function save(step) {
+  if (step.type === "choice") { const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : ""; }
+  else if (step.type === "file") { const f = document.getElementById("ans").files[0]; if (f) files[step.id] = f.name; } // name only; file never leaves the device
+  else {
+    let val = document.getElementById("ans").value.trim();
+    if (step.upper) val = val.toUpperCase();
+    answers[step.id] = val;
+  }
+  if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
+  const vis = visible();
+  if (cur < vis.length - 1) { cur++; render(); } else { mode = "summary"; render(); }
+}
+
+function goFix(id) {
+  const idx = visible().findIndex(s => s.id === id);
+  if (idx < 0) return;
+  cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
+}
+
+function renderSummary() {
+  const f = FORMS[formKey];
+  const { flags, total } = runChecks();
+  const missing = flags.filter(x => x.level === "missing").length;
+  const ready = flags.length === 0;
+  const done = Math.max(0, total - new Set(flags.map(x => x.fix)).size);
+
+  const stepFor = id => steps.find(s => s.id === id);
+  const F = id => {
+    const s = stepFor(id);
+    const v = s ? shown(s) : answers[id];
+    return empty(v) ? `<span class="miss">[missing: ${esc(s ? s.label.toLowerCase() : id)}]</span>` : `<span class="f">${esc(v)}</span>`;
+  };
+
+  const svc = f.service ? `
+    <div class="cos">
+      <h3>Certificate of service</h3>
+      <p>I certify that on ${F("svcDate")}, I served a copy of this document on ${F("svcName")} at ${F("svcAddress")} by ${F("svcMethod")}.</p>
+      <p>/s/ ${F("signature")}</p>
+    </div>` : "";
+  const att = f.attachments.length ? `<p class="parties"><em>Attachments:</em> ${f.attachments.map(x => files["att_" + x.key] ? `<span class="f">${esc(x.label)} (${esc(files["att_" + x.key])})</span>` : `<span class="miss">[missing: ${esc(x.label.toLowerCase())}]</span>`).join(", ")}</p>` : "";
+
+  app.innerHTML = `
+    <div class="bar"><span style="width:100%"></span></div>
+    <div class="barlabel"><span>Summary</span><span>Done</span></div>
+    <h1>Your ${esc(f.title)}</h1>
+    <div class="status ${ready ? "ready" : "notready"}">
+      <strong>${ready ? "Everything we check for is filled in." : `${flags.length} item${flags.length > 1 ? "s" : ""} to fix before filing`}</strong>
+      ${ready ? "Read it over once more, then file it with the court yourself." : `${missing} missing, ${flags.length - missing} to double-check. Tap “Fix” to go back to that question.`}
+    </div>
+    ${flags.length ? `<ul class="flags">${flags.map(x => `
+      <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
+      <span class="flagtext">${esc(x.title)}<small>${esc(x.why)}</small></span>
+      <button class="ghost small" data-fix="${x.fix}">Fix</button></li>`).join("")}</ul>` : ""}
+
+    <div class="sheet" id="doc">
+      <div class="cap">
+        <div>STATE OF INDIANA<br>COUNTY OF ${F("county")}</div>
+        <div>IN THE ${F("court")}<br>CAUSE NO. ${F("caseNumber")}</div>
+      </div>
+      <p class="parties">${F("plaintiff")},<br>&emsp;Plaintiff,<br>v.<br>${F("defendant")},<br>&emsp;Defendant.</p>
+      <h3>${esc(f.title.toUpperCase())}</h3>
+      ${f.body(F, answers)}
+      ${att}
+      <div class="sig">
+        <p>/s/ ${F("signature")}<br>${F("name")}, self-represented<br>${F("address")}<br>${F("phone")}${answers.email ? `<br>${F("email")}` : ""}<br>Date: ${F("signDate")}</p>
+      </div>
+      ${svc}
+    </div>
+    <p class="draftnote">Highlighted text came from your answers. Red text shows what’s still missing.</p>
+
+    <div class="nav">
+      <button class="ghost" id="restart">Start over</button>
+      <button class="primary" id="copy">Copy form text</button>
+    </div>
+    <p class="err" id="copymsg" role="status"></p>
+    <div class="note">This tool checks that the form is complete. It can’t tell you whether your answers are the right ones for your case. For free help, visit <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
+
+  app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => goFix(b.dataset.fix));
+  document.getElementById("restart").onclick = () => { formKey = null; answers = {}; files = {}; mode = "pick"; render(); };
+  document.getElementById("copy").onclick = async () => {
+    const msg = document.getElementById("copymsg");
+    const text = document.getElementById("doc").innerText;
+    try { await navigator.clipboard.writeText(text); msg.textContent = "Copied."; }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById("doc"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      msg.textContent = "Text selected. Use your device’s Copy option.";
+    }
+  };
+}
+
+function render() { ({ pick: renderPick, step: renderStep, summary: renderSummary })[mode](); }
+render();
+</script>
+</body>
+</html>
