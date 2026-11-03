@@ -2332,7 +2332,13 @@ function setHelp(open) {
 }
 helpBtn.onclick = () => setHelp(helpPanel.hidden);
 document.getElementById("helpClose").onclick = () => setHelp(false);
-helpPanel.addEventListener("keydown", e => { if (e.key === "Escape") setHelp(false); });
+// Escape closes it from anywhere. Someone typing in a question stays where they are.
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || helpPanel.hidden) return;
+  const active = document.activeElement;
+  if (helpPanel.contains(active) || active === helpBtn || active === document.body) return setHelp(false);
+  helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false");
+});
 
 document.getElementById("clearData").onclick = () => {
   const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
