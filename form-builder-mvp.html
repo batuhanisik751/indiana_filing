@@ -1957,6 +1957,9 @@ const store = {
 // Some browsers (private windows, blocked site data) don't let the page save at all.
 const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), true);
 const savingOn = () => storageWorks && store.get(PREF_KEY) === "on"; // off unless turned on
+// With saving off, nothing is kept: a copy found when the page opens (for example one saved
+// before saving became opt-in) is deleted.
+if (!savingOn()) store.del(STORE_KEY);
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
@@ -2063,7 +2066,6 @@ function updatePrivacyNote() {
   const live = sitKey && hasAnswers();
   el.textContent = otherTab ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || (sitKey && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
-    : !savingOn() && readSaved() ? "Saving is off. Answers saved earlier are still on this device until you delete them. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
     : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
       ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
@@ -2398,8 +2400,7 @@ function renderPick(quiet = false) {
       <div class="nav"><button class="primary" id="backToWork">Go back</button></div>
     </div>` : saved ? `<div class="resume">
       <h2 class="cardtitle" tabindex="-1">Continue where you left off?</h2>
-      <span>${esc(SITUATIONS[saved.sitKey].title)}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.${
-        savingOn() ? "" : " Saving is off now, so changes you make won't be saved unless you turn saving on."}</span>
+      <span>${esc(SITUATIONS[saved.sitKey].title)}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
       <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
     </div>` : ""}
     <h1 tabindex="-1">What do you need to do?</h1>
