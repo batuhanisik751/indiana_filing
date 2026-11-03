@@ -1,6 +1,6 @@
 # indiana_filing
 
-**Indiana Court Form Helper** is a step-by-step web tool for self-represented Indiana litigants. People pick their situation and answer one question at a time. Each answer fills its spot on an official Indiana court form. At the end, a summary shows the completed form and flags anything missing or incomplete, and people fix it by changing their own answers.
+**Indiana Court Form Helper** is a step-by-step web tool for self-represented Indiana litigants. People pick what their case is about (or the form they need) and answer one question at a time. Each answer fills its spot on an official Indiana court form. At the end, a summary shows the completed form and flags anything missing or incomplete, and people fix it by changing their own answers.
 
 The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
 
@@ -14,12 +14,27 @@ Below the download, "What to do next" lists the steps for that situation and fil
 
 MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built for the Indiana Supreme Court Office of Judicial Administration.
 
-## Situations
+## Kinds of cases
 
-| Situation | Official forms it fills |
+The first screen starts with the five kinds of civil cases the tool's forms fit, in order of how many were filed in Indiana courts in 2024, according to the [2024 Indiana Judicial Service Report](https://secure.in.gov/courts/iocs/files/2024-indiana-judicial-service-report.pdf) ("Cases Filed – All Courts," page 57):
+
+| Choice | Indiana case type | Filed in 2024 |
+|---|---|---|
+| I'm being sued over a debt | Civil Collections (CC) | 140,846 |
+| I have a small claims case | Small Claims (SC) | 77,278 |
+| I got eviction papers | Eviction (EV) | 68,866 |
+| I'm being sued over an injury or damage | Civil Tort (CT) | 13,086 |
+| I'm being sued in another kind of civil case | Civil Plenary (PL) | 10,718 |
+
+Each one asks what the main paper is called (Notice of Claim or Complaint; "I have a small claims case" skips this) and, for a Notice of Claim, whether the person can make their court date. Then it explains what official sources say about that kind of paper and lets the person choose: the Appearance, the Appearance and Answer, or the continuance forms.
+
+"My situation is different," below them, opens the forms directly (the table below), "I'm not sure which one fits," and links to the official self-help pages for protection orders, divorce, paternity, expungement and estates, whose forms the tool can't fill yet.
+
+## Forms
+
+| Choice | Official forms it fills |
 |---|---|
 | I'm not sure which one fits | Matches each choice to the papers the person has, and points to free legal help, court staff and mycase.in.gov |
-| I got eviction papers | Asks what the main paper is called (Notice of Claim or Complaint) and whether the person can make their court date, explains what official sources say about that kind of case, and lets the person choose: the Appearance, the Appearance and Answer, or the continuance forms |
 | I'm being sued and need to respond to the complaint | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) and Answer (CCA-GF-0626-6008) |
 | I'm being sued and want to tell the court I'm representing myself | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) |
 | I'm starting a case and can't afford the filing fee | Appearance by Unrepresented Person (CCA-GF-0420-3012), Verified Motion for Fee Waiver (CCA-GF-0420-3006) and Order on Fee Waiver (CCA-GF-0420-3007) |

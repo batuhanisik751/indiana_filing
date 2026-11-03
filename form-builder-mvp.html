@@ -88,6 +88,11 @@ input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visib
 .pick strong { display: block; font-size: 1.1rem; }
 .pick span { color: var(--muted); font-size: .95rem; }
 .pick:hover { border-color: var(--accent); }
+.pick.more { border-style: dashed; }
+.pick .chev { display: inline-block; margin-left: .3rem; }
+.pick.more[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.morebox { margin: 0 0 1rem; }
+.morebox h2.sub:first-child { margin-top: .75rem; }
 
 .err { color: var(--warn); font-weight: 700; margin: .75rem 0 0; min-height: 1.4rem; }
 .nav { display: flex; justify-content: space-between; gap: .75rem; margin-top: 1.75rem; }
@@ -724,11 +729,6 @@ const SIGN_HELP = {
   feewaiver: "This date is printed next to the signature line. If you file on paper, the official instructions say to sign after you print the form.",
 };
 const SITUATIONS = {
-  eviction: {
-    pick: "I got eviction papers",
-    blurb: "Answer one or two questions about your papers, and we'll show which official forms fit.",
-    triage: true,
-  },
   respond: {
     pick: "I'm being sued and need to respond to the complaint",
     blurb: "Fills the official Appearance and Answer forms. Indiana Legal Help says Answers are not usually filed in small claims court.",
@@ -1749,8 +1749,8 @@ function nextSteps(key, a) {
   // What missing a court date can mean, in the Small Claims Manual's own terms.
   const marionNote = a.county === "Marion" ? ` ${SCM_NOT_MARION}` : "";
   // A small claims case is known from the case type letters (SC) or a Notice of Claim
-  // in the eviction questions; otherwise the small claims facts say "if".
-  const smallClaims = caseLetters(a) === "SC" || (fromTriage && triage.paper === "notice");
+  // in the sorting questions; otherwise the small claims facts say "if".
+  const smallClaims = caseLetters(a) === "SC" || (fromTriage && paperOf(triage) === "notice");
   const ifSC = smallClaims ? "In small claims court" : "If your case is in small claims court";
   // Missing a hearing, in any court, in Indiana Legal Help's own words.
   const missFact = "Indiana Legal Help's Eviction FAQ says that if you don't show up to your hearing, the court can rule against you without hearing your side of the story (a default judgment).";
@@ -1785,17 +1785,39 @@ function nextStepsHtml(key, a) {
 }
 
 /* =====================================================================
-   EVICTION: SORTING QUESTIONS
-   People who say "I got eviction papers" answer factual questions about
-   their papers (not "what should I do?"). The tool then shows which
+   KINDS OF CASES AND SORTING QUESTIONS
+   The first screen starts with the five kinds of civil cases these forms
+   fit, in order of how many were filed in Indiana in 2024 (Indiana
+   Judicial Service Report). The person then answers factual questions
+   about their papers (not "what should I do?"). The tool shows which
    official forms fit and why, and the person chooses where to go.
    Every statement names its official source.
    ===================================================================== */
+const CASE_KINDS = {
+  debt: { pick: "I'm being sued over a debt", blurb: "Someone says you owe them money, like for a bill or a loan.",
+    notice: "Small claims debt case: what fits", complaint: "Debt complaint: what fits" },
+  smallclaims: { pick: "I have a small claims case", blurb: "The main paper you got is called a \"Notice of Claim,\" whatever the case is about.",
+    notice: "Small claims case: what fits", complaint: "Complaint: what fits" },
+  eviction: { pick: "I got eviction papers", blurb: "A landlord filed a case to have you move out.",
+    notice: "Small claims eviction: what fits", complaint: "Eviction complaint: what fits" },
+  tort: { pick: "I'm being sued over an injury or damage", blurb: "Someone says you hurt them or damaged their property, for example in a car accident.",
+    notice: "Small claims case: what fits", complaint: "Injury or damage complaint: what fits" },
+  plenary: { pick: "I'm being sued in another kind of civil case", blurb: "For example, over a contract.",
+    notice: "Small claims case: what fits", complaint: "Civil complaint: what fits" },
+};
+// The kind of case chosen on the first screen (copies saved before there was a choice were eviction).
+const kindOf = t => Object.hasOwn(CASE_KINDS, t?.kind) ? CASE_KINDS[t.kind] : CASE_KINDS.eviction;
+// "I have a small claims case" already says the paper is a Notice of Claim.
+const paperOf = t => t.kind === "smallclaims" ? "notice" : t.paper;
+// Has the person answered a sorting question yet? (Choosing the kind of case isn't an answer.)
+const triageAnswered = t => TRIAGE_STEPS.some(s => !empty(t?.[s.id]));
+const cleanTriage = o => { const t = strings(o); if (!Object.hasOwn(CASE_KINDS, t.kind)) delete t.kind; return t; };
+
 const TRIAGE_STEPS = [
-  { id: "paper", label: "Main paper you got", q: "What is the main paper you got called?",
+  { id: "paper", label: "Main paper you got", q: "What is the main paper you got called?", showIf: t => t.kind !== "smallclaims",
     help: "Look at the title near the top of the first page.",
     options: [["notice", "Notice of Claim"], ["complaint", "Complaint (it may come with a Summons)"], ["unsure", "Something else, or I'm not sure"]] },
-  { id: "canGo", label: "Can you go to court on that date", showIf: t => t.paper === "notice",
+  { id: "canGo", label: "Can you go to court on that date", showIf: t => paperOf(t) === "notice",
     q: "Can you go to court at the date and time on your Notice of Claim?",
     help: "The date and time are printed on the Notice of Claim.",
     options: [["yes", "Yes"], ["no", "No, I need to ask for a new date"], ["unsure", "I'm not sure"]] },
@@ -1810,8 +1832,8 @@ const SMALL_CLAIMS_FACTS = [
 ];
 
 function triageResult(t) {
-  if (t.paper === "notice") return {
-    title: "Small claims eviction: what fits",
+  if (paperOf(t) === "notice") return {
+    title: kindOf(t).notice,
     facts: t.canGo === "unsure" ? [...SMALL_CLAIMS_FACTS,
       "Not sure about your court date? It is printed on your Notice of Claim. You can also look up your case at mycase.in.gov, and Indiana's court staff page says staff can give you information from your case file, including when your next court hearing is."]
       : SMALL_CLAIMS_FACTS,
@@ -1824,7 +1846,7 @@ function triageResult(t) {
          ["continuance", "I can't make my court date after all", "Fills the official Appearance and Verified Motion for Continuance."]],
   };
   if (t.paper === "complaint") return {
-    title: "Eviction complaint: what fits",
+    title: kindOf(t).complaint,
     facts: [
       "Indiana Legal Help's Answer instructions define a Complaint as the official legal document filed by the plaintiff to start a civil lawsuit against you.",
       "Indiana Legal Help says its Answer form is for people being sued in superior or circuit court, that Answers are not usually filed in small claims court or family court, and that the court might decide the case without you if you don't file an Answer when you're required to.",
@@ -2012,8 +2034,8 @@ function readSaved() {
     const age = d ? Date.now() - d.savedAt : NaN;
     const fresh = d && d.v === 1 && Number.isFinite(d.savedAt) && age > -864e5 && age <= MAX_AGE_DAYS * 864e5;
     const usable = fresh && (d.triageOnly
-      ? Object.values(strings(d.triage)).some(v => !empty(v)) // only the eviction sorting answers so far
-      : Object.hasOwn(SITUATIONS, d.sitKey) && !SITUATIONS[d.sitKey].triage
+      ? triageAnswered(strings(d.triage)) // only the sorting answers so far
+      : Object.hasOwn(SITUATIONS, d.sitKey)
         && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.keys(d.unsure || {}).length > 0));
     if (usable) return d;
   } catch { /* unreadable */ }
@@ -2024,15 +2046,15 @@ function readSaved() {
 // answers to questions that are shown: a hidden answer (like a home address after
 // choosing the Address Confidentiality Program) is never kept on the device.
 // What a saved copy is called on the first screen and in messages.
-const savedTitle = d => d.triageOnly ? SITUATIONS.eviction.pick : SITUATIONS[d.sitKey].title;
+const savedTitle = d => d.triageOnly ? kindOf(d.triage).pick : SITUATIONS[d.sitKey].title;
 function saveProgress() {
   if (!savingOn()) return;
   if (!sitKey) {
-    // Only the eviction sorting answers so far: keep them too, so a refresh doesn't lose them.
+    // Only the sorting answers so far: keep them too, so a refresh doesn't lose them.
     // A copy saved for a form is never replaced by these.
     let prev = null;
     try { prev = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
-    const picked = Object.values(triage).some(v => !empty(v));
+    const picked = triageAnswered(triage);
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
       if (saveOk) savedHere = true;
@@ -2047,8 +2069,8 @@ function saveProgress() {
     return;
   }
   const visIds = new Set(visible().map(s => s.id));
-  // From the first screen, "Which one fits?" or the eviction questions, the copy reopens at the
-  // question (or the summary, when the person was changing the eviction answers from it).
+  // From the first screen, "Which one fits?" or the sorting questions, the copy reopens at the
+  // question (or the summary, when the person was changing the sorting answers from it).
   const editingTriage = triageFromSummary && mode !== "step" && mode !== "summary";
   const fromSummary = mode === "summary" || editingTriage;
   const data = { v: 1, sitKey, answers: visibleAnswers(), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => visIds.has(k))),
@@ -2072,7 +2094,7 @@ function clearFormEverywhere(form) { clearSaved(); store.set(CLEAR_KEY, JSON.str
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
   if (d.triageOnly) {
-    resetAnswers(); triage = strings(d.triage); fromNotSure = d.fromNotSure === true; mode = "triage";
+    resetAnswers(); triage = cleanTriage(d.triage); fromNotSure = d.fromNotSure === true; mode = "triage";
     if (keep) keep();
     return render();
   }
@@ -2083,7 +2105,7 @@ function restoreSaved(d, keep) {
     answers[d.draft.id] = d.draft.value;
     if (!empty(d.draft.value)) delete unsure[d.draft.id];
   }
-  triage = strings(d.triage); fromTriage = d.fromTriage === true; fromNotSure = d.fromNotSure === true;
+  triage = cleanTriage(d.triage); fromTriage = d.fromTriage === true; fromNotSure = d.fromNotSure === true;
   cur = Number.isInteger(d.cur) && d.cur > 0 ? d.cur : 0; returnToSummary = false;
   // An edit started from the summary carries on as an edit.
   const ids = new Set(steps.map(s => s.id));
@@ -2449,6 +2471,18 @@ function runChecks() {
 /* ---------- screens ---------- */
 // quiet: re-drawn because something changed elsewhere, so don't move focus or scroll.
 let firstRender = true;
+let pickMore = false; // "My situation is different" is open
+// Other kinds of cases: the official self-help pages, since this tool can't fill their forms yet.
+const OTHER_CASES = [
+  ["https://www.in.gov/courts/selfservice/protection-orders/", "Protection orders (Indiana courts)"],
+  ["https://indianalegalhelp.org/legal-topic-category/divorce-2/", "Divorce"],
+  ["https://indianalegalhelp.org/legal-topic-category/paternity/", "Paternity"],
+  ["https://indianalegalhelp.org/legal-topic-category/expungement-2/", "Expungement"],
+  ["https://indianalegalhelp.org/legal-topic-category/estate-2/", "The estate of someone who died"],
+];
+// Which element had focus, so a redraw can put it back.
+const focusKey = el => el.id ? `#${el.id}` : el.dataset.k ? `[data-k="${el.dataset.k}"]` : el.dataset.kind ? `[data-kind="${el.dataset.kind}"]`
+  : el.matches(".cardtitle") ? ".cardtitle" : el.matches("h1") ? "h1" : null;
 function renderPick(quiet = false) {
   // Answers still on this page (for example with saving off) come first; then a saved copy.
   const live = sitKey && hasAnswers();
@@ -2457,7 +2491,7 @@ function renderPick(quiet = false) {
   // A redraw because another tab saved: skip it if nothing on this screen would change, so focus stays put.
   if (quiet && app.dataset.card === card) return;
   const ae = document.activeElement;
-  const focused = quiet && app.contains(ae) ? (ae.id || ae.dataset.k || (ae.matches(".cardtitle") ? ".cardtitle" : ae.matches("h1") ? "h1" : null)) : null;
+  const focused = quiet && app.contains(ae) ? focusKey(ae) : null;
   app.dataset.card = card;
   app.innerHTML = `
     ${live ? `<div class="resume">
@@ -2469,10 +2503,18 @@ function renderPick(quiet = false) {
       <span>${esc(savedTitle(saved))}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
       <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
     </div>` : ""}
-    <h1 tabindex="-1">What do you need to do?</h1>
-    <p class="help">Pick the one that fits. We'll ask one question at a time and fill in the official court form for you.</p>
-    ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
-    <button class="pick" id="notSure"><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
+    <h1 tabindex="-1">What is your case about?</h1>
+    <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
+    ${Object.entries(CASE_KINDS).map(([k, c]) => `<button class="pick" data-kind="${k}"><strong>${esc(c.pick)}</strong><span>${esc(c.blurb)}</span></button>`).join("")}
+    <button class="pick more" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Pick a form directly, find out which one fits, or see other kinds of cases.</span></button>
+    <div class="morebox" id="moreChoices" ${pickMore ? "" : "hidden"}>
+      <h2 class="sub">Pick a form directly</h2>
+      ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
+      <button class="pick" id="notSure"><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
+      <h2 class="sub">Other kinds of cases</h2>
+      <p class="help">This tool can't fill these forms yet. Indiana Legal Help's pages have the official forms and instructions. For protection orders, the Indiana courts' page says trained advocates can help prepare and file a request.</p>
+      <ul class="facts">${OTHER_CASES.map(([href, text]) => `<li><a href="${href}" target="_blank" rel="noopener">${esc(text)}</a></li>`).join("")}</ul>
+    </div>
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>${storageWorks
@@ -2503,14 +2545,15 @@ function renderPick(quiet = false) {
     else mode = "step";
     render();
   };
+  const more = document.getElementById("moreChoices"), toggle = document.getElementById("moreToggle");
+  toggle.onclick = () => { pickMore = !pickMore; toggle.setAttribute("aria-expanded", String(pickMore)); more.hidden = !pickMore; };
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
-  app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => {
-    if (SITUATIONS[b.dataset.k].triage) { triage = {}; triagePrev = {}; triageHist = []; fromNotSure = false; mode = "triage"; return render(); }
-    startSituation(b.dataset.k, "pick");
+  app.querySelectorAll(".pick[data-kind]").forEach(b => b.onclick = () => {
+    triage = { kind: b.dataset.kind }; triagePrev = {}; triageHist = []; fromNotSure = false; mode = "triage"; render();
   });
+  app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => startSituation(b.dataset.k, "pick"));
   // On first load, leave focus at the top of the page so the header and card come first.
-  if (focused) (focused === "h1" || focused === ".cardtitle" ? app.querySelector(focused) || app.querySelector("h1")
-    : document.getElementById(focused) || app.querySelector(`[data-k="${focused}"]`) || app.querySelector(".cardtitle") || app.querySelector("h1"))?.focus({ preventScroll: true });
+  if (focused) (app.querySelector(focused) || app.querySelector(".cardtitle") || app.querySelector("h1"))?.focus({ preventScroll: true });
   else if (!quiet && !firstRender) (app.querySelector(".cardtitle") || app.querySelector("h1")).focus();
   firstRender = false;
   markNewTabLinks(app);
@@ -2518,8 +2561,10 @@ function renderPick(quiet = false) {
 
 // "I'm not sure which one fits": match the choices to what the person has
 // in hand (facts, not advice), or point them to help.
+// [kind of case or form, description]
 const NOT_SURE = [
   ["eviction", "You got eviction papers, for example a \"Notice of Claim\" from a landlord"],
+  ["smallclaims", "You got a \"Notice of Claim\" for another kind of case"],
   ["respond", "You got a \"Complaint\" (it may come with a \"Summons\") and need to respond to it"],
   ["appearance", "You're being sued and only want to give the court your contact information"],
   ["continuance", "You have a court date you can't make"],
@@ -2529,7 +2574,7 @@ function renderNotSure() {
   app.innerHTML = `
     <h1 tabindex="-1">Which one fits?</h1>
     <p class="help">Look at the papers you have. Pick the description that matches.</p>
-    ${NOT_SURE.map(([k, text]) => `<button class="pick" data-go="${k}"><strong>${esc(text)}</strong><span>${esc(SITUATIONS[k].pick)}</span></button>`).join("")}
+    ${NOT_SURE.map(([k, text]) => `<button class="pick" data-go="${k}"><strong>${esc(text)}</strong><span>${esc((CASE_KINDS[k] || SITUATIONS[k]).pick)}</span></button>`).join("")}
     <h2 class="sub">None of these, or still not sure?</h2>
     <ul class="facts">
       <li>${esc(HELP_DESK)} <a href="${LINKS.helpDesk}" target="_blank" rel="noopener">About the Indiana Legal Help Desk</a></li>
@@ -2541,7 +2586,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (SITUATIONS[k].triage) { triage = {}; triagePrev = {}; triageHist = []; fromNotSure = true; mode = "triage"; return render(); }
+    if (Object.hasOwn(CASE_KINDS, k)) { triage = { kind: k }; triagePrev = {}; triageHist = []; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
@@ -2725,7 +2770,7 @@ function renderSummary(rerender = false) {
       <span class="flagtext">${esc(x.title)}<small id="why${i}">${esc(x.why)}${x.link ? ` <a href="${x.link.href}" target="_blank" rel="noopener">${esc(x.link.text)}</a>` : ""}</small></span>
       ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}" aria-describedby="why${i}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
-    ${fromTriage && triage.paper ? `<div class="note">You started from "I got eviction papers." ${triageVisible().filter(s => triage[s.id]).map(s =>
+    ${fromTriage && triageAnswered(triage) ? `<div class="note">You started from "${esc(kindOf(triage).pick)}." ${triageVisible().filter(s => triage[s.id]).map(s =>
       `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
       <button class="link" id="editTriage">Change these answers</button></div>` : ""}
 
@@ -2762,7 +2807,7 @@ function renderSummary(rerender = false) {
     announce("Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
-  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
+  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage }; triage = triage.kind ? { kind: triage.kind } : {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
   markNewTabLinks(app);
   if (rerender) return;
