@@ -2194,7 +2194,7 @@ function restoreSaved(d, keep) {
     if (keep) keep();
     return render();
   }
-  triageHist = [];
+  triageHist = []; triageFromSummary = false; triageBeforeEdit = null;
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
