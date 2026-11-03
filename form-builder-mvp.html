@@ -188,6 +188,7 @@ const LINKS = {
   efile: "https://indianalegalhelp.org/how-to-electronically-file-forms-with-the-court/",
   courtDirectory: "https://www.in.gov/courts/files/court-directory.pdf",
   getHelp: "https://indianalegalhelp.org/get-help/",
+  feeWaiverInstructions: "https://indianalegalhelp.org/wp-content/uploads/2023/08/GeneralFeeWaiver_0420INSTRUCTIONS-4.21.23.pdf",
   helpDesk: "https://indianalegalhelp.org/when-is-the-legal-help-desk-available-and-what-issues-does-it-cover/",
   answerTopic: "https://indianalegalhelp.org/legal-topic/answer/",
 };
@@ -451,6 +452,7 @@ const fwCaseSteps = sec => [
   { id: "fwCourtType", sec, type: "choice", label: "Court type",
     q: "What kind of court will you file in?",
     help: "The official instructions say to select the court type if you know it, and leave it blank if you don't. They also say to leave the cause number blank.",
+    link: { href: LINKS.feeWaiverInstructions, text: "Fee waiver instructions" },
     options: [["CIRCUIT", "Circuit Court"], ["SUPERIOR", "Superior Court"], ["PROBATE", "Probate Court"], ["unknown", "I don't know"]] },
   { id: "otherPerson", sec, type: "text", label: "Other person in the case", optional: true, noWords: true,
     q: "Who is the other person in your case?",
@@ -619,7 +621,7 @@ function contCaptionFields(a) {
       a.courtType === "other" ? "courtTypeOther" : "courtType", courtTypeOps(ct, CONT_COURT_RULES)),
     f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
     f(FORM.caption, "In re the matter of (who started the case)", first, a.role === "me" ? "name" : "otherParty", [{ t: "text", name: "Petitioner", value: first, growUp: true }]),
-    f(FORM.caption, "v. (the other side)", second, a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second, growUp: "oneLine" }]),
+    f(FORM.caption, "v. (the other side)", second, a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second, growUp: "vLine" }]),
     f(FORM.caption, "Who started the case", a.role === "me" ? "I did" : a.role === "other" ? "The other side" : "", "role"),
   ];
 }
@@ -791,7 +793,7 @@ function captionFields(a) {
       a.courtType === "other" ? "courtTypeOther" : "courtType", courtTypeOps(ct, ANSWER_COURT_RULES)),
     f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
     f(FORM.caption, "Plaintiff", a.plaintiff, "plaintiff", [{ t: "text", name: "Plaintiff", value: a.plaintiff, growUp: true }]),
-    f(FORM.caption, "Defendant (you)", a.name, "name", [{ t: "text", name: "Defendant", value: a.name, growUp: "oneLine" }]),
+    f(FORM.caption, "Defendant (you)", a.name, "name", [{ t: "text", name: "Defendant", value: a.name, growUp: "vLine" }]),
   ];
 }
 
@@ -869,7 +871,7 @@ function signatureFields(a, key) {
   // Characters the font can't print are already flagged on your name, so not again here.
   return [{ ...f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
     efile ? (empty(a.name) ? "" : `/s/ ${a.name}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
-    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, w: s.w, value: `/s/ ${a.name}` })) : []), quietChars: true }];
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${a.name}` })) : []), quietChars: true }];
 }
 
 const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
@@ -882,9 +884,11 @@ const amountRow = (form, label, k, a, name) =>
 // one line on the rule, or two lines (the first just above it) for a long caption.
 // A name too long for its one-line caption box is written on the box's printed rule instead,
 // in one or two smaller lines (the box itself is left blank).
-const NAME_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6] }, { n: 2, sizes: [7.5, 7, 6.5, 6] }];
-// Where the printed "v." sits right above the line, a long name stays on one smaller line.
-const NAME_ONE_LINE = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5] }];
+const NAME_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [7.5, 7, 6.5, 6] }, { n: 1, sizes: [7, 6.5, 6] }];
+// Where the printed "v." sits right above the line, two lines are used only if the top
+// line stays below the "v." (op.maxTop); otherwise one smaller line.
+const NAME_V_LINE = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [7, 6.5, 6] }, { n: 1, sizes: [7, 6.5, 6, 5.5, 5] }];
+const SIGN_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [7, 6.5, 6] }, { n: 1, sizes: [7, 6.5, 6] }];
 const CAPTION_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9] }, { n: 2, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8] }];
 const CAPTION_RULES = {
   1: { page: 0, x0: 180, x1: 358, ys: [98.2], layouts: CAPTION_LAYOUTS },
@@ -899,7 +903,7 @@ function feeWaiverFields(a) {
     f(FORM.caption, "Court type", ct ? `${ct.charAt(0)}${ct.slice(1).toLowerCase()} Court` : (a.fwCourtType === "unknown" ? "Left blank" : ""), "fwCourtType",
       [{ t: "drop", name: "CourtType", option: ct || "___________________" }]),
     f(FORM.caption, "Cause No.", "Left blank (the instructions say LEAVE BLANK)", null),
-    f(FORM.caption, "Petitioner (you)", a.name, "name", [{ t: "text", name: "Name", value: a.name, growUp: true }, { t: "text", name: "Petitioner", value: a.name, growUp: true }]),
+    f(FORM.caption, "Petitioner (you)", a.name, "name", [{ t: "text", name: "Name", value: a.name, growUp: "all" }, { t: "text", name: "Petitioner", value: a.name, growUp: true }]),
     f(FORM.caption, "Respondent", empty(a.otherPerson) ? "Left blank" : a.otherPerson, "otherPerson", [{ t: "text", name: "Respondent", value: a.otherPerson, growUp: true }]),
     f(FORM.fwAppearance, "1. My name is", a.name, "name"),
     f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : myAddress(a),
@@ -1027,25 +1031,10 @@ function makeSafe(font, report) {
 }
 
 // Break text into lines no wider than maxWidth, keeping the user's own line breaks.
-function wrap(text, font, size, maxWidth) {
-  const out = [];
-  for (const para of String(text).split(/\r?\n/)) {
-    let line = "";
-    for (const word of para.split(/\s+/).filter(Boolean)) {
-      const tryLine = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(tryLine, size) <= maxWidth) { line = tryLine; continue; }
-      if (line) out.push(line);
-      // A single word longer than the line is broken by characters.
-      let piece = "";
-      for (const ch of word) {
-        if (piece && font.widthOfTextAtSize(piece + ch, size) > maxWidth) { out.push(piece); piece = ""; }
-        piece += ch;
-      }
-      line = piece;
-    }
-    out.push(line);
-  }
-  return out;
+// The same line breaking as wrapLines, for a box maxWidth wide.
+// spacesOnly: break only at spaces, as pdf-lib does for a field it wraps itself.
+function wrap(text, font, size, maxWidth, spacesOnly = false) {
+  return wrapLines(text, font, size, { x0: 0, x1: maxWidth + 4, ys: [0], spacesOnly });
 }
 
 const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
@@ -1064,13 +1053,21 @@ function wrapLines(text, font, size, op) {
   for (const para of src.split(/\r?\n/)) {
     const base = offset;
     let line = "", lineEnd = base;
+    // Words, with hyphenated words split after each hyphen ("Smith-", "Jones"), so a
+    // long hyphenated name can break where it already has a hyphen.
+    const tokens = [];
     const wordRe = /\S+/g; let m;
     while ((m = wordRe.exec(para)) !== null) {
-      const word = m[0], start = base + m.index;
-      const tryLine = line ? `${line} ${word}` : word;
+      let off = 0;
+      for (const part of op.spacesOnly ? [m[0]] : m[0].match(/[^-]*-+|[^-]+/g)) {
+        tokens.push({ text: part, start: base + m.index + off, joined: off > 0 }); off += part.length;
+      }
+    }
+    for (const { text: word, start, joined } of tokens) {
+      const tryLine = line ? (joined ? line + word : `${line} ${word}`) : word;
       if (font.widthOfTextAtSize(tryLine, size) <= widthAt(lines.length)) { line = tryLine; lineEnd = start + word.length; continue; }
       if (line) { lines.push(line); ends.push(lineEnd); }
-      // A single word longer than the line is broken by characters.
+      // A single piece longer than the line is broken by characters.
       let piece = "", used = 0;
       for (const ch of word) {
         if (piece && font.widthOfTextAtSize(piece + ch, size) > widthAt(lines.length)) { lines.push(piece); ends.push(start + used); piece = ""; }
@@ -1097,7 +1094,10 @@ function fitLines(text, font, op) {
     for (const { n, sizes } of op.layouts) {
       for (const size of sizes) {
         const lines = wrapLines(one, font, size, op);
-        if (lines.length <= n) return { size, lines, overflow: false, ys: place(lines, size) };
+        if (lines.length > n) continue;
+        const ys = place(lines, size);
+        if (op.maxTop && lines.length > 1 && ys[0] + 2.5 + size * 0.95 > op.maxTop) continue;
+        return { size, lines, overflow: false, ys };
       }
     }
     const last = op.layouts[op.layouts.length - 1], size = last.sizes[last.sizes.length - 1];
@@ -1121,10 +1121,15 @@ function fitLines(text, font, op) {
 // The room inside a form box: pdf-lib's border and padding, less 2% because PDF viewers
 // like Chrome's draw Helvetica slightly wider than its standard measurements.
 const innerWidth = rect => (Math.abs(rect.width) - 4) * 0.98;
-function fitField(text, font, rect, multiline, maxSize) {
+// ownBreaks: the app writes this field's line breaks itself (a field with one box).
+// Otherwise pdf-lib wraps it, only at spaces, so a word wider than the box doesn't fit.
+function fitField(text, font, rect, multiline, maxSize, ownBreaks = true) {
   const width = innerWidth(rect), height = Math.abs(rect.height) - 2;
   const sizes = [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6];
-  const wrapped = size => wrap(text, font, size, width);
+  const wrapped = size => {
+    const lines = wrap(text, font, size, width, !ownBreaks);
+    return lines.some(l => font.widthOfTextAtSize(l, size) > width) ? { length: Infinity } : lines;
+  };
   const fitsLines = size => wrapped(size).length * size * 1.15 <= height;
   if (!multiline) {
     for (const size of sizes.filter(s => s >= 7.5)) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
@@ -1175,28 +1180,35 @@ async function buildPdf(key, a) {
         if (!value) continue;
         // A field can appear in several boxes (for example the caption and "My name is"),
         // so size the text for each box on its own.
-        const fits = tf.acroField.getWidgets().map(w => {
-          const fit = fitField(value, font, w.getRectangle(), tf.isMultiline(), op.maxSize || off.maxSize);
+        const boxes = tf.acroField.getWidgets();
+        const fits = boxes.map(w => {
+          const fit = fitField(value, font, w.getRectangle(), tf.isMultiline(), op.maxSize || off.maxSize, boxes.length === 1);
           w.setDefaultAppearance(`/Helv ${fit.size} Tf 0 g`);
-          if (fit.overflow && op.growUp) {
-            const pg = widgetPage(w), r = w.getRectangle();
+          // A name that doesn't fit its caption box, or only in small text, is drawn on the
+          // box's rule instead. (Only caption boxes: narrow ones at the left margin.)
+          const r = w.getRectangle();
+          if ((fit.overflow || fit.size < 7.5) && op.growUp && (op.growUp === "all" || (r.x < 80 && r.width < 190))) {
+            const pg = widgetPage(w);
             if (pg >= 0) {
               blankWidgets.push(w);
-              draws.push({ op: { t: "lines", page: pg, x0: r.x, x1: r.x + r.width, ys: [r.y + 0.5], layouts: op.growUp === "oneLine" ? NAME_ONE_LINE : NAME_LAYOUTS }, item, value });
-              return { size: fit.size, overflow: false };
+              const vLine = op.growUp === "vLine";
+              draws.push({ op: { t: "lines", page: pg, x0: r.x, x1: r.x + r.width, ys: [r.y + 0.5], layouts: vLine ? NAME_V_LINE : NAME_LAYOUTS,
+                maxTop: vLine ? r.y + r.height + 1.4 : null }, item, value });
+              return { drawn: true };
             }
           }
           return fit;
         });
-        if (fits.some(x => x.wrap)) tf.enableMultiline();
-        tf.setFontSize(Math.min(...fits.map(x => x.size)));
+        const real = fits.filter(x => !x.drawn); // boxes still filled by the form itself
+        if (real.some(x => x.wrap)) tf.enableMultiline();
+        tf.setFontSize(real.length ? Math.min(...real.map(x => x.size)) : 11);
         // pdf-lib's own line breaking leaves out the spaces when it measures, so its lines
         // can run past the box edge. A field with one box gets our line breaks instead.
         const widgets = tf.acroField.getWidgets();
-        if (widgets.length === 1 && tf.isMultiline())
+        if (widgets.length === 1 && tf.isMultiline() && !fits[0].drawn)
           tf.setText(wrap(value, font, fits[0].size, innerWidth(widgets[0].getRectangle())).join("\n"));
-        if (fits.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
-        else if (Math.min(...fits.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...fits.map(x => x.size)) });
+        if (real.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
+        else if (real.length && Math.min(...real.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...real.map(x => x.size)) });
       } else if (op.t === "radio") {
         form.getRadioGroup(op.name).select(op.option);
       } else if (op.t === "check") {
@@ -1350,7 +1362,8 @@ function keepFocus(redraw) {
   if (el && el !== document.body && app.contains(el)) {
     const attr = el.id ? "id" : ["data-fix", "data-dl", "href"].find(n => el.hasAttribute(n));
     if (attr) {
-      const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `${attr === "href" ? "a" : ""}[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
+      const box = attr === "data-fix" ? (el.closest("ul.flags") ? "ul.flags " : "dl.vals ") : "";
+      const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `${box}${attr === "href" ? "a" : ""}[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
       const i = [...app.querySelectorAll(sel)].indexOf(el);
       find = () => app.querySelectorAll(sel)[i];
     } else if (el.matches("h1, .status")) find = () => app.querySelector(el.matches("h1") ? "h1" : ".status");
@@ -2006,10 +2019,11 @@ function updatePrivacyNote() {
   const el = document.getElementById("privacy");
   if (!el) return;
   const working = sitKey && (mode === "step" || mode === "summary");
+  const live = sitKey && hasAnswers();
   el.textContent = otherTab ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || (working && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
-    : working && !savedHere ? "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent."
+    : (working || live) && !savedHere ? "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent."
     : working ? "Saved only on this device. Nothing is sent."
     : "Answers save only on this device. Nothing is sent.";
 }
@@ -2027,8 +2041,11 @@ window.addEventListener("storage", e => {
     updatePrivacyNote(); if (mode === "pick") renderPick(true); return;
   }
   if (e.key !== STORE_KEY) return;
-  if (mode === "pick") { renderPick(true); return; } // keep the "Continue" card up to date
-  if (e.newValue === null && sitKey && hasAnswers()) savedHere = false; // deleted in another tab
+  if (e.newValue === null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
+    if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
+    savedHere = false; // deleted in another tab
+  } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
+  if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
   updatePrivacyNote();
   if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
@@ -2036,7 +2053,7 @@ window.addEventListener("storage", e => {
 });
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
-  if ((!savingOn() || !saveOk || !savedHere) && sitKey && hasAnswers() && (mode === "step" || mode === "summary")) { e.preventDefault(); e.returnValue = ""; }
+  if ((!savingOn() || !saveOk || !savedHere) && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
 function setSaving(on) {
@@ -2114,9 +2131,13 @@ function unsureAdvice(step) {
   if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
   if (PARAGRAPH_IDS.test(id)) return "Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't tell you which paragraphs go where; you can get free legal help.";
   if (sitKey === "feewaiver" && id === "county") return "Indiana's court directory lists the courts and clerk's offices in each county. It doesn't say which county your case belongs in; you can get free legal help.";
-  if (id === "fwCourtType") return "The official instructions say to leave the court type blank if you don't know it, so you can choose \"I don't know.\"";
-  if (id === "fwCaseType") return "The official instructions say you can leave the case type blank.";
-  if (id === "otherPerson") return "This is the person you're filing against. If you're not sure who that is, you can get free legal help.";
+  if (id === "fwCourtType") return "The official instructions say to select the court type if you know it and leave it blank if not, so you can choose \"I don't know.\"";
+  if (id === "fwCaseType") return "The official instructions say to insert the case type or leave it blank.";
+  if (id === "otherPerson") return "The official instructions say that if there is no other person involved in your case (like a name change), leave this blank. If you're not sure who it is, you can get free legal help.";
+  if (sitKey === "feewaiver" && id === "localRuleText") return "The official instructions say to put information here if it's required by a local rule. If you don't know of one, you can leave it blank or ask the clerk's office.";
+  if (id === "localRuleText") return "Ask the clerk's office what your county's local rule requires. If you're not aware of one, go back and choose \"I'm not aware of any.\"";
+  if (/^svc\dDate$/.test(id)) return "This is the date you send the copy, so there's nothing to look up.";
+  if (id === "signDate") return "This is the date you sign the form, so there's nothing to look up.";
   if (/^rel\d/.test(id) || id === "relatedNumbers") return "Check the papers from that case, look it up at mycase.in.gov, or ask the clerk's office.";
   if (/^localRule/.test(id)) return "The form's first choice is for people who aren't aware of any local rule that requires more information. You can also ask the clerk's office.";
   if (/^svcMore/.test(id)) return "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case.";
@@ -2129,6 +2150,7 @@ function unsureAdvice(step) {
 // The source an "I'm not sure" note names, linked.
 function unsureLink(step) {
   const id = step.id;
+  if (sitKey === "feewaiver" && /^(fwCourtType|fwCaseType|otherPerson|localRuleText)$/.test(id)) return { href: LINKS.feeWaiverInstructions, text: "Fee waiver instructions" };
   if (sitKey === "feewaiver" && id === "county") return { href: LINKS.courtDirectory, text: "Indiana court directory" };
   if (PARAGRAPH_IDS.test(id) || /^svcMore/.test(id)) return { href: sitKey === "continuance" ? LINKS.continuanceInstructions : LINKS.answerInstructions, text: "Indiana Legal Help's instructions" };
   if (PROGRAM_IDS.test(id)) return { href: LINKS.acp, text: "About the Address Confidentiality Program" };
@@ -2139,15 +2161,25 @@ function unsureLink(step) {
 // "Until 11/20", "Nov 24", "the 3rd of December", "until March": dates, which the
 // continuance form says not to write. "1/2 month" and "maybe 3 weeks" are not.
 const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const UNIT = "(?:(?:more|additional|extra|full|business|working|calendar|court)\\s+)?(?:weeks?|wks?|days?|months?|mos?|hours?|hrs?)\\b";
 const DATE_RES = [
-  /\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b(?!\s*(?:months?|weeks?|days?))/i,
-  new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\b`, "i"),
+  // 11/20, 11-20-2026, 12.15 (but not "1/2 month" or "2.5 weeks")
+  new RegExp(`\\b\\d{1,2}[\\/.-]\\d{1,2}(?:[\\/.-]\\d{2,4})?\\b(?!\\s*${UNIT})`, "i"),
+  // Nov 24, December 3rd, Jan 2027
+  new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,4}(?:st|nd|rd|th)?\\b`, "i"),
+  // the 3rd of December, 24 Nov
   new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?${MONTH}\\b`, "i"),
-  new RegExp(`\\b(?:until|on|by|after|before|in)\\s+(?:early\\s+|mid-?\\s*|late\\s+)?${MONTH}\\b`, "i"),
-  /\b(?:the|on|by|until|before|after)\s+\d{1,2}(?:st|nd|rd|th)?\b(?!\s*(?:or\b|-|to\b|weeks?|days?|months?|hearings?|available|times?))/i,
+  // until March, early January, end of December, the second week of January
+  new RegExp(`\\b(?:until|till|til|through|thru|on|by|after|before|in|into|early|mid|late|end\\s+of|beginning\\s+of|start\\s+of|week\\s+of)[\\s-]+(?:the\\s+)?(?:early\\s+|mid-?\\s*|late\\s+)?${MONTH}\\b`, "i"),
+  // a month name on its own
+  new RegExp(`^\\s*${MONTH}\\.?\\s*$`, "i"),
+  // the 24th, until the 15th, "until the 30" (a day of the month)
+  new RegExp(`\\b(?:the|on|by|until|till|before|after)\\s+(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)\\b(?!\\s*(?:or\\b|-|to\\b|${UNIT}|hearings?|available|times?))`, "i"),
+  /\b(?:on|by|until|till|before|after)\s+the\s+\d{1,2}\s*(?:$|[.,;)])/i,
   /^\s*(?:the\s+)?\d{1,2}(?:st|nd|rd|th)\s*\.?\s*$/i,
-  /\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\b/i,
-  /\b(?:christmas|thanksgiving|new year'?s|easter|memorial day|labor day|independence day|juneteenth)\b/i,
+  // next Friday, until Monday (not "I work Monday through Friday")
+  /\b(?:next|this|on|until|till|by|after|before|coming)\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day\b/i,
+  /\b(?:tomorrow|christmas|xmas|thanksgiving|new year'?s?(?:\s+day)?|easter|memorial day|labor day|independence day|juneteenth|halloween|valentine'?s(?:\s+day)?|martin luther king|mlk day|presidents'? day|veterans'? day|columbus day)\b/i,
 ];
 const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 
@@ -2238,7 +2270,8 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.label, why: `You marked this "I'm not sure." ${unsureAdvice(s)} Then come back and answer it.`, fix: s.id, unsure: true, link: unsureLink(s) });
+    flags.push({ level: s.optional ? "check" : "missing", title: s.label, fix: s.id, unsure: true, link: unsureLink(s),
+      why: `You marked this "I'm not sure." ${unsureAdvice(s)} ${s.optional ? "To leave it blank, choose Fix, then Save and review." : "Then come back and answer it."}` });
   });
 
   // Everything else that is required but blank.
@@ -2313,7 +2346,7 @@ function renderPick(quiet = false) {
   });
   // On first load, leave focus at the top of the page so the header and card come first.
   if (focused) (focused === "h1" || focused === ".cardtitle" ? app.querySelector(focused) || app.querySelector("h1")
-    : document.getElementById(focused) || app.querySelector(`[data-k="${focused}"]`))?.focus({ preventScroll: true });
+    : document.getElementById(focused) || app.querySelector(`[data-k="${focused}"]`) || app.querySelector(".cardtitle") || app.querySelector("h1"))?.focus({ preventScroll: true });
   else if (!quiet && !firstRender) (app.querySelector(".cardtitle") || app.querySelector("h1")).focus();
   firstRender = false;
   markNewTabLinks(app);
@@ -2464,7 +2497,8 @@ function save(step) {
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   readInput(step);
-  if (!empty(answers[step.id])) delete unsure[step.id];
+  // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
+  if (!empty(answers[step.id]) || step.optional) delete unsure[step.id];
   const v = answers[step.id];
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v)) {
     document.getElementById("err").textContent = step.type === "money"
@@ -2570,7 +2604,7 @@ function renderSummary(rerender = false) {
   // After an edit, bring the user back where they were: the flag they fixed
   // (or the review count, if that flag is gone), or the row they changed.
   const back = lastEdited && (fixFrom === "flags"
-    ? app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
+    ? app.querySelectorAll(`ul.flags [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
     : app.querySelectorAll(`dl.vals [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
   lastEdited = null; fixFrom = null;
