@@ -1916,12 +1916,15 @@ function triageResult(t) {
 }
 
 let triage = {}, fromTriage = false;
+let notSureBeforeEdit = false;  // what "Which one fits?" was set to when the sorting answers were set aside
 let triagePrev = {};            // earlier sorting answers, pre-selected when changing them
 let triageTouched = false;      // this page has had sorting answers (answered here, or reopened from a saved copy)
 let triageFromSummary = false;  // the person is changing their sorting answers from the summary
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
 // from: the screen the person chose the form on ("pick", "triage" or "notsure").
+// Keep a form's sorting answers aside while other sorting questions are on screen. Go back restores them.
+function setSortingAside() { if (!triageBeforeEdit) { triageBeforeEdit = { ...triage }; notSureBeforeEdit = fromNotSure; } }
 // A change from the summary is over. The kind of case question is hidden again, so its empty starting
 // point can't stay in the history, or Back would land on a case with no kind.
 function finishTriageChange() {
@@ -2698,7 +2701,7 @@ function renderPick(quiet = false) {
     };
   }
   if (live) document.getElementById("backToWork").onclick = () => {
-    if (triageBeforeEdit) { triage = triageBeforeEdit; triageBeforeEdit = null; triageHist = []; }
+    if (triageBeforeEdit) { triage = triageBeforeEdit; fromNotSure = notSureBeforeEdit; triageBeforeEdit = null; triageHist = []; }
     mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false;
     render();
   };
@@ -2706,7 +2709,7 @@ function renderPick(quiet = false) {
   toggle.onclick = () => { pickMore = !pickMore; toggle.setAttribute("aria-expanded", String(pickMore)); more.hidden = !pickMore; };
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-kind]").forEach(b => b.onclick = () => {
-    if (sitKey && hasAnswers() && !triageBeforeEdit) triageBeforeEdit = { ...triage }; // the form's stay until a form is chosen
+    if (sitKey && hasAnswers()) setSortingAside(); // the form's stay until a form is chosen
     triage = { kind: b.dataset.kind }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = false; mode = "triage"; render();
   });
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => startSituation(b.dataset.k, "pick"));
@@ -2744,7 +2747,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (Object.hasOwn(CASE_KINDS, k)) { if (sitKey && hasAnswers() && !triageBeforeEdit) triageBeforeEdit = { ...triage }; triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
+    if (Object.hasOwn(CASE_KINDS, k)) { if (sitKey && hasAnswers()) setSortingAside(); triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
