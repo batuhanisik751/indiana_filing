@@ -2614,7 +2614,7 @@ const OTHER_CASES = [
   ["https://indianalegalhelp.org/legal-topic-category/estate-2/", "The estate of someone who died (Small Estate form only)"],
 ];
 // Which element had focus, so a redraw can put it back.
-const focusKey = el => el.id ? `#${el.id}` : el.dataset.k ? `[data-k="${el.dataset.k}"]` : el.dataset.kind ? `[data-kind="${el.dataset.kind}"]`
+const focusKey = el => el.matches("a[href]") ? `a[href="${el.getAttribute("href")}"]` : el.id ? `#${el.id}` : el.dataset.k ? `[data-k="${el.dataset.k}"]` : el.dataset.kind ? `[data-kind="${el.dataset.kind}"]`
   : el.matches(".cardtitle") ? ".cardtitle" : el.matches("h1") ? "h1" : null;
 function renderPick(quiet = false) {
   // Answers still on this page (for example with saving off) come first; then a saved copy.
