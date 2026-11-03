@@ -17,7 +17,7 @@ MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built
 | I'm being sued and need to respond to the complaint | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) and Answer (CCA-GF-0626-6008) |
 | I'm being sued and want to tell the court I'm representing myself | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) |
 | I'm starting a case and can't afford the filing fee | Appearance by Unrepresented Person (CCA-GF-0420-3012), Verified Motion for Fee Waiver (CCA-GF-0420-3006) and Order on Fee Waiver (CCA-GF-0420-3007) |
-| I need to move my hearing date | Points to Indiana Legal Help's official continuance form (a guided version is planned) |
+| I need to ask the court to move my hearing date | Appearance by Self-Represented Person in Civil Case (CCA-GF-1219-3000), Verified Motion for Continuance (CCA-GF-1219-3002) and the Order on Verified Motion for Continuance for the judge |
 
 All forms are approved by the Coalition for Court Access and published on [IndianaLegalHelp.org](https://indianalegalhelp.org). See [forms/README.md](forms/README.md) for sources and form numbers.
 
@@ -37,4 +37,4 @@ Nothing anyone types is saved or sent anywhere. Answers stay in the open browser
 
 ## How the PDF is made
 
-The official PDFs in `forms/` are packed into `forms/form-data.js` (run `node scripts/build-form-data.mjs` after replacing one). The app fills them with [pdf-lib](https://pdf-lib.js.org) 1.17.1 and shows the preview with [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174. Both load from cdnjs with integrity hashes, so the first PDF needs an internet connection.
+The official PDFs in `forms/` are packed into one script per packet in `forms/data/` (run `node scripts/build-form-data.mjs` after replacing one), and the app loads only the packet the person needs. The app fills them with [pdf-lib](https://pdf-lib.js.org) 1.17.1 and shows the preview with [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174. Both load from cdnjs with integrity hashes, so the first PDF needs an internet connection.

@@ -146,6 +146,7 @@ const COUNTIES = ["Adams","Allen","Bartholomew","Benton","Blackford","Boone","Br
 const LINKS = {
   answerInstructions: "https://indianalegalhelp.org/wp-content/uploads/2026/08/Answer-20260801.pdf",
   continuance: "https://indianalegalhelp.org/how-to-ask-for-a-new-court-date/",
+  continuanceInstructions: "https://indianalegalhelp.org/wp-content/uploads/2024/12/Continuance-Motion-202409.pdf",
   fileInPerson: "https://indianalegalhelp.org/how-to-file-forms-with-the-court-in-person/",
   efile: "https://indianalegalhelp.org/how-to-electronically-file-forms-with-the-court/",
   courtDirectory: "https://www.in.gov/courts/files/court-directory.pdf",
@@ -179,6 +180,18 @@ const OFFICIAL = {
     },
     signatures: [{ page: 1, x: 327, y: 557.5 }, { page: 3, x: 362, y: 262 }],
   },
+  continuancePacket: {
+    file: "continuancePacket",
+    source: "forms/continuance-packet-CCA-GF-1219-3000-3002.pdf",
+    font: "Helvetica", maxSize: 11,
+    // Pages 1-3 are instructions. 4-5 = Appearance, 6-7 = Verified Motion, 8-9 = Order.
+    docs: {
+      appearance: { name: "Appearance", number: "CCA-GF-1219-3000", pages: [3, 4] },
+      motion: { name: "Verified Motion for Continuance", number: "CCA-GF-1219-3002", pages: [5, 6] },
+      order: { name: "Order on Verified Motion for Continuance", number: null, pages: [7, 8] },
+    },
+    signatures: [{ page: 4, x: 127, y: 525 }, { page: 4, x: 113, y: 121.5 }, { page: 6, x: 183, y: 588 }, { page: 6, x: 113, y: 184.5 }],
+  },
 };
 
 // PDF tools, loaded only when the summary needs them. Pinned versions with
@@ -189,7 +202,6 @@ const LIBS = {
   pdfJs: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
     integrity: "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" },
   pdfJsWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
-  formData: { src: "forms/form-data.js" },
 };
 
 const FORM = {
@@ -202,10 +214,14 @@ const FORM = {
   fwMotion: "Verified Motion for Fee Waiver",
   fwOrder: "Order on Fee Waiver (the judge completes the rest)",
   sign: "Signatures",
+  contMotion: "Verified Motion for Continuance",
+  contOrder: "Order on Verified Motion for Continuance (the judge completes the rest)",
 };
+const formNumber = (sit, form) => (sit.formNumbers && sit.formNumbers[form]) || FORM_NUMBER[form];
 const FORM_NUMBER = {
   [FORM.appearance]: "CCA-GF-1225-6003", [FORM.answer]: "CCA-GF-0626-6008",
   [FORM.fwAppearance]: "CCA-GF-0420-3012", [FORM.fwMotion]: "CCA-GF-0420-3006", [FORM.fwOrder]: "CCA-GF-0420-3007",
+  [FORM.contMotion]: "CCA-GF-1219-3002",
 };
 
 /* ---------- small helpers ---------- */
@@ -281,14 +297,14 @@ const youSteps = sec => [
 
 const relatedHelp = "Indiana Legal Help's Answer instructions say related cases can be other cases with the same parties. In a debt case, this might be a case about the same debt, like a small claims case, a bankruptcy case, or a divorce case where the debt was assigned to one of the parties. In an eviction case, it might be a separate case about damages owed.";
 
-const contactSteps = sec => [
+const contactSteps = (sec, relHelp = relatedHelp) => [
   { id: "receiveAt", sec, type: "choice", label: "Where you want court papers",
     q: "Where do you want to receive court papers and case information?",
     help: "Pick one. The form says the Attorney General confidential address is only an option if you have used it in another court case.",
     options: [["Choice1", "At my street address"], ["Choice2", "At my email address"], ["Choice3", "At the Attorney General confidential address"]] },
   { id: "related", sec, type: "choice", label: "Related cases",
     q: "Are there other court cases related to this one?",
-    help: relatedHelp,
+    help: relHelp,
     options: [["yes", "Yes"], ["no", "No"]] },
   { id: "relatedNumbers", sec, type: "text", label: "Related case numbers", upper: true,
     showIf: a => a.related === "yes",
@@ -331,16 +347,14 @@ const recipientCount = a => { let n = 1; while (n < MAX_RECIPIENTS && a[`svcMore
 // The official names for how a copy is sent, from the "Certificate of Service"
 // definition in Indiana Legal Help's form instructions.
 const SERVICE_METHODS = [["First Class U.S. mail", "First Class U.S. mail"], ["Hand Delivery", "Hand Delivery"], ["Indiana E-Filing System", "Indiana's E-Filing System"]];
-const serviceSteps = sec => {
+const serviceSteps = (sec, firstHelp = "The form's Certificate of Service says you sent a copy to the attorney for the plaintiff, or to the plaintiff if they don't have an attorney. Their name and address are usually on the papers you received.") => {
   const out = [];
   for (let i = 1; i <= MAX_RECIPIENTS; i++) {
     const show = i === 1 ? undefined : a => recipientCount(a) >= i;
     out.push(
       { id: `svc${i}Name`, sec, type: "text", label: `Copy sent to (person ${i})`, service: true, showIf: show,
         q: i === 1 ? "Who will you send a copy to?" : "Who else will you send a copy to?",
-        help: i === 1
-          ? "The form's Certificate of Service says you sent a copy to the attorney for the plaintiff, or to the plaintiff if they don't have an attorney. Their name and address are usually on the papers you received."
-          : "Use their name exactly as it appears on your papers." },
+        help: i === 1 ? firstHelp : "Use their name exactly as it appears on your papers." },
       { id: `svc${i}Address`, sec, type: "textarea", short: true, label: `Their address (person ${i})`, service: true, showIf: show,
         q: "What is their address?",
         help: "The form has an Address column for each person you send a copy to. The address is usually on the papers you received." },
@@ -482,6 +496,133 @@ const fwExpenseSteps = sec => [
     q: "What are the other expenses?", help: "The form says \"Other (please describe).\"" },
 ];
 
+// Continuance packet (to ask the court to move a hearing).
+const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties. For example, in an eviction case there might be a separate case about damages owed.";
+const contCaseSteps = sec => [
+  ...caseSteps(sec).filter(s => s.id !== "plaintiff"),
+  { id: "role", sec, type: "choice", label: "Who started the case",
+    q: "Who started this case?",
+    help: "The top of the form lists the two sides: the person who started the case first, then the other side.",
+    options: [["other", "The other side started it"], ["me", "I started it"]] },
+  { id: "otherParty", sec, type: "text", label: "Other party's name",
+    q: "What is the other party's name?",
+    help: "The form asks for the first and last name of the other party involved in this case. If it's a company, copy its name exactly as it appears on your papers." },
+  { id: "otherPartyAddress", sec, type: "textarea", short: true, label: "Other party's address", optional: true,
+    q: "What is the other party's mailing address?",
+    help: "The Order form has a distribution list with both parties' names and addresses. Leave this blank if you don't know it." },
+];
+
+const contRequestSteps = sec => [
+  { id: "hearingDate", sec, type: "date", label: "Hearing date",
+    q: "When is your court hearing scheduled?",
+    help: "The form asks for the date the court has scheduled your hearing for, including the month, day and year." },
+  { id: "reason", sec, type: "textarea", label: "Why you need to change the date",
+    q: "Why do you need to change the date of the hearing?",
+    help: "The form says: \"Explain why you need more time or are not able to attend your hearing at the scheduled date and time.\" Indiana Legal Help's instructions say the court will decide whether to postpone the hearing. This tool can't tell you what to write." },
+  { id: "timeNeeded", sec, type: "text", label: "How much more time you're asking for",
+    q: "How much more time are you asking for?",
+    help: "The form says to write the number of days or weeks you need before your new court date, and not to write a specific date." },
+  { id: "spokeDate", sec, type: "date", label: "Date you spoke to the other party", optional: true,
+    q: "On what date did you speak to the other party about filing this continuance?",
+    help: "The form asks for the date you spoke to the other party about changing the court date." },
+  { id: "otherAgreed", sec, type: "choice", label: "Did the other party agree",
+    q: "Did the other party agree to your request?",
+    help: "The form asks you to select one.",
+    options: [["Choice1", "They agreed to my continuance request"], ["Choice2", "They did not agree to my continuance request"]] },
+];
+
+const contServiceHelp = "The form's Certificate of Service says you sent a copy to the other party and any other interested parties in this case. Their names and addresses are usually on the papers you received.";
+
+function contCaptionFields(a) {
+  const ct = courtTypeText(a);
+  const first = a.role === "me" ? a.name : a.otherParty, second = a.role === "me" ? a.otherParty : a.name;
+  return [
+    f(FORM.caption, "County", a.county, "county", [{ t: "text", name: "County", value: a.county }]),
+    f(FORM.caption, "Court type", !ct ? "" : a.courtType === "other" ? `${ct} Court` : `${ct.charAt(0)}${ct.slice(1).toLowerCase()} Court`,
+      "courtType", [{ t: "text", name: "Court Type", value: ct.toUpperCase() }]),
+    f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
+    f(FORM.caption, "In re the matter of (who started the case)", first, a.role === "me" ? "name" : "otherParty", [{ t: "text", name: "Petitioner", value: first }]),
+    f(FORM.caption, "v. (the other side)", second, a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second }]),
+    f(FORM.caption, "Who started the case", a.role === "me" ? "I did" : a.role === "other" ? "The other side" : "", "role"),
+  ];
+}
+
+function contAppearanceFields(a) {
+  const receive = { Choice1: "At my street address", Choice2: "At my email address", Choice3: "At the Attorney General confidential address" }[a.receiveAt] || "";
+  return [
+    f(FORM.appearance, "1. My name is", a.name, "name", [{ t: "text", name: "Petitioner or Repondent Name", value: a.name }]),
+    f(FORM.appearance, "3. My address", a.address, "address",
+      [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], value: a.address }]),
+    f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
+    f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
+    f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
+    f(FORM.appearance, "4. Receive court papers", receive, "receiveAt",
+      a.receiveAt ? [{ t: "radio", name: "Case Information", option: a.receiveAt }] : []),
+    f(FORM.appearance, "5. Case type letters", caseLetters(a), caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters",
+      [{ t: "text", name: "Case Type Letters", value: caseLetters(a) }]),
+    f(FORM.appearance, "6. Related cases", a.related === "yes" ? "Yes" : a.related === "no" ? "No other related cases" : "", "related",
+      a.related ? [{ t: "radio", name: "Related Cases", option: a.related === "yes" ? "Choice1" : "Choice2" },
+                   { t: "text", name: "Related Case Numbers", value: a.related === "yes" ? a.relatedNumbers : "" }] : []),
+    ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers")] : []),
+    f(FORM.appearance, "7. Local rule information", a.localRule === "yes" ? "Provided below" : a.localRule === "none" ? "Not aware of any" : "", "localRule",
+      a.localRule ? [{ t: "radio", name: "Local Rules", option: a.localRule === "yes" ? "Choice2" : "Choice1" },
+                     { t: "text", name: "Local Rule", value: a.localRule === "yes" ? a.localRuleText : "" }] : []),
+    ...(a.localRule === "yes" ? [f(FORM.appearance, "7. Information required by local rule", a.localRuleText, "localRuleText")] : []),
+    f(FORM.appearance, "Date next to your signature", formDate(a.signDate), "signDate",
+      [{ t: "draw", page: 4, x: 461, y: 525, value: formDate(a.signDate) }]),
+  ];
+}
+
+function contMotionFields(a) {
+  return [
+    f(FORM.contMotion, "1. My name is", a.name, "name"),
+    f(FORM.contMotion, "2. My court hearing has been scheduled for", formDate(a.hearingDate), "hearingDate",
+      [{ t: "text", name: "Court Hearing Date", value: formDate(a.hearingDate) }]),
+    f(FORM.contMotion, "3. I need to change the date of the hearing because", a.reason, "reason",
+      [{ t: "lines", page: 5, x0: [370, 90, 90, 90, 90, 90], x1: 540, ys: [375.8, 353.9, 331.9, 310.0, 288.0, 266.0], value: a.reason }]),
+    f(FORM.contMotion, "4. I am asking the court for", a.timeNeeded, "timeNeeded",
+      [{ t: "text", name: "Number of Days/Weeks Needed", value: a.timeNeeded }]),
+    f(FORM.contMotion, "5. The name of the other party", a.otherParty, "otherParty",
+      [{ t: "text", name: "Other Party (Petitioner or Respondent)", value: a.otherParty }]),
+    f(FORM.contMotion, "6. I spoke to the other party on", empty(a.spokeDate) ? "Left blank" : formDate(a.spokeDate), "spokeDate",
+      [{ t: "text", name: "Conversation Date", value: formDate(a.spokeDate) }]),
+    f(FORM.contMotion, "The other party", { Choice1: "Agreed to my continuance request", Choice2: "Did not agree to my continuance request" }[a.otherAgreed] || "", "otherAgreed",
+      a.otherAgreed ? [{ t: "radio", name: "Request Agreement/Disagreement", option: a.otherAgreed }] : []),
+    f(FORM.contMotion, "Printed Name", a.name, "name"),
+    f(FORM.contMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 6, x: 183, y: 566, value: formDate(a.signDate) }]),
+  ];
+}
+
+function contOrderFields(a) {
+  const meFirst = a.role === "me";
+  const petAddr = meFirst ? a.address : a.otherPartyAddress, resAddr = meFirst ? a.otherPartyAddress : a.address;
+  return [
+    f(FORM.contOrder, "Distribution: first party's address", empty(petAddr) ? "Left blank" : petAddr, meFirst ? "address" : "otherPartyAddress",
+      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [698.5, 676.6], value: petAddr }]),
+    f(FORM.contOrder, "Distribution: second party's address", empty(resAddr) ? "Left blank" : resAddr, meFirst ? "otherPartyAddress" : "address",
+      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [610.6, 588.6], value: resAddr }]),
+  ];
+}
+
+function contServiceFields(a) {
+  const out = [];
+  const n = recipientCount(a);
+  for (let i = 1; i <= n; i++) {
+    // The PDF's field name for row 2 has two spaces: "Service Name  2".
+    const label = n > 1 ? ` (person ${i})` : "";
+    out.push(
+      f(FORM.service, `Sent to${label}`, a[`svc${i}Name`], `svc${i}Name`, [{ t: "text", name: i === 2 ? "Service Name  2" : `Service Name ${i}`, value: a[`svc${i}Name`], maxSize: 10 }]),
+      f(FORM.service, `Address${label}`, a[`svc${i}Address`], `svc${i}Address`, [{ t: "text", name: `Service Address ${i}`, value: a[`svc${i}Address`], maxSize: 10 }]),
+      f(FORM.service, `Type of service used${label}`, a[`svc${i}Method`], `svc${i}Method`, [{ t: "text", name: `Service Type ${i}`, value: a[`svc${i}Method`], maxSize: 10 }]),
+      f(FORM.service, `Date of service${label}`, formDate(a[`svc${i}Date`]), `svc${i}Date`, [{ t: "text", name: `Service Date ${i}`, value: formDate(a[`svc${i}Date`]), maxSize: 10 }]),
+    );
+    if (i < MAX_RECIPIENTS) out.push(f(FORM.service, "Anyone else to send a copy to", yesNo(a[`svcMore${i}`]), `svcMore${i}`));
+  }
+  out.push(f(FORM.service, "Date next to your signature (on both forms)", formDate(a.signDate), "signDate",
+    [{ t: "draw", page: 4, x: 461, y: 121.5, value: formDate(a.signDate) }, { t: "draw", page: 6, x: 461, y: 184.5, value: formDate(a.signDate) }]));
+  return out;
+}
+
 /* =====================================================================
    SITUATIONS
    ===================================================================== */
@@ -521,9 +662,15 @@ const SITUATIONS = {
     reminders: [],
   },
   continuance: {
-    pick: "I need to move my hearing date",
-    blurb: "Points you to Indiana Legal Help's official continuance form and instructions.",
-    info: true,
+    pick: "I need to ask the court to move my hearing date",
+    blurb: "Fills the official Appearance and Verified Motion for Continuance, plus the Order the judge signs if the request is granted.",
+    title: "Continuance",
+    sections: ["Your case", "About you", "How the court reaches you", "Your request", "Sending a copy", "Signing"],
+    steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp), ...signSteps(5, SIGN_HELP.court)],
+    official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"] },
+    formNumbers: { [FORM.appearance]: "CCA-GF-1219-3000" },
+    fields: a => [...contCaptionFields(a), ...contAppearanceFields(a), ...contMotionFields(a), ...contServiceFields(a), ...contOrderFields(a), ...signatureFields(a, "continuance")],
+    reminders: ["Indiana Legal Help says asking does not change your court date by itself: only an order signed by the judge can change a court date or time."],
   },
 };
 
@@ -726,8 +873,9 @@ function loadScript({ src, integrity }) {
   });
   return loaded[src];
 }
-async function loadPdfTools() {
-  await Promise.all([loadScript(LIBS.pdfLib), loadScript(LIBS.pdfJs), loadScript(LIBS.formData)]);
+async function loadPdfTools(file) {
+  // Each official PDF is packed in its own script (see scripts/build-form-data.mjs).
+  await Promise.all([loadScript(LIBS.pdfLib), loadScript(LIBS.pdfJs), loadScript({ src: `forms/data/${file}.js` })]);
   pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfJsWorker;
 }
 
@@ -771,14 +919,35 @@ const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
 
 // Text written on a form's printed rules: one rule per line, shrinking the
 // text if needed. Anything that still doesn't fit is reported.
+// x0 can be one number, or one per line when the first line starts after a label.
+const lineX0 = (op, i) => (Array.isArray(op.x0) ? op.x0[i] : op.x0);
+function wrapLines(text, font, size, op) {
+  const lines = []; let line = "";
+  const widthAt = n => op.x1 - lineX0(op, Math.min(n, op.ys.length - 1)) - 4;
+  for (const para of String(text).split(/\r?\n/)) {
+    line = "";
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const tryLine = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(tryLine, size) <= widthAt(lines.length)) { line = tryLine; continue; }
+      if (line) lines.push(line);
+      let piece = "";
+      for (const ch of word) {
+        if (piece && font.widthOfTextAtSize(piece + ch, size) > widthAt(lines.length)) { lines.push(piece); piece = ""; }
+        piece += ch;
+      }
+      line = piece;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
 function fitLines(text, font, op) {
-  const width = op.x1 - op.x0 - 4;
   for (const size of SIZES) {
-    const lines = wrap(text, font, size, width);
+    const lines = wrapLines(text, font, size, op);
     if (lines.length <= op.ys.length) return { size, lines, overflow: false };
   }
   const size = SIZES[SIZES.length - 1];
-  return { size, lines: wrap(text, font, size, width).slice(0, op.ys.length), overflow: true };
+  return { size, lines: wrapLines(text, font, size, op).slice(0, op.ys.length), overflow: true };
 }
 
 // Pick a font size so the value fits inside the field's box.
@@ -802,6 +971,10 @@ async function buildPdf(key, a) {
   const draws = [];
 
   for (const name of off.removeButtons || []) { try { form.removeField(form.getButton(name)); } catch { /* not there */ } }
+  // Some fields are marked "rich text", which pdf-lib can't draw. Treat them as plain text.
+  for (const field of form.getFields()) {
+    if (field instanceof PDFLib.PDFTextField && field.isRichFormatted()) field.disableRichFormatting();
+  }
 
   for (const item of sit.fields(a)) {
     const safe = makeSafe(font, ch => notes.push({ kind: "chars", step: item.step, label: item.label, ch }));
@@ -816,6 +989,8 @@ async function buildPdf(key, a) {
           .reduce((m, r) => (r.width * r.height < m.width * m.height ? r : m));
         const fit = fitField(value, font, rect, tf.isMultiline(), op.maxSize || off.maxSize);
         tf.setFontSize(fit.size);
+        // Some widgets carry their own font size, which would win over the field's.
+        tf.acroField.getWidgets().forEach(w => { if (w.getDefaultAppearance()) w.setDefaultAppearance(`/Helv ${fit.size} Tf 0 g`); });
         if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
       } else if (op.t === "radio") {
         form.getRadioGroup(op.name).select(op.option);
@@ -838,7 +1013,7 @@ async function buildPdf(key, a) {
   for (const { op, item, value } of draws) {
     if (op.t === "draw") { pages[op.page].drawText(value, { x: op.x, y: op.y, size: 11, font }); continue; }
     const fit = fitLines(value, font, op);
-    fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: op.x0 + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
+    fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: lineX0(op, i) + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
     if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
   }
 
@@ -851,7 +1026,7 @@ async function buildPdf(key, a) {
     return out.save();
   };
   const all = await make(docs.flatMap(d => d.pages), `${sit.title} (official Indiana forms)`);
-  const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make(d.pages, `${d.name} (${d.number})`) }))) : [];
+  const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make(d.pages, d.number ? `${d.name} (${d.number})` : d.name) }))) : [];
   return { all, each, notes };
 }
 
@@ -865,7 +1040,7 @@ function ensurePdf() {
   pdfState = { key, result: null, error: false, busy: true };
   (async () => {
     let result = null, error = false;
-    try { await loadPdfTools(); result = await buildPdf(sitKey, visibleAnswers()); }
+    try { await loadPdfTools(OFFICIAL[SITUATIONS[sitKey].official.packet].file); result = await buildPdf(sitKey, visibleAnswers()); }
     catch (e) { error = true; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
@@ -966,6 +1141,7 @@ const SOURCES = {
   feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
   smallClaims: { href: "https://www.in.gov/courts/files/small-claims-manual.pdf", text: "Indiana Small Claims Manual" },
   newDate: { href: LINKS.continuance, text: "Indiana Legal Help: How to Ask for a New Court Date" },
+  contInstructions: { href: LINKS.continuanceInstructions, text: "Indiana Legal Help: Continuance instructions" },
   mycase: { href: "https://mycase.in.gov/", text: "mycase.in.gov" },
   directory: { href: LINKS.courtDirectory, text: "Indiana court directory" },
   getHelp: { href: LINKS.getHelp, text: "Find free legal help" },
@@ -985,6 +1161,11 @@ function nextSteps(key, a) {
     title: "Check your deadline",
     body: "Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says that if you don't file an Answer when you should, the court might decide the case without you.",
     links: [SOURCES.answerInstructions, SOURCES.respond] });
+
+  if (key === "continuance") out.push({
+    title: "Your court date doesn't change until the judge signs",
+    body: "Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance.",
+    links: [SOURCES.newDate, SOURCES.contInstructions] });
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
@@ -1008,9 +1189,9 @@ function nextSteps(key, a) {
 
   out.push(key === "feewaiver"
     ? { title: "Serving the other side", body: "The fee waiver forms say there is no other party to serve.", links: [] }
-    : { title: "Send a copy to the other side", body: "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. Send each copy the way and on the date you listed in the Certificate of Service.", links: [SOURCES.answerInstructions] });
+    : { title: "Send a copy to the other side", body: "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. Send each copy the way and on the date you listed in the Certificate of Service.", links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions] });
 
-  if (key !== "feewaiver") out.push({
+  if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
     body: "Check your papers for your court date. You can also look up your case at mycase.in.gov. In small claims court, the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment. If you need a new date, Indiana Legal Help says asking doesn't change it: only an order signed by the judge can change a court date or time.",
     links: [SOURCES.mycase, SOURCES.smallClaims, SOURCES.newDate] });
@@ -1100,6 +1281,13 @@ function runChecks() {
   if (notMail)
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
 
+  if (sitKey === "continuance") {
+    if (has("timeNeeded") && /\d{1,2}\/\d{1,2}|january|february|march|april|may|june|july|august|september|october|november|december/i.test(a.timeNeeded || ""))
+      flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
+    if (has("spokeDate") && empty(a.spokeDate))
+      flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate" });
+  }
+
   if (sitKey === "feewaiver") {
     if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k])))
       flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
@@ -1131,25 +1319,9 @@ function renderPick() {
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>`;
   app.querySelectorAll(".pick").forEach(b => b.onclick = () => {
     sitKey = b.dataset.k;
-    if (SITUATIONS[sitKey].info) { mode = "info"; return render(); }
     steps = SITUATIONS[sitKey].steps(); answers = {}; cur = 0; mode = "step"; returnToSummary = false; render();
   });
   app.querySelector("h1").focus?.();
-}
-
-function renderInfo() {
-  app.innerHTML = `
-    <h1 tabindex="-1">Moving your hearing date</h1>
-    <p>Indiana Legal Help publishes an official Verified Motion for Continuance (form CCA-GF-1219-3002), approved by the Coalition for Court Access, with instructions. A continuance is when you ask the court to move a hearing to a later date.</p>
-    <p>Indiana Legal Help says asking does not change the date by itself: only an order signed by the judge can change a court date or time.</p>
-    <div class="note">
-      <a href="${LINKS.continuance}" target="_blank" rel="noopener">Indiana Legal Help: How to Ask for a New Court Date (forms and instructions)</a><br>
-      <a href="${LINKS.courtDirectory}" target="_blank" rel="noopener">Indiana court directory (phone numbers and addresses)</a><br>
-      <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Find free legal help near you</a>
-    </div>
-    <div class="nav"><button class="ghost" id="back">Back</button></div>`;
-  document.getElementById("back").onclick = () => { mode = "pick"; render(); };
-  app.querySelector("h1").focus();
 }
 
 function renderStep() {
@@ -1277,7 +1449,7 @@ function renderSummary(rerender = false) {
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank.</p>
     ${groups.map(g => `
       <section class="formcard">
-        <h3>${esc(g.form)}${FORM_NUMBER[g.form] ? `<small>Form ${esc(FORM_NUMBER[g.form])}</small>` : ""}</h3>
+        <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
         <dl class="vals">${g.items.map(x => `
           <div><dt>${esc(x.label)}</dt>
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
@@ -1305,7 +1477,7 @@ function renderSummary(rerender = false) {
   lastEdited = null;
 }
 
-function render() { ({ pick: renderPick, info: renderInfo, step: renderStep, summary: renderSummary })[mode](); }
+function render() { ({ pick: renderPick, step: renderStep, summary: renderSummary })[mode](); }
 render();
 </script>
 </body>
