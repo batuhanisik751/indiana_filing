@@ -1750,20 +1750,27 @@ function nextSteps(key, a) {
   const marionNote = a.county === "Marion" ? ` ${SCM_NOT_MARION}` : "";
   // A small claims case is known from the case type letters (SC) or a Notice of Claim
   // in the sorting questions; otherwise the small claims facts say "if".
-  const smallClaims = caseLetters(a) === "SC" || (fromTriage && paperOf(triage) === "notice");
+  const letters = caseLetters(a);
+  const smallClaims = letters === "SC" || (fromTriage && paperOf(triage) === "notice");
   const ifSC = smallClaims ? "In small claims court" : "If your case is in small claims court";
-  // Missing a hearing, in any court, in Indiana Legal Help's own words.
-  const missFact = "Indiana Legal Help's Eviction FAQ says that if you don't show up to your hearing, the court can rule against you without hearing your side of the story (a default judgment).";
+  // Missing a hearing: Indiana Legal Help says what can happen only in its Eviction FAQ, so this is for
+  // evictions. It is said plainly for an eviction, with "In an eviction case" when the kind of case isn't
+  // known (no case type letters, or "I have a small claims case"), and left out for other kinds of cases.
+  const eviction = letters ? letters === "EV"
+    : fromTriage && triage.kind !== "smallclaims" ? kindOf(triage) === CASE_KINDS.eviction : null;
+  const missFact = eviction === false ? ""
+    : `${eviction ? "" : "In an eviction case, "}Indiana Legal Help's Eviction FAQ says that if you don't show up to your hearing, the court can rule against you without hearing your side of the story (a default judgment).`;
+  const missLinks = missFact ? [SOURCES.evictionFaq] : [];
   const defaultFact = `${ifSC}, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
   const dismissFact = `${ifSC}, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${missFact} ${defaultFact}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
-    links: [SOURCES.mycase, SOURCES.newDate, SOURCES.evictionFaq, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.answerTopic] : [])] });
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact].filter(Boolean).join(" ")}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
+    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.answerTopic] : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
-    body: a.role === "me" ? dismissFact : `${missFact} ${defaultFact}`,
-    links: a.role === "me" ? [SOURCES.smallClaims] : [SOURCES.evictionFaq, SOURCES.smallClaims] });
+    body: a.role === "me" ? dismissFact : [missFact, defaultFact].filter(Boolean).join(" "),
+    links: a.role === "me" ? [SOURCES.smallClaims] : [...missLinks, SOURCES.smallClaims] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
     body: dismissFact,
