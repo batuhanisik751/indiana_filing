@@ -1179,6 +1179,12 @@ async function buildPdf(key, a) {
   const off = OFFICIAL[sit.official.packet];
   const src = await PDFDocument.load(b64ToBytes(window.OFFICIAL_PDFS[off.file]));
   const form = src.getForm();
+  // The official continuance Appearance stores two boxes upside down (Case Number and County), which
+  // puts wrapped text outside the box. Same box, stored the right way up.
+  form.getFields().forEach(fl => fl.acroField.getWidgets().forEach(w => {
+    const r = w.getRectangle();
+    if (r.width < 0 || r.height < 0) w.setRectangle({ x: Math.min(r.x, r.x + r.width), y: Math.min(r.y, r.y + r.height), width: Math.abs(r.width), height: Math.abs(r.height) });
+  }));
   const font = await src.embedFont(StandardFonts[off.font]);
   const notes = [];
   const draws = [];
