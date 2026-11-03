@@ -1378,7 +1378,9 @@ function ensurePdf() {
   pdfState = { key, result: null, error: false, busy: true };
   (async () => {
     let result = null, error = false;
-    try { await loadPdfTools(OFFICIAL[SITUATIONS[sitKey].official.packet].file); result = await buildPdf(sitKey, visibleAnswers()); }
+    // The form and answers as they are now: the person may start over or pick another form while the tools load.
+    const sit = sitKey, ans = visibleAnswers();
+    try { await loadPdfTools(OFFICIAL[SITUATIONS[sit].official.packet].file); result = await buildPdf(sit, ans); }
     catch (e) { error = true; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
