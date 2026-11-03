@@ -2037,7 +2037,9 @@ let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
 let savedHereWhy = "deleted"; // or "replaced"
-let otherTab = false;   // is the form also open in another tab?
+let otherTab = false;   // has another tab been saving this same form?
+let otherTabTimer = null;
+const OTHER_TAB_QUIET_MS = 120000;
 let draft = null;       // what's typed in the open question but not saved yet
 
 // Links that open a new tab say so to screen-reader users.
@@ -2231,8 +2233,15 @@ window.addEventListener("storage", e => {
   if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
   updatePrivacyNote();
   if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
+  // Another tab saved this same form. A different form has its own message above.
+  let saver = null; try { saver = JSON.parse(e.newValue).sitKey; } catch { /* unreadable */ }
+  if (saver !== sitKey) return;
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
-  otherTab = true; updatePrivacyNote();
+  otherTab = true;
+  // A tab can't tell when another one closes, so the message ends after a quiet while.
+  clearTimeout(otherTabTimer);
+  otherTabTimer = setTimeout(() => { otherTab = false; updatePrivacyNote(); }, OTHER_TAB_QUIET_MS);
+  updatePrivacyNote();
 });
 lastSavingOn = savingOn();
 // With nothing being saved, warn before the page is closed or refreshed.
