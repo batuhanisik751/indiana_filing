@@ -2592,7 +2592,7 @@ function renderPick(quiet = false) {
     <h1 tabindex="-1">What is your case about?</h1>
     <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
     ${Object.entries(CASE_KINDS).map(([k, c]) => `<button class="pick" data-kind="${k}"><strong>${esc(c.pick)}</strong><span>${esc(c.blurb)}</span></button>`).join("")}
-    <button class="pick more" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Pick a form directly, find out which one fits, or see other kinds of cases.</span></button>
+    <button class="pick more" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Not sure which one fits? Start here. You can also pick a form directly or see other kinds of cases.</span></button>
     <div class="morebox" id="moreChoices" ${pickMore ? "" : "hidden"}>
       <h2 class="sub">Pick a form directly</h2>
       ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
