@@ -16,7 +16,7 @@ MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built
 
 ## Kinds of cases
 
-The first screen starts with the five kinds of civil cases the tool's forms fit, in order of how many were filed in Indiana courts in 2024, according to the [2024 Indiana Judicial Service Report](https://secure.in.gov/courts/iocs/files/2024-indiana-judicial-service-report.pdf) ("Cases Filed – All Courts," page 57):
+The first screen starts with the five kinds of civil cases the tool's forms fit, in order of how many were filed in Indiana courts in 2024, according to the [2024 Indiana Judicial Service Report](https://secure.in.gov/courts/iocs/files/2024-indiana-judicial-service-report.pdf) ("Cases Filed – All Courts," printed page 57, PDF page 63):
 
 | Choice | Indiana case type | Filed in 2024 |
 |---|---|---|
