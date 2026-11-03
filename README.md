@@ -4,6 +4,8 @@
 
 The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
 
+At the end, people can preview the filled official form and download it as a PDF: all forms together to print, or each form on its own to e-file (Indiana's E-Filing User Guide says each document is filed under its own filing code). People who e-file can sign with "/s/" and their name, which the guide allows; people who file on paper get blank signature lines to sign by hand.
+
 MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built for the Indiana Supreme Court Office of Judicial Administration.
 
 ## Situations
@@ -29,4 +31,8 @@ Then go to http://localhost:5190/.
 
 ## Privacy
 
-Nothing anyone types is saved or sent anywhere. Answers stay in the open browser tab.
+Nothing anyone types is saved or sent anywhere. Answers stay in the open browser tab, and the PDF is filled in the browser.
+
+## How the PDF is made
+
+The official PDFs in `forms/` are packed into `forms/form-data.js` (run `node scripts/build-form-data.mjs` after replacing one). The app fills them with [pdf-lib](https://pdf-lib.js.org) 1.17.1 and shows the preview with [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174. Both load from cdnjs with integrity hashes, so the first PDF needs an internet connection.

@@ -109,6 +109,11 @@ dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: an
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }
+.downloads { display: grid; gap: .6rem; margin: .5rem 0 1rem; }
+.downloads button { width: 100%; }
+.preview figure { margin: 0 0 1rem; }
+.preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }
 footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
 </style>
 </head>
@@ -144,18 +149,43 @@ const LINKS = {
 };
 
 // Official PDFs and which of their pages end up in the filled document.
+// Page numbers are 0-based pages of the original PDF.
 const OFFICIAL = {
   answerPacket: {
     file: "answerPacket",
     source: "forms/answer-packet-CCA-GF-1225-6003-CCA-GF-0626-6008.pdf",
+    font: "Helvetica", maxSize: 11,
     // Pages 1-4 are instructions. Pages 5-6 = Appearance, 7-8 = Answer.
-    appearancePages: [4, 5], answerPages: [6, 7],
+    docs: {
+      appearance: { name: "Appearance", number: "CCA-GF-1225-6003", pages: [4, 5] },
+      answer: { name: "Answer", number: "CCA-GF-0626-6008", pages: [6, 7] },
+    },
+    // Where "/s/ Name" goes when the user e-files (text baseline on each signature line).
+    signatures: [{ page: 5, x: 127, y: 547 }, { page: 5, x: 111, y: 170.5 }, { page: 7, x: 111, y: 157 }],
   },
   feeWaiverPacket: {
     file: "feeWaiverPacket",
     source: "forms/fee-waiver-packet-CCA-GF-0420-3012-3006-3007.pdf",
-    pages: [0, 1, 2, 3, 4],
+    font: "TimesRoman", maxSize: 12,
+    removeButtons: ["Button8"], // a "Print" button that shouldn't be in a filed form
+    docs: {
+      appearance: { name: "Appearance", number: "CCA-GF-0420-3012", pages: [0, 1] },
+      motion: { name: "Verified Motion for Fee Waiver", number: "CCA-GF-0420-3006", pages: [2, 3] },
+      order: { name: "Order on Fee Waiver", number: "CCA-GF-0420-3007", pages: [4] },
+    },
+    signatures: [{ page: 1, x: 327, y: 557.5 }, { page: 3, x: 362, y: 262 }],
   },
+};
+
+// PDF tools, loaded only when the summary needs them. Pinned versions with
+// integrity hashes so a changed file on the CDN is refused.
+const LIBS = {
+  pdfLib: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js",
+    integrity: "sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" },
+  pdfJs: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+    integrity: "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" },
+  pdfJsWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  formData: { src: "forms/form-data.js" },
 };
 
 const FORM = {
@@ -167,6 +197,7 @@ const FORM = {
   fwAppearance: "Appearance by Unrepresented Person",
   fwMotion: "Verified Motion for Fee Waiver",
   fwOrder: "Order on Fee Waiver (the judge completes the rest)",
+  sign: "Signatures",
 };
 const FORM_NUMBER = {
   [FORM.appearance]: "CCA-GF-1225-6003", [FORM.answer]: "CCA-GF-0626-6008",
@@ -327,10 +358,15 @@ const serviceSteps = sec => {
   return out;
 };
 
-const signDateStep = (sec, help) => ({
-  id: "signDate", sec, type: "date", label: "Date you'll sign",
-  q: "What date will you sign the form?",
-  help });
+const signSteps = (sec, help) => [
+  { id: "fileMethod", sec, type: "choice", label: "How you'll sign",
+    q: "How will you file your forms?",
+    help: "Indiana's E-Filing User Guide says e-filed documents can be signed with \"/s/\" followed by your name. If you file on paper, the signature lines are left blank so you can sign by hand.",
+    options: [["paper", "On paper at the courthouse. I'll sign by hand."], ["efile", "Online through e-filing. Sign with \"/s/\" and my name."]] },
+  { id: "signDate", sec, type: "date", label: "Date you'll sign",
+    q: "What date will you sign the form?",
+    help },
+];
 
 // Fee waiver packet (for starting a new case).
 const fwCaseSteps = sec => [
@@ -446,35 +482,38 @@ const fwExpenseSteps = sec => [
    SITUATIONS
    ===================================================================== */
 const SIGN_HELP = {
-  court: "This date is printed next to the signature lines. The signature lines are left blank on purpose: Indiana Legal Help says forms must be signed before they are filed.",
-  feewaiver: "This date is printed next to the signature line. The signature lines are left blank on purpose: the official instructions say to sign after you print the form.",
+  court: "This date is printed next to the signature lines. Indiana Legal Help says forms must be signed before they are filed.",
+  feewaiver: "This date is printed next to the signature line. If you file on paper, the official instructions say to sign after you print the form.",
 };
 const SITUATIONS = {
   respond: {
     pick: "I'm being sued and need to respond to the complaint",
     blurb: "Fills the official Appearance and Answer forms. Indiana Legal Help says Answers are not usually filed in small claims court.",
     title: "Appearance and Answer",
-    sections: ["Your case", "About you", "How the court reaches you", "Your answer", "Sending a copy", "Date"],
-    steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...answerSteps(3), ...serviceSteps(4), signDateStep(5, SIGN_HELP.court)],
-    fields: a => [...captionFields(a), ...appearanceFields(a), ...answerFields(a), ...serviceFields(a, true)],
+    sections: ["Your case", "About you", "How the court reaches you", "Your answer", "Sending a copy", "Signing"],
+    steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...answerSteps(3), ...serviceSteps(4), ...signSteps(5, SIGN_HELP.court)],
+    official: { packet: "answerPacket", docs: ["appearance", "answer"] },
+    fields: a => [...captionFields(a), ...appearanceFields(a), ...answerFields(a), ...serviceFields(a, true), ...signatureFields(a, "respond")],
     reminders: ["Check that every paragraph number of the Complaint is in one of your three lists. Indiana Legal Help's instructions say a skipped paragraph will be taken as true."],
   },
   appearance: {
     pick: "I'm being sued and want to tell the court I'm representing myself",
     blurb: "Fills the official Appearance form, which gives the court and the other side your contact information.",
     title: "Appearance",
-    sections: ["Your case", "About you", "How the court reaches you", "Sending a copy", "Date"],
-    steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...serviceSteps(3), signDateStep(4, SIGN_HELP.court)],
-    fields: a => [...captionFields(a), ...appearanceFields(a), ...serviceFields(a, false)],
+    sections: ["Your case", "About you", "How the court reaches you", "Sending a copy", "Signing"],
+    steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...serviceSteps(3), ...signSteps(4, SIGN_HELP.court)],
+    official: { packet: "answerPacket", docs: ["appearance"] },
+    fields: a => [...captionFields(a), ...appearanceFields(a), ...serviceFields(a, false), ...signatureFields(a, "appearance")],
     reminders: [],
   },
   feewaiver: {
     pick: "I'm starting a case and can't afford the filing fee",
     blurb: "Fills the official fee waiver forms. Indiana Legal Help says filing fees are generally charged only when a case is started. Not for family law cases, which have their own form.",
     title: "Fee waiver",
-    sections: ["Your case", "About you", "Your household", "Income", "Expenses", "Date"],
-    steps: () => [...fwCaseSteps(0), ...fwYouSteps(1), ...fwHouseholdSteps(2), ...fwIncomeSteps(3), ...fwExpenseSteps(4), signDateStep(5, SIGN_HELP.feewaiver)],
-    fields: a => feeWaiverFields(a),
+    sections: ["Your case", "About you", "Your household", "Income", "Expenses", "Signing"],
+    steps: () => [...fwCaseSteps(0), ...fwYouSteps(1), ...fwHouseholdSteps(2), ...fwIncomeSteps(3), ...fwExpenseSteps(4), ...signSteps(5, SIGN_HELP.feewaiver)],
+    official: { packet: "feeWaiverPacket", docs: ["appearance", "motion", "order"] },
+    fields: a => [...feeWaiverFields(a), ...signatureFields(a, "feewaiver")],
     reminders: [],
   },
   continuance: {
@@ -584,6 +623,17 @@ function serviceFields(a, withAnswer) {
   return out;
 }
 
+// "/s/ Name" on every signature line of the pages this situation uses, when e-filing.
+function signatureFields(a, key) {
+  const { packet, docs } = SITUATIONS[key].official;
+  const pages = new Set(docs.flatMap(d => OFFICIAL[packet].docs[d].pages));
+  const lines = OFFICIAL[packet].signatures.filter(s => pages.has(s.page));
+  const efile = a.fileMethod === "efile";
+  return [f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
+    efile ? (empty(a.name) ? "" : `/s/ ${a.name}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, value: `/s/ ${a.name}` })) : [])];
+}
+
 const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
 const incomeTotal = a => wages(a) + INCOME.reduce((s, [k]) => s + toNum(a[k]), 0);
 const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
@@ -653,6 +703,248 @@ function feeWaiverFields(a) {
     f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.address].filter(Boolean).join("\n"), "name"),
   );
   return out;
+}
+
+/* =====================================================================
+   PDF ENGINE
+   Fills the official PDF in the browser with pdf-lib and keeps only the
+   form pages. Nothing leaves the device.
+   ===================================================================== */
+const loaded = {};
+function loadScript({ src, integrity }) {
+  if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
+    s.onload = resolve;
+    s.onerror = () => { delete loaded[src]; s.remove(); reject(new Error("load")); };
+    document.head.appendChild(s);
+  });
+  return loaded[src];
+}
+async function loadPdfTools() {
+  await Promise.all([loadScript(LIBS.pdfLib), loadScript(LIBS.pdfJs), loadScript(LIBS.formData)]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfJsWorker;
+}
+
+const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+// The forms' standard fonts only cover Western European characters. Swap
+// anything else for "?" instead of failing, and report it.
+function makeSafe(font, report) {
+  const ok = new Map();
+  return text => Array.from(String(text ?? "").replace(/\t/g, " ")).map(ch => {
+    if (ch === "\n" || ch === "\r") return ch;
+    if (!ok.has(ch)) { try { font.widthOfTextAtSize(ch, 10); ok.set(ch, true); } catch { ok.set(ch, false); } }
+    if (ok.get(ch)) return ch;
+    report(ch); return "?";
+  }).join("");
+}
+
+// Break text into lines no wider than maxWidth, keeping the user's own line breaks.
+function wrap(text, font, size, maxWidth) {
+  const out = [];
+  for (const para of String(text).split(/\r?\n/)) {
+    let line = "";
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const tryLine = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(tryLine, size) <= maxWidth) { line = tryLine; continue; }
+      if (line) out.push(line);
+      // A single word longer than the line is broken by characters.
+      let piece = "";
+      for (const ch of word) {
+        if (piece && font.widthOfTextAtSize(piece + ch, size) > maxWidth) { out.push(piece); piece = ""; }
+        piece += ch;
+      }
+      line = piece;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
+
+// Text written on a form's printed rules: one rule per line, shrinking the
+// text if needed. Anything that still doesn't fit is reported.
+function fitLines(text, font, op) {
+  const width = op.x1 - op.x0 - 4;
+  for (const size of SIZES) {
+    const lines = wrap(text, font, size, width);
+    if (lines.length <= op.ys.length) return { size, lines, overflow: false };
+  }
+  const size = SIZES[SIZES.length - 1];
+  return { size, lines: wrap(text, font, size, width).slice(0, op.ys.length), overflow: true };
+}
+
+// Pick a font size so the value fits inside the field's box.
+function fitField(text, font, rect, multiline, maxSize) {
+  const width = rect.width - 4, height = rect.height - 2;
+  for (const size of [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6]) {
+    if (!multiline) { if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false }; continue; }
+    if (wrap(text, font, size, width).length * size * 1.25 <= height) return { size, overflow: false };
+  }
+  return { size: 6, overflow: true };
+}
+
+async function buildPdf(key, a) {
+  const { PDFDocument, StandardFonts } = PDFLib;
+  const sit = SITUATIONS[key];
+  const off = OFFICIAL[sit.official.packet];
+  const src = await PDFDocument.load(b64ToBytes(window.OFFICIAL_PDFS[off.file]));
+  const form = src.getForm();
+  const font = await src.embedFont(StandardFonts[off.font]);
+  const notes = [];
+  const draws = [];
+
+  for (const name of off.removeButtons || []) { try { form.removeField(form.getButton(name)); } catch { /* not there */ } }
+
+  for (const item of sit.fields(a)) {
+    const safe = makeSafe(font, ch => notes.push({ kind: "chars", step: item.step, label: item.label, ch }));
+    for (const op of item.pdf) {
+      if (op.t === "text") {
+        const tf = form.getTextField(op.name);
+        const value = safe(op.value);
+        tf.setText(value);
+        if (!value) continue;
+        // A field can appear on several pages; size the text for its smallest box.
+        const rect = tf.acroField.getWidgets().map(w => w.getRectangle())
+          .reduce((m, r) => (r.width * r.height < m.width * m.height ? r : m));
+        const fit = fitField(value, font, rect, tf.isMultiline(), op.maxSize || off.maxSize);
+        tf.setFontSize(fit.size);
+        if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
+      } else if (op.t === "radio") {
+        form.getRadioGroup(op.name).select(op.option);
+      } else if (op.t === "check") {
+        const cb = form.getCheckBox(op.name);
+        if (op.on) cb.check(); else cb.uncheck();
+      } else if (op.t === "drop") {
+        form.getDropdown(op.name).select(op.option);
+      } else if ((op.t === "lines" || op.t === "draw") && !empty(op.value)) {
+        draws.push({ op, item, value: safe(op.value) });
+      }
+    }
+  }
+
+  // Bake the answers into the pages so the filed form can't change.
+  form.updateFieldAppearances(font);
+  form.flatten();
+
+  const pages = src.getPages();
+  for (const { op, item, value } of draws) {
+    if (op.t === "draw") { pages[op.page].drawText(value, { x: op.x, y: op.y, size: 11, font }); continue; }
+    const fit = fitLines(value, font, op);
+    fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: op.x0 + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
+    if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
+  }
+
+  const docs = sit.official.docs.map(k => ({ key: k, ...off.docs[k] }));
+  const make = async (pageList, title) => {
+    const out = await PDFDocument.create();
+    (await out.copyPages(src, pageList)).forEach(p => out.addPage(p));
+    out.setTitle(title);
+    out.setCreator("Indiana Court Form Helper");
+    return out.save();
+  };
+  const all = await make(docs.flatMap(d => d.pages), `${sit.title} (official Indiana forms)`);
+  const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make(d.pages, `${d.name} (${d.number})`) }))) : [];
+  return { all, each, notes };
+}
+
+/* ---------- preview and download ---------- */
+let pdfState = { key: null, result: null, error: false, busy: false };
+const pdfKey = () => JSON.stringify([sitKey, visibleAnswers()]);
+
+function ensurePdf() {
+  const key = pdfKey();
+  if (pdfState.key === key) return;
+  pdfState = { key, result: null, error: false, busy: true };
+  (async () => {
+    let result = null, error = false;
+    try { await loadPdfTools(); result = await buildPdf(sitKey, visibleAnswers()); }
+    catch (e) { error = true; console.error(e); }
+    if (pdfState.key !== key) return; // answers changed while we worked
+    pdfState = { key, result, error, busy: false };
+    if (mode === "summary") { const y = window.scrollY; renderSummary(true); window.scrollTo(0, y); }
+  })();
+}
+
+// Problems found while putting answers on the PDF (text too long, characters the font can't print).
+function pdfFlags() {
+  if (!pdfState.result || pdfState.key !== pdfKey()) return [];
+  const overflow = new Map(), chars = new Map();
+  for (const n of pdfState.result.notes) {
+    const k = `${n.step}|${n.label}`;
+    if (n.kind === "overflow") overflow.set(k, n);
+    else { if (!chars.has(k)) chars.set(k, { ...n, list: new Set() }); chars.get(k).list.add(n.ch); }
+  }
+  return [
+    ...[...overflow.values()].map(n => ({ level: "check", title: n.label, why: "This is too long for the space on the official form, so part of it is cut off. Try shortening it.", fix: n.step })),
+    ...[...chars.values()].map(n => {
+      const list = [...n.list].map(c => `"${c}"`).join(", ");
+      return { level: "check", title: n.label, why: `The form's font can't print ${list}, so ${n.list.size > 1 ? "they were" : "it was"} replaced with "?". Try typing it another way.`, fix: n.step };
+    }),
+  ];
+}
+
+async function renderPreview(bytes, el) {
+  const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  for (let i = 1; i <= pdf.numPages; i++) {
+    if (!el.isConnected) return; // the user moved on
+    const page = await pdf.getPage(i);
+    const width = Math.max(240, Math.min(el.clientWidth || 560, 820));
+    const base = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: (width / base.width) * (window.devicePixelRatio || 1) });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `Page ${i} of ${pdf.numPages} of your filled form`);
+    const fig = document.createElement("figure");
+    fig.innerHTML = `<figcaption>Page ${i} of ${pdf.numPages}</figcaption>`;
+    fig.prepend(canvas);
+    el.appendChild(fig);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  }
+}
+
+const fileStem = s => String(s).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+function downloadPdf(bytes, name) {
+  const caseNo = answers.caseNumber && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber)}` : "";
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = `${fileStem(name)}${caseNo}.pdf`;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function pdfSectionHtml(sit) {
+  if (pdfState.busy || !pdfState.key) return `<p class="note" role="status">Filling in the official form…</p>`;
+  if (pdfState.error) return `<div class="note" role="alert">We couldn't make the PDF. This needs an internet connection the first time. <button class="link" id="retryPdf">Try again</button></div>`;
+  const { each } = pdfState.result;
+  return `
+    <div class="downloads">
+      <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
+      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only</button>`).join("")}
+    </div>
+    ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says each document is filed under its own filing code.</p>` : ""}
+    <div class="preview" id="preview"></div>`;
+}
+
+function wirePdfSection(sit) {
+  const retry = document.getElementById("retryPdf");
+  if (retry) retry.onclick = () => { pdfState = { key: null }; ensurePdf(); renderSummary(true); };
+  if (!pdfState.result) return;
+  const { all, each } = pdfState.result;
+  document.getElementById("dlAll").onclick = () => downloadPdf(all, sit.title);
+  app.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => {
+    const d = each.find(x => x.key === b.dataset.dl);
+    downloadPdf(d.bytes, d.name);
+  });
+  renderPreview(all, document.getElementById("preview")).catch(e => {
+    console.error(e);
+    const el = document.getElementById("preview");
+    if (el) el.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the download still works.</p>`;
+  });
 }
 
 /* =====================================================================
@@ -863,10 +1155,11 @@ function goFix(id) {
   cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
 }
 
-function renderSummary() {
+function renderSummary(rerender = false) {
   const sit = SITUATIONS[sitKey];
   const a = visibleAnswers();
-  const flags = runChecks();
+  ensurePdf();
+  const flags = [...runChecks(), ...pdfFlags()];
   const missing = flags.filter(x => x.level === "missing").length;
   const ready = flags.length === 0;
   const fields = sit.fields(a);
@@ -890,8 +1183,11 @@ function renderSummary() {
     ${flags.length ? `<ul class="flags">${flags.map(x => `
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
       <span class="flagtext">${esc(x.title)}<small>${esc(x.why)}</small></span>
-      <button class="ghost small" data-fix="${x.fix}">Fix</button></li>`).join("")}</ul>` : ""}
+      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
+
+    <h2 class="sub">Your filled form</h2>
+    ${pdfSectionHtml(sit)}
 
     <h2 class="sub">What goes on your official forms</h2>
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank.</p>
@@ -905,7 +1201,6 @@ function renderSummary() {
         </dl>
       </section>`).join("")}
 
-    <div class="note">The filled PDF download is being added next.</div>
     <div class="nav">
       <button class="ghost" id="toQuestions">Back to questions</button>
       <button class="ghost" id="restart">Start over</button>
@@ -918,6 +1213,8 @@ function renderSummary() {
     if (!confirm("Start over? This clears every answer you have entered.")) return;
     sitKey = null; answers = {}; mode = "pick"; render();
   };
+  wirePdfSection(sit);
+  if (rerender) return;
   // After an edit, bring the user back to the row they changed.
   const back = lastEdited && app.querySelector(`dl.vals [data-fix="${lastEdited}"]`);
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
