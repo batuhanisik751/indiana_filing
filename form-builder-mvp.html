@@ -1922,12 +1922,18 @@ let triageFromSummary = false;  // the person is changing their sorting answers 
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
 // from: the screen the person chose the form on ("pick", "triage" or "notsure").
+// A change from the summary is over. The kind of case question is hidden again, so its empty starting
+// point can't stay in the history, or Back would land on a case with no kind.
+function finishTriageChange() {
+  if (triageFromSummary) triageHist = triageHist.filter(h => h.kind);
+  triageFromSummary = false; triageBeforeEdit = null;
+}
 function startSituation(key, from = "pick") {
   const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
   // Coming back to the same form (for example with Back from its first question) keeps the answers.
   if (sitKey === key && hasAnswers()) {
     cameFrom(); cur = 0; returnToSummary = false;
-    mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false; triageBeforeEdit = null; return render();
+    mode = triageFromSummary ? "summary" : "step"; finishTriageChange(); return render();
   }
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
@@ -1957,7 +1963,7 @@ function startSituation(key, from = "pick") {
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
-  cameFrom(); triageFromSummary = false; triageBeforeEdit = null; savedHere = true;
+  cameFrom(); finishTriageChange(); savedHere = true;
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
@@ -2006,7 +2012,7 @@ function renderTriage() {
   app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
   app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triageHist.push({ ...triage }); triage.paper = b.dataset.paper; triageTouched = true; render(); });
   const all = document.getElementById("allChoices");
-  if (all) all.onclick = () => { mode = "pick"; render(); };
+  if (all) all.onclick = () => { triageHist = []; mode = "pick"; render(); };
   document.getElementById("back").onclick = triageBack;
 }
 
@@ -2161,6 +2167,7 @@ function restoreSaved(d, keep) {
     if (keep) keep();
     return render();
   }
+  triageHist = [];
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
