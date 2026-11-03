@@ -2257,12 +2257,20 @@ window.addEventListener("beforeunload", e => {
 });
 // Turning saving off deletes what's saved, so ask first.
 function setSaving(on) {
-  lastSavingOn = on;
   const saved = !on && readSaved();
   if (saved && !confirm(sitKey && hasAnswers()
     ? "Turn off saving? This deletes the answers saved on this device. Your answers stay on this page until you close it."
     : `Turn off saving? This deletes your saved answers for "${savedTitle(saved)}". This can't be undone.`)) return false;
-  store.set(PREF_KEY, on ? "on" : "off");
+  if (!store.set(PREF_KEY, on ? "on" : "off")) {
+    if (on) {
+      // The browser refused: the setting didn't change, so don't say it did.
+      updatePrivacyNote();
+      announce("Saving couldn't be turned on, because this browser isn't letting the page save. Your answers stay on this page until you close it.");
+      return false;
+    }
+    store.del(PREF_KEY); // off is the same as no setting
+  }
+  lastSavingOn = on;
   if (on) saveProgress(); else clearSaved();
   updatePrivacyNote();
   // Say "saved" only when a copy really is on the device.
