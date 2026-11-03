@@ -4,9 +4,11 @@
 
 The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
 
-Every question also has an "I'm not sure" button: the question is left blank, remembered, and flagged on the summary until it's answered.
+Every question also has an "I'm not sure" button: the question is left blank, remembered, and flagged on the summary (with where to look for that kind of answer) until it's answered. On the summary, every answer has an Edit link; an edit can be saved or cancelled, and any new questions the change opens are asked before going back.
 
-At the end, people can preview the filled official form and download it as a PDF: all forms together to print, or each form on its own to e-file (Indiana's E-Filing User Guide says each document is filed under its own filing code). People who e-file can sign with "/s/" and their name, which the guide allows; people who file on paper get blank signature lines to sign by hand.
+Every screen links to free legal help: Indiana Legal Help's directory of free and low-cost legal help, the Indiana Legal Help Desk (housing legal navigators), Indiana Free Legal Answers, and the Indiana courts' Self-Service Legal Center.
+
+At the end, people can preview the filled official form and download it as a PDF: all forms together to print, or each form on its own to e-file (Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate code, and a proposed order under the "Proposed Order" code). People who e-file can sign with "/s/" and their name, which the guide allows; people who file on paper get blank signature lines to sign by hand.
 
 Below the download, "What to do next" lists the steps for that situation and filing method: deadline, signing, filing online or at the courthouse, fees, sending copies, court dates and free help. Every statement names and links its official Indiana source (Indiana Legal Help, the Indiana E-Filing User Guide, the Small Claims Manual).
 
