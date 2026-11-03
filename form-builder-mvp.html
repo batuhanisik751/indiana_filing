@@ -45,7 +45,7 @@ header.top { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .helplink { font-weight: 700; font-size: .95rem; display: inline-block; padding: .5rem 0; }
 footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
 footer li { margin: 0 0 .25rem; padding: .35rem 0; }
-footer li a { display: inline; padding: .45rem 0; }
+footer li a { display: inline; padding: .45rem 0; position: relative; }
 .privacy { font-size: .85rem; color: var(--muted); }
 .headbtns { display: flex; gap: 1.25rem; margin-left: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -68,7 +68,7 @@ input[type=text], input[type=tel], input[type=email], input[type=date], input[ty
 textarea { min-height: 8rem; resize: vertical; }
 textarea.short { min-height: 5rem; }
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .money { position: relative; }
 .money span { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 700; }
 .money input { padding-left: 2rem; }
@@ -101,7 +101,7 @@ a { color: var(--accent); }
 .status.notready { background: var(--warn-bg); border: 2px solid var(--warn); }
 .status strong { display: block; font-size: 1.15rem; }
 ul.flags { list-style: none; padding: 0; margin: 0 0 1.5rem; }
-ul.flags li { display: grid; grid-template-columns: 4.6rem 1fr auto; gap: .75rem; align-items: center; padding: .7rem .2rem; border-bottom: 1px solid var(--line); }
+ul.flags li { display: grid; grid-template-columns: 4.1rem 1fr auto; gap: .75rem; align-items: center; padding: .7rem .2rem; border-bottom: 1px solid var(--line); }
 ul.flags .tag { justify-self: start; }
 .tag { font-size: .8rem; font-weight: 700; border-radius: 4px; padding: .1rem .45rem; white-space: nowrap; }
 .tag.missing { color: var(--warn); background: var(--warn-bg); }
@@ -123,7 +123,7 @@ dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; paddin
 .resume strong, .resume .cardtitle { display: block; font-size: 1.1rem; margin: 0; }
 .resume span { color: var(--muted); font-size: .95rem; }
 .resume .nav { margin-top: .75rem; flex-wrap: wrap; }
-.resume .nav button { flex: 1 1 9rem; }
+.resume .nav button { flex: 1 1 auto; }
 .savepref { margin-top: 1rem; font-size: .95rem; }
 button.unsure { width: 100%; margin-top: .6rem; font-weight: 400; }
 .savepref small { display: block; color: var(--muted); font-size: .85rem; }
@@ -1959,6 +1959,7 @@ const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), tru
 const savingOn = () => storageWorks && store.get(PREF_KEY) === "on"; // off unless turned on
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
+let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
 let savedHereWhy = "deleted"; // or "replaced"
 let otherTab = false;   // is the form also open in another tab?
 let draft = null;       // what's typed in the open question but not saved yet
@@ -2008,9 +2009,10 @@ function saveProgress() {
   const visIds = new Set(visible().map(s => s.id));
   // From the first screen, "Which one fits?" or the eviction questions, the copy reopens at the
   // question (or the summary, when the person was changing the eviction answers from it).
-  const fromSummary = mode === "summary" || (mode === "triage" && triageFromSummary);
+  const editingTriage = triageFromSummary && mode !== "step" && mode !== "summary";
+  const fromSummary = mode === "summary" || editingTriage;
   const data = { v: 1, sitKey, answers: visibleAnswers(), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => visIds.has(k))),
-    cur, mode: fromSummary ? "summary" : "step", triage: mode === "triage" && triageFromSummary && triageBeforeEdit ? triageBeforeEdit : triage,
+    cur, mode: fromSummary ? "summary" : "step", triage: editingTriage && triageBeforeEdit ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: editOriginal } : null };
   // Only a change to the answers restarts the 30 days; just looking at them doesn't.
@@ -2022,6 +2024,7 @@ function saveProgress() {
   if (saveOk) savedHere = true;
 }
 function clearSaved() { store.del(STORE_KEY); }
+const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
 function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
@@ -2059,7 +2062,7 @@ function updatePrivacyNote() {
   const working = sitKey && (mode === "step" || mode === "summary");
   const live = sitKey && hasAnswers();
   el.textContent = otherTab ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
-    : !storageWorks || (working && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
+    : !storageWorks || (sitKey && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() && readSaved() ? "Saving is off. Answers saved earlier are still on this device until you delete them. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
     : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
@@ -2080,10 +2083,13 @@ window.addEventListener("storage", e => {
     return;
   }
   if (e.key === PREF_KEY) {
+    const now = savingOn();
+    if (now === lastSavingOn) { updatePrivacyNote(); return; } // nothing changed for this page
+    lastSavingOn = now;
     const hadCard = !!document.getElementById("resume"), live = sitKey && hasAnswers();
-    if (savingOn()) {
+    if (now) {
       saveProgress(); // turned on: save this page's answers
-      if (live && store.get(STORE_KEY) !== null) { savedHere = true; announce("Saving was turned on in another tab. Your answers are saved on this device."); }
+      if (live && saveOk && savedIsMine()) { savedHere = true; announce("Saving was turned on in another tab. Your answers are saved on this device."); }
     } else if (hadCard) announce("Saving was turned off in another tab, and the saved answers were deleted.");
     else if (live) announce("Saving was turned off in another tab. Your answers are still on this page, but they aren't saved.");
     updatePrivacyNote(); if (mode === "pick") renderPick(true); return;
@@ -2093,26 +2099,28 @@ window.addEventListener("storage", e => {
     if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
     savedHere = false; savedHereWhy = "deleted"; // deleted in another tab
   } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
-  if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
-  updatePrivacyNote();
   // Another tab saved a different form over this page's answers.
   if (e.newValue !== null && sitKey && hasAnswers()) {
     let other = null; try { other = JSON.parse(e.newValue).sitKey; } catch { /* unreadable */ }
     if (other && other !== sitKey) {
       if (savedHere) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
-      savedHere = false; savedHereWhy = "replaced"; updatePrivacyNote();
+      savedHere = false; savedHereWhy = "replaced";
     }
   }
+  if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
+  updatePrivacyNote();
   if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true; updatePrivacyNote();
 });
+lastSavingOn = savingOn();
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
-  if ((!savingOn() || !saveOk || !savedHere || store.get(STORE_KEY) === null) && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) { e.preventDefault(); e.returnValue = ""; }
+  if ((!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
 function setSaving(on) {
+  lastSavingOn = on;
   const saved = !on && readSaved();
   if (saved && !confirm(sitKey && hasAnswers()
     ? "Turn off saving? This deletes the answers saved on this device. Your answers stay on this page until you close it."
@@ -2121,7 +2129,7 @@ function setSaving(on) {
   if (on) saveProgress(); else clearSaved();
   updatePrivacyNote();
   // Say "saved" only when a copy really is on the device.
-  const stored = store.get(STORE_KEY) !== null;
+  const stored = saveOk && savedIsMine();
   announce(on ? (sitKey && hasAnswers() && stored ? "Saving is on. Your answers are saved on this device."
       : sitKey && hasAnswers() ? "Saving is on, but your answers couldn't be saved on this device."
       : "Saving is on. Your answers will be saved on this device.")
@@ -2157,12 +2165,13 @@ function resetAnswers() {
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
 
 document.getElementById("clearData").onclick = () => {
-  const stored = store.get(STORE_KEY) !== null;
-  if (!confirm(`Clear my data? This deletes every answer you have entered, on this page${stored ? ", in any other open tab, and saved on this device" : " and in any other open tab"}${savingOn() ? ", and turns saving off" : ""}.`)) return;
-  // Saving goes back to off first, so the next person on this computer starts with it off.
-  store.del(PREF_KEY);
-  clearEverywhere(); resetAnswers(); mode = "pick"; render();
-  announce(stored ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
+  const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
+  if (!confirm(`Clear my data? This deletes every answer you have entered, on this page${stored ? ", in any other open tab, and saved on this device" : " and in any other open tab"}${wasOn ? ", and turns saving off" : ""}.`)) return;
+  clearEverywhere();
+  // Saving goes back to off, so the next person on this computer starts with it off.
+  store.del(PREF_KEY); lastSavingOn = false;
+  resetAnswers(); mode = "pick"; render();
+  announce(wasOn ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
 };
 document.getElementById("saveToggle").onclick = () => {
   if (setSaving(!savingOn()) && mode === "pick") renderPick(true);
@@ -2376,9 +2385,9 @@ function renderPick(quiet = false) {
   // Answers still on this page (for example with saving off) come first; then a saved copy.
   const live = sitKey && hasAnswers();
   const saved = live ? null : readSaved();
-  const card = live ? `live:${sitKey}` : saved ? `saved:${saved.sitKey}:${saved.savedAt}` : "";
-  // A redraw because another tab saved: skip it if the card wouldn't change, so focus stays put.
-  if (quiet && app.dataset.card === card && app.querySelector("#savePref")?.checked === savingOn()) return;
+  const card = `${live ? `live:${sitKey}` : saved ? `saved:${saved.sitKey}:${saved.savedAt}` : ""}|${savingOn()}`;
+  // A redraw because another tab saved: skip it if nothing on this screen would change, so focus stays put.
+  if (quiet && app.dataset.card === card) return;
   const ae = document.activeElement;
   const focused = quiet && app.contains(ae) ? (ae.id || ae.dataset.k || (ae.matches(".cardtitle") ? ".cardtitle" : ae.matches("h1") ? "h1" : null)) : null;
   app.dataset.card = card;
