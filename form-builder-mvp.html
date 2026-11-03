@@ -2220,7 +2220,7 @@ function updatePrivacyNote() {
   const working = sitKey && (mode === "step" || mode === "summary");
   const live = sitKey && hasAnswers();
   el.textContent = otherTab && working && savingOn() && saveOk ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
-    : !storageWorks || (sitKey && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
+    : !storageWorks || ((sitKey || mode === "triage") && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
     : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
       ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
