@@ -2400,6 +2400,8 @@ function unsureAdvice(step) {
   if (/^localRule/.test(id)) return "The form's first choice is for people who aren't aware of any local rule that requires more information. You can also ask the clerk's office.";
   if (/^svcMore/.test(id)) return "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case.";
   if (id === "fileMethod") return "The steps at the end explain both ways to file.";
+  if (/^svc\dMethod$/.test(id)) return "Indiana Legal Help's Service FAQ says to call the clerk or court where you're filing and ask what your service options are and what each one costs.";
+  if (sitKey === "feewaiver" && id === "related") return "Check any papers you have from other court cases, look them up at mycase.in.gov, or ask the clerk's office.";
   if (CASE_IDS.test(id)) return sitKey === "feewaiver"
     ? "Check your records, or get free legal help."
     : "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office.";
@@ -2417,6 +2419,7 @@ function unsureLink(step) {
   if (sitKey === "feewaiver" && /^(fwCourtType|fwCaseType|otherPerson|localRuleText)$/.test(id)) return { href: LINKS.feeWaiverInstructions, text: "Fee waiver instructions" };
   if (sitKey === "feewaiver" && id === "county") return { href: LINKS.courtDirectory, text: "Indiana court directory" };
   if (PARAGRAPH_IDS.test(id) || /^svcMore/.test(id)) return { href: sitKey === "continuance" ? LINKS.continuanceInstructions : LINKS.answerInstructions, text: "Indiana Legal Help's instructions" };
+  if (/^svc\dMethod$/.test(id)) return { href: SOURCES.serviceFaq.href, text: "Indiana Legal Help's Service FAQ" };
   if (PROGRAM_IDS.test(id)) return { href: LINKS.acp, text: "About the Address Confidentiality Program" };
   if (/mycase/.test(unsureAdvice(step))) return { href: "https://mycase.in.gov/", text: "mycase.in.gov" };
   if (/free legal help/.test(unsureAdvice(step))) return { href: LINKS.getHelp, text: "Find free legal help" };
