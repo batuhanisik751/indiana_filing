@@ -2164,6 +2164,9 @@ function saveProgress() {
 function clearSaved() { store.del(STORE_KEY); }
 // Writes the saved copy and remembers it, so this page can tell its own copy from another tab's.
 function writeCopy(json) { const ok = store.set(STORE_KEY, json); if (ok) lastWritten = json; return ok; }
+// Are these sorting answers what's in the saved copy? (A form's copy is never replaced by them.)
+const sortingKey = t => JSON.stringify(Object.entries(cleanTriage(t)).sort());
+const sortingInCopy = () => { try { const d = JSON.parse(store.get(STORE_KEY) || "null"); return !!d?.triageOnly && sortingKey(d.triage) === sortingKey(triage); } catch { return false; } };
 const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
 function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
@@ -2293,7 +2296,7 @@ lastSavingOn = savingOn();
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
   const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)));
-  const sortingAtRisk = !sitKey && mode === "triage" && triageAnswered(triage) && (!savingOn() || !saveOk);
+  const sortingAtRisk = mode === "triage" && triageAnswered(triage) && !(sitKey && hasAnswers()) && (!savingOn() || !saveOk || !sortingInCopy());
   if (formAtRisk || sortingAtRisk) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
