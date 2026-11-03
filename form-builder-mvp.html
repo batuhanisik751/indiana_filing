@@ -2779,7 +2779,7 @@ function renderStep() {
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
     ${returnToSummary ? `<p class="need">${followUps.includes(step.id)
-      ? "Your last change is saved. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
+      ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
     <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>`;
