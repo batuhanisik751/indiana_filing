@@ -1782,6 +1782,9 @@ function nextSteps(key, a) {
   const noSourceFact = eviction === true || smallClaims ? ""
     : notSmallClaims && eviction === false ? noSourceHere
     : `In other kinds of cases, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`;
+  // Someone who started the case: the eviction sentence is about the other side, so only the court matters.
+  const noSourceStarter = smallClaims ? "" : notSmallClaims ? noSourceHere
+    : `If your case isn't in small claims court, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`;
   const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.courtStaff, SOURCES.getHelp] : [])];
   const defaultFact = notSmallClaims ? "" : `${ifSC}, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
   const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
@@ -1793,8 +1796,8 @@ function nextSteps(key, a) {
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     // The person who started the case: the eviction sentence is about the other side, so it never applies here.
-    body: a.role === "me" ? [dismissFact, noSourceFact].filter(Boolean).join(" ") || noSourceHere : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
-    links: [...(a.role === "me" ? (noSourceFact || !dismissFact ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? [SOURCES.smallClaims] : [])] });
+    body: a.role === "me" ? [dismissFact, noSourceStarter].filter(Boolean).join(" ") : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
+    links: [...(a.role === "me" ? (noSourceStarter ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? [SOURCES.smallClaims] : [])] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
     body: [dismissText, noSourceFact].filter(Boolean).join(" "),
