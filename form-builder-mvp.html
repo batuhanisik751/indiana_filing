@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Indiana Court Form Helper (MVP)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
   color-scheme: light;
@@ -39,7 +36,7 @@
 }
 *, *::before, *::after { box-sizing: inherit; }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 1.125rem; line-height: 1.55; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.125rem; line-height: 1.55; }
 .wrap { max-width: 36rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
 header.top { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .toprow, .saverow { display: flex; justify-content: space-between; align-items: center; gap: 0 1rem; flex-wrap: wrap; }
@@ -1935,11 +1932,14 @@ function triageBack() {
 
 /* =====================================================================
    SAVED PROGRESS
-   Answers are kept in this browser only (localStorage), so a refresh or a
-   closed tab doesn't erase them. Nothing is sent anywhere. People on a
-   shared or public computer, like a library or courthouse kiosk, can turn
-   saving off, and anyone can delete what's saved ("Clear my data" is on
-   every screen). Saved answers are deleted 30 days after the last change.
+   Saving is off unless the person turns it on ("Turn on saving" at the top
+   of every screen, or the checkbox on the first screen), because many
+   people use a shared or public computer, like a library or courthouse
+   kiosk. When it's on, answers are kept in this browser only
+   (localStorage), so a refresh or a closed tab doesn't erase them. Nothing
+   is sent anywhere, and anyone can delete what's saved ("Clear my data" is
+   on every screen). Saved answers are deleted when the page is opened 30
+   or more days after the last change.
    ===================================================================== */
 const STORE_KEY = "icfh-progress-v1", PREF_KEY = "icfh-save-pref";
 const CLEAR_KEY = "icfh-cleared"; // tells other open tabs that the person deleted their answers
@@ -1951,7 +1951,7 @@ const store = {
 };
 // Some browsers (private windows, blocked site data) don't let the page save at all.
 const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), true);
-const savingOn = () => storageWorks && store.get(PREF_KEY) !== "off";
+const savingOn = () => storageWorks && store.get(PREF_KEY) === "on"; // off unless turned on
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let savedHereWhy = "deleted"; // or "replaced"
@@ -2109,7 +2109,8 @@ function setSaving(on) {
   store.set(PREF_KEY, on ? "on" : "off");
   if (on) saveProgress(); else clearSaved();
   updatePrivacyNote();
-  announce(on ? "Saving on this device is on." : "Saving is off. Your answers aren't saved on this device.");
+  announce(on ? (sitKey && hasAnswers() ? "Saving is on. Your answers are saved on this device." : "Saving is on. Your answers will be saved on this device.")
+    : "Saving is off. Your answers aren't saved on this device.");
   return true;
 }
 
@@ -2380,7 +2381,7 @@ function renderPick(quiet = false) {
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>${storageWorks
-        ? `On a shared or public computer, like a library or courthouse kiosk, uncheck this. If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened.`
+        ? `Saving is off unless you turn it on. Turn it on only if this is your own device, not a shared or public computer like a library or courthouse kiosk. If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened.`
         : "This browser isn't letting the page save, so your answers will be lost if you close or refresh it."}</small></span></label>`;
   const pref = document.getElementById("savePref");
   pref.disabled = !storageWorks;
