@@ -2815,7 +2815,10 @@ function renderStep() {
     }
     readInput(step); // keep what was typed
     if (!empty(answers[step.id])) delete unsure[step.id];
-    if (cur === 0) { mode = fromTriage ? "triage" : fromNotSure ? "notsure" : "pick"; return render(); }
+    if (cur === 0) {
+      if (fromTriage && hasAnswers()) setSortingAside(); // backing through them isn't changing them
+      mode = fromTriage ? "triage" : fromNotSure ? "notsure" : "pick"; return render();
+    }
     cur--; render();
   };
   document.getElementById("next").onclick = () => save(step);
