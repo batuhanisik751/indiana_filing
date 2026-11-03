@@ -2283,8 +2283,10 @@ window.addEventListener("storage", e => {
   // Another tab saved this same form. A different form has its own message above.
   let saver = null; try { saver = JSON.parse(e.newValue); } catch { /* unreadable */ }
   if (!saver || saver.sitKey !== sitKey) return;
-  // The saved copy now holds that tab's answers. If they differ from this page's, closing here would lose these.
-  if (JSON.stringify(saver.answers) !== JSON.stringify(visibleAnswers())) { savedHere = false; savedHereWhy = "replaced"; }
+  // The saved copy now holds that tab's answers. If one of this page's answers isn't in it, closing here would lose it.
+  // A blank is the same as no answer, and it's fine for the other tab to have more.
+  const theirs = saver.draft ? { ...saver.answers, [saver.draft.id]: saver.draft.value } : saver.answers || {};
+  if (Object.entries(visibleAnswers()).some(([k, v]) => !empty(v) && theirs[k] !== v)) { savedHere = false; savedHereWhy = "replaced"; }
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true;
   // A tab can't tell when another one closes, so the message ends after a quiet while.
