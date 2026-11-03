@@ -6,7 +6,7 @@ The tool explains what each question means but never suggests what to write. It 
 
 Every question also has an "I'm not sure" button: the question is left blank, remembered, and flagged on the summary (with where to look for that kind of answer) until it's answered. On the summary, every answer has an Edit link; an edit can be saved or cancelled, and any new questions the change opens are asked before going back.
 
-Every screen links to free legal help: Indiana Legal Help's directory of free and low-cost legal help, the Indiana Legal Help Desk (housing legal navigators), Indiana Free Legal Answers, and the Indiana courts' Self-Service Legal Center.
+A "Get help" button at the top of every screen opens a short list of free help, which the footer repeats: the Indiana Legal Help Desk (housing legal navigators, with its hours), Indiana Legal Help's directory of free and low-cost legal help, Indiana Free Legal Answers, what court staff can help with, and the Indiana courts' Self-Service Legal Center.
 
 At the end, people can preview the filled official form and download it as a PDF: all forms together to print, or each form on its own to e-file (Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate code, and a proposed order under the "Proposed Order" code). People who e-file can sign with "/s/" and their name, which the guide allows; people who file on paper get blank signature lines to sign by hand.
 

@@ -42,7 +42,14 @@ header.top { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .toprow, .saverow { display: flex; justify-content: space-between; align-items: center; gap: 0 1rem; flex-wrap: wrap; }
 .saverow { row-gap: .4rem; }
 .brand { font-weight: 700; font-size: 1rem; }
-.helplink { font-weight: 700; font-size: .95rem; display: inline-block; padding: .5rem 0; }
+.helpbtn { font-size: .95rem; padding: .55rem 1.1rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); min-height: 44px; }
+.helppanel { background: var(--surface); border: 2px solid var(--accent); border-radius: 12px; padding: .9rem 1.1rem; margin: 0 0 1.25rem; }
+.helppanel .hp-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.helppanel h2.sub { margin: 0; }
+.helppanel ul { list-style: none; padding: 0; margin: .5rem 0 0; }
+.helppanel li { padding: .45rem 0; border-top: 1px solid var(--line); font-size: .95rem; }
+.helppanel li:first-child { border-top: 0; }
+.helppanel li a { font-weight: 700; }
 footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
 footer li { margin: 0 0 .25rem; padding: .35rem 0; }
 footer li a { display: inline; padding: .45rem 0; position: relative; }
@@ -148,13 +155,18 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
   <header class="top">
     <div class="toprow">
       <span class="brand">Indiana Court Form Helper</span>
-      <a class="helplink" href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find legal help</a>
+      <button class="helpbtn" id="helpBtn" type="button" aria-expanded="false" aria-controls="helpPanel">Get help</button>
     </div>
     <div class="saverow">
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
       <span class="headbtns"><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
     </div>
   </header>
+  <section class="helppanel" id="helpPanel" hidden aria-labelledby="helpTitle">
+    <div class="hp-head"><h2 class="sub" id="helpTitle" tabindex="-1">Free help</h2><button class="link cleardata" id="helpClose" type="button">Close</button></div>
+    <ul id="helpList"></ul>
+    <p class="need">These open in a new tab, so your answers stay on this page.</p>
+  </section>
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <main id="app"></main>
   <footer>
@@ -2172,6 +2184,18 @@ function resetAnswers() {
   pdfState = { key: null, result: null, error: false, busy: false };
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
+
+// "Get help" at the top of every screen opens the same free-help list as the footer.
+const helpBtn = document.getElementById("helpBtn"), helpPanel = document.getElementById("helpPanel");
+const footerHelp = document.querySelector("footer ul");
+if (footerHelp) document.getElementById("helpList").innerHTML = footerHelp.innerHTML;
+function setHelp(open) {
+  helpPanel.hidden = !open; helpBtn.setAttribute("aria-expanded", String(open));
+  (open ? document.getElementById("helpTitle") : helpBtn).focus();
+}
+helpBtn.onclick = () => setHelp(helpPanel.hidden);
+document.getElementById("helpClose").onclick = () => setHelp(false);
+helpPanel.addEventListener("keydown", e => { if (e.key === "Escape") setHelp(false); });
 
 document.getElementById("clearData").onclick = () => {
   const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
