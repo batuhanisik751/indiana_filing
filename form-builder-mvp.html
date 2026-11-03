@@ -2236,6 +2236,9 @@ window.addEventListener("storage", e => {
         const title = kindOf(triage).pick;
         resetAnswers(); mode = "pick"; render();
         announce(`Your answers for "${title}" were deleted in another tab.`);
+      } else if (sitKey && fromTriage && !hasAnswers() && sortingTag(triage) === form) {
+        // On a form with nothing in it yet, reached from those answers: the next save mustn't bring them back.
+        triage = {}; triagePrev = {}; triageHist = []; fromTriage = false;
       } else if (mode === "pick") renderPick(true);
       return;
     }
