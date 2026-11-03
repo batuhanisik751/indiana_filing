@@ -47,7 +47,8 @@ header.top { display: flex; justify-content: space-between; align-items: baselin
 footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
 footer li { margin: 0 0 .35rem; }
 .privacy { font-size: .85rem; color: var(--muted); text-align: right; }
-button.cleardata { font-size: .85rem; font-weight: 700; padding: .5rem 0; }
+.headbtns { display: flex; gap: 1rem; justify-content: flex-end; flex-wrap: wrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }
 h2.q { font-size: 1.55rem; line-height: 1.2; margin: 0 0 .75rem; }
 h2.sub { font-size: 1.2rem; margin: 2rem 0 .5rem; }
@@ -87,6 +88,7 @@ button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
 button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
 button.small { padding: .4rem .8rem; font-size: .95rem; }
 button.link { background: none; border: none; padding: 0; color: var(--accent); font-size: .9rem; text-decoration: underline; }
+button.link.cleardata { font-size: .85rem; font-weight: 700; padding: .6rem 0; }
 button:focus-visible, .pick:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 a { color: var(--accent); }
 .note { background: var(--surface); border-left: 4px solid var(--accent); border-radius: 6px; padding: .85rem 1rem; margin: 1rem 0; font-size: 1rem; }
@@ -144,9 +146,10 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
     <span class="topright">
       <a class="helplink" href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find legal help</a>
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
-      <button class="link cleardata" id="clearData" type="button">Clear my data</button>
+      <span class="headbtns"><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
     </span>
   </header>
+  <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <main id="app"></main>
   <footer>
     <strong>More free help</strong>
@@ -1719,16 +1722,34 @@ function startSituation(key, from = "pick") {
   triageFromSummary = false;
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
-  if (prev) {
-    const msg = prev === key
-      ? `Start "${SITUATIONS[key].title}" over? Your saved answers will be deleted. To keep them, choose Cancel, then Continue at the top of the page.`
-      : `Start "${SITUATIONS[key].title}"? Your answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.`;
-    if (!confirm(msg)) return;
+  const title = SITUATIONS[key].title;
+  let keep = {};
+  if (prev === key && saved) {
+    // The same form was saved earlier: offer to pick up where the person left off.
+    if (confirm(`You have saved answers for "${title}". Continue with them? (Choose Cancel to start over instead.)`)) {
+      restoreSaved(saved); cameFrom(); return;
+    }
+    if (!confirm(`Start "${title}" over? Your saved answers will be deleted.`)) return;
+    clearSaved();
+  } else if (prev) {
+    // Answers both forms ask for (your contact details, and the case details when
+    // both forms are for a case already in court) carry over.
+    const from = hasAnswers() ? visibleAnswers() : strings(saved.answers);
+    const ids = new Set(SITUATIONS[key].steps().map(s => s.id));
+    const sameCase = CASE_FORMS.includes(prev) && CASE_FORMS.includes(key);
+    keep = Object.fromEntries(Object.entries(from).filter(([k, v]) => ids.has(k) && !empty(v) && (SHARED_YOU.includes(k) || (sameCase && SHARED_CASE.includes(k)))));
+    const kept = Object.keys(keep).length
+      ? ` Your contact details${sameCase && Object.keys(keep).some(k => SHARED_CASE.includes(k)) ? " and case details" : ""} will be kept.` : "";
+    if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
   cameFrom();
-  sitKey = key; steps = SITUATIONS[key].steps(); answers = {}; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
+  sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
+// What two forms share when switching between them.
+const SHARED_YOU = ["name", "acp", "address", "acpAddress", "email", "phone", "fax"];
+const SHARED_CASE = ["county", "courtType", "courtTypeOther", "caseNumber", "caseTypeLetters", "courtDate", "plaintiff"];
+const CASE_FORMS = ["respond", "appearance", "continuance"];
 
 function renderTriage() {
   const step = triageVisible().find(s => !triage[s.id]);
@@ -1785,6 +1806,7 @@ function renderTriage() {
    every screen). Saved answers are deleted 30 days after the last change.
    ===================================================================== */
 const STORE_KEY = "icfh-progress-v1", PREF_KEY = "icfh-save-pref";
+const CLEAR_KEY = "icfh-cleared"; // tells other open tabs that the person deleted their answers
 const MAX_AGE_DAYS = 30;
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -1797,34 +1819,80 @@ const savingOn = () => storageWorks && store.get(PREF_KEY) !== "off";
 let saveOk = true;      // did the last save work?
 let otherTab = false;   // is the form also open in another tab?
 let draft = null;       // what's typed in the open question but not saved yet
-const strings = o => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([, v]) => typeof v === "string"));
-function readSaved() {
-  try {
-    const d = JSON.parse(store.get(STORE_KEY) || "null");
-    if (!d || d.v !== 1 || !Object.hasOwn(SITUATIONS, d.sitKey) || SITUATIONS[d.sitKey].triage) return null;
-    const age = Date.now() - d.savedAt;
-    if (!Number.isFinite(d.savedAt) || age < -864e5 || age > MAX_AGE_DAYS * 864e5) { store.del(STORE_KEY); return null; }
-    return d;
-  } catch { return null; }
+
+// Say something to screen-reader users without moving their focus.
+function announce(msg) {
+  const el = document.getElementById("announce");
+  if (!el) return;
+  el.textContent = "";
+  setTimeout(() => { el.textContent = msg; }, 50);
 }
-// Only the question screens and the summary hold answers worth saving.
+const strings = o => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([, v]) => typeof v === "string"));
+// A saved copy that can't be used (unreadable, too old, or with no answers) is deleted.
+function readSaved() {
+  const raw = store.get(STORE_KEY);
+  if (raw === null) return null;
+  try {
+    const d = JSON.parse(raw);
+    const age = d ? Date.now() - d.savedAt : NaN;
+    const usable = d && d.v === 1 && Object.hasOwn(SITUATIONS, d.sitKey) && !SITUATIONS[d.sitKey].triage
+      && Number.isFinite(d.savedAt) && age > -864e5 && age <= MAX_AGE_DAYS * 864e5
+      && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.keys(d.unsure || {}).length > 0);
+    if (usable) return d;
+  } catch { /* unreadable */ }
+  store.del(STORE_KEY);
+  return null;
+}
+// Only the question screens and the summary hold answers worth saving, and only
+// answers to questions that are shown: a hidden answer (like a home address after
+// choosing the Address Confidentiality Program) is never kept on the device.
 function saveProgress() {
   if (!savingOn() || !sitKey || (mode !== "step" && mode !== "summary")) return;
-  saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, savedAt: Date.now(), sitKey, answers, unsure, cur, mode, triage, fromTriage, fromNotSure,
-    draft: mode === "step" ? draft : null }));
+  let old = null;
+  try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
+  if (!hasAnswers() && !(draft && !empty(draft.value))) {
+    // Nothing typed yet, or every answer was erased: don't keep an empty copy.
+    if (old && old.sitKey === sitKey) clearSaved();
+    return;
+  }
+  const visIds = new Set(visible().map(s => s.id));
+  const data = { v: 1, sitKey, answers: visibleAnswers(), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => visIds.has(k))),
+    cur, mode, triage, fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
+    edit: returnToSummary ? { followUps, lastEdited, fixFrom } : null };
+  // Only a change to the answers restarts the 30 days; just looking at them doesn't.
+  const content = d => JSON.stringify([d.sitKey, d.answers, d.unsure, d.draft ? d.draft.value : null]);
+  const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
+  const json = JSON.stringify({ ...data, savedAt });
+  if (json === store.get(STORE_KEY)) return;
+  saveOk = store.set(STORE_KEY, json);
 }
 function clearSaved() { store.del(STORE_KEY); }
+// Deleting answers on purpose also clears them from any other open tab.
+function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); }
 function restoreSaved(d) {
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
-  if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) answers[d.draft.id] = d.draft.value;
+  if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) {
+    answers[d.draft.id] = d.draft.value;
+    if (!empty(d.draft.value)) delete unsure[d.draft.id];
+  }
   triage = strings(d.triage); fromTriage = d.fromTriage === true; fromNotSure = d.fromNotSure === true;
   cur = Number.isInteger(d.cur) && d.cur > 0 ? d.cur : 0; returnToSummary = false;
+  // An edit started from the summary carries on as an edit.
+  const ids = new Set(steps.map(s => s.id));
+  if (d.edit && typeof d.edit === "object" && d.mode !== "summary") {
+    returnToSummary = true;
+    followUps = Array.isArray(d.edit.followUps) ? d.edit.followUps.filter(id => ids.has(id)) : [];
+    lastEdited = ids.has(d.edit.lastEdited) ? d.edit.lastEdited : null;
+    fixFrom = d.edit.fixFrom === "flags" ? "flags" : "vals";
+  }
   mode = d.mode === "summary" ? "summary" : "step";
   render();
 }
 function updatePrivacyNote() {
+  const btn = document.getElementById("saveToggle");
+  if (btn) { btn.hidden = !storageWorks; btn.textContent = savingOn() ? "Turn off saving" : "Turn on saving"; }
   const el = document.getElementById("privacy");
   if (!el) return;
   const working = sitKey && (mode === "step" || mode === "summary");
@@ -1836,9 +1904,32 @@ function updatePrivacyNote() {
 }
 // Another tab saving the same form would replace this tab's answers (and the other way around).
 window.addEventListener("storage", e => {
-  if (e.key !== STORE_KEY || !sitKey || (mode !== "step" && mode !== "summary")) return;
+  if (e.key === CLEAR_KEY) {
+    // The person deleted their answers in another tab: delete them here too.
+    const had = hasAnswers();
+    resetAnswers(); mode = "pick"; render();
+    if (had) announce("Your answers were deleted in another tab.");
+    return;
+  }
+  if (e.key !== STORE_KEY) return;
+  if (mode === "pick") { renderPick(true); return; } // keep the "Continue" card up to date
+  if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
+  if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true; updatePrivacyNote();
 });
+// With nothing being saved, warn before the page is closed or refreshed.
+window.addEventListener("beforeunload", e => {
+  if ((!savingOn() || !saveOk) && sitKey && hasAnswers() && (mode === "step" || mode === "summary")) { e.preventDefault(); e.returnValue = ""; }
+});
+// Turning saving off deletes what's saved, so ask first.
+function setSaving(on) {
+  if (!on && readSaved() && !confirm("Turn off saving? This deletes the answers saved on this device. Your answers stay on this page until you close it.")) return false;
+  store.set(PREF_KEY, on ? "on" : "off");
+  if (on) saveProgress(); else clearSaved();
+  updatePrivacyNote();
+  announce(on ? "Saving on this device is on." : "Saving is off. Your answers aren't saved on this device.");
+  return true;
+}
 
 /* =====================================================================
    APP STATE
@@ -1854,14 +1945,18 @@ const app = document.getElementById("app");
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageFromSummary = false; fromTriage = false; fromNotSure = false;
-  cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null;
+  cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
 
 document.getElementById("clearData").onclick = () => {
-  if (!confirm("Clear my data? This deletes every answer you have entered, on this page and saved on this device.")) return;
-  clearSaved(); resetAnswers(); otherTab = false; mode = "pick"; render();
+  if (!confirm("Clear my data? This deletes every answer you have entered, on this page, in any other open tab, and saved on this device.")) return;
+  clearEverywhere(); resetAnswers(); mode = "pick"; render();
+  announce("Your answers were deleted.");
+};
+document.getElementById("saveToggle").onclick = () => {
+  if (setSaving(!savingOn()) && mode === "pick") renderPick(true);
 };
 
 const visible = () => steps.filter(s => !s.showIf || s.showIf(answers));
@@ -1992,7 +2087,8 @@ function runChecks() {
 }
 
 /* ---------- screens ---------- */
-function renderPick() {
+// quiet: re-drawn because something changed elsewhere, so don't move focus or scroll.
+function renderPick(quiet = false) {
   const saved = readSaved();
   app.innerHTML = `
     ${saved ? `<div class="resume">
@@ -2007,21 +2103,25 @@ function renderPick() {
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>${storageWorks
-        ? `On a shared or public computer, like a library or courthouse kiosk, uncheck this. Saved answers are deleted ${MAX_AGE_DAYS} days after your last change.`
+        ? `On a shared or public computer, like a library or courthouse kiosk, uncheck this. If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened.`
         : "This browser isn't letting the page save, so your answers will be lost if you close or refresh it."}</small></span></label>`;
   const pref = document.getElementById("savePref");
   pref.disabled = !storageWorks;
   pref.onchange = () => {
-    store.set(PREF_KEY, pref.checked ? "on" : "off");
-    if (!pref.checked) clearSaved();
-    renderPick(); updatePrivacyNote();
+    if (!setSaving(pref.checked)) { pref.checked = !pref.checked; return; }
+    renderPick(true);
     document.getElementById("savePref").focus();
   };
   if (saved) {
-    document.getElementById("resume").onclick = () => restoreSaved(saved);
+    // Read the saved answers again when Continue is chosen, in case another tab changed them.
+    document.getElementById("resume").onclick = () => {
+      const now = readSaved();
+      if (now) restoreSaved(now); else { renderPick(); announce("Those saved answers are no longer on this device."); }
+    };
     document.getElementById("discard").onclick = () => {
       if (!confirm("Delete your saved answers? This can't be undone.")) return;
-      clearSaved(); resetAnswers(); render();
+      clearEverywhere(); resetAnswers(); render();
+      announce("Your saved answers were deleted.");
     };
   }
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
@@ -2100,7 +2200,7 @@ function renderStep() {
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
-    <p class="need" id="unsureHelp">${unsure[step.id] ? "You marked this \"I'm not sure.\" Answer it any time; until then it is flagged at the end." : "Not sure? Skip it for now. It will be flagged at the end so you can check your papers or get help."}</p>`;
+    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? "You marked this \"I'm not sure.\" Answer it any time; until then it is flagged at the end." : "Not sure? Skip it for now. It will be flagged at the end so you can check your papers or get help."}</p>`;
   const el = app.querySelector("#ans, input[name=ans]:checked, input[name=ans]"); if (el) el.focus();
   document.getElementById("back").onclick = () => {
     readInput(step); // keep what was typed
@@ -2112,7 +2212,9 @@ function renderStep() {
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
   app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" ? "change" : "input", () => {
-    draft = { id: step.id, value: i.value }; saveProgress();
+    draft = { id: step.id, value: i.value };
+    const wasOk = saveOk; saveProgress(); updatePrivacyNote();
+    if (wasOk && !saveOk) announce("Your answers can't be saved on this device right now.");
   }));
   app.querySelectorAll("input, select").forEach(i => i.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.repeat || e.isComposing) return;
@@ -2243,7 +2345,8 @@ function renderSummary(rerender = false) {
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
     if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
-    clearSaved(); resetAnswers(); mode = "pick"; render();
+    clearEverywhere(); resetAnswers(); mode = "pick"; render();
+    announce("Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
   if (et) et.onclick = () => { triagePrev = { ...triage }; triage = {}; triageFromSummary = true; mode = "triage"; render(); };
