@@ -2271,8 +2271,9 @@ window.addEventListener("storage", e => {
   } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
   // Another tab saved over this page's answers: a different form, or this form without something this page has.
   if (e.newValue !== null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
-    let saver = null; try { saver = JSON.parse(e.newValue); } catch { /* unreadable */ }
-    if (saver && saver.sitKey) {
+    // What's in the copy now, not what this event carried: tabs can save right after each other.
+    let saver = null; try { saver = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
+    if (saver && saver.sitKey && store.get(STORE_KEY) !== lastWritten) {
       // A blank is the same as no answer, and it's fine for the other tab to have more.
       const theirs = saver.draft ? { ...saver.answers, [saver.draft.id]: saver.draft.value } : saver.answers || {};
       const mine = draft ? { ...visibleAnswers(), [draft.id]: draft.value } : visibleAnswers();
