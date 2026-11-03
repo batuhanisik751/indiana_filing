@@ -1834,6 +1834,8 @@ const kindOf = t => Object.hasOwn(CASE_KINDS, t?.kind) ? CASE_KINDS[t.kind] : CA
 const paperOf = t => t.kind === "smallclaims" ? "notice" : t.paper;
 // Has the person answered a sorting question yet? (Choosing the kind of case isn't an answer.)
 const triageAnswered = t => TRIAGE_STEPS.some(s => !empty(t?.[s.id]));
+// What saved sorting answers are called in the clear signal to other tabs.
+const sortingTag = t => `sorting:${Object.hasOwn(CASE_KINDS, t?.kind) ? t.kind : "eviction"}`;
 const cleanTriage = o => { const t = strings(o); if (!Object.hasOwn(CASE_KINDS, t.kind)) delete t.kind; return t; };
 
 const TRIAGE_STEPS = [
@@ -2178,6 +2180,15 @@ window.addEventListener("storage", e => {
     // Start over or Delete saved answers name one form; Clear my data names none (every form).
     let form = null;
     try { const v = JSON.parse(e.newValue); if (v && typeof v === "object" && typeof v.form === "string") form = v.form; } catch { /* a plain time */ }
+    if (form && form.startsWith("sorting:")) {
+      // Saved sorting answers were deleted: a tab still holding them clears too, or its next click saves them again.
+      if (!sitKey && (triageAnswered(triage) || (mode === "triage" && triageTouched)) && sortingTag(triage) === form) {
+        const title = kindOf(triage).pick;
+        resetAnswers(); mode = "pick"; render();
+        announce(`Your answers for "${title}" were deleted in another tab.`);
+      } else if (mode === "pick") renderPick(true);
+      return;
+    }
     if (form && form !== sitKey) { if (mode === "pick") renderPick(true); return; } // a different form: nothing to delete here
     if (form) {
       const title = SITUATIONS[form] ? SITUATIONS[form].title : "this form";
@@ -2567,7 +2578,7 @@ function renderPick(quiet = false) {
     };
     document.getElementById("discard").onclick = () => {
       if (!confirm(`Delete your saved answers for "${savedTitle(saved)}"? This also clears them in any other open tab with this form. This can't be undone.`)) return;
-      if (saved.triageOnly) clearSaved(); else clearFormEverywhere(saved.sitKey);
+      clearFormEverywhere(saved.triageOnly ? sortingTag(saved.triage) : saved.sitKey);
       resetAnswers(); render();
       announce("Your saved answers were deleted.");
     };
