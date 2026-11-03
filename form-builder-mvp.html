@@ -1654,6 +1654,7 @@ const SOURCES = {
   helpDesk: { href: LINKS.helpDesk, text: "Indiana Legal Help Desk" },
   answerTopic: { href: LINKS.answerTopic, text: "Indiana Legal Help: Answer" },
   evictionFaq: { href: "https://indianalegalhelp.org/eviction-frequently-asked-questions/", text: "Indiana Legal Help: Eviction Frequently Asked Questions" },
+  proSup: { href: "https://www.indianalegalservices.org/debt-collection-pro-sup/", text: "Indiana Legal Services: Guide to Proceedings Supplemental" },
   efileSchedule: { href: "https://www.in.gov/courts/efiling/schedule/", text: "Which case types can be e-filed" },
 };
 // Indiana Legal Help's own description of its Help Desk.
@@ -1775,6 +1776,13 @@ function nextSteps(key, a) {
     title: "If the court sets a hearing",
     body: dismissFact,
     links: [SOURCES.smallClaims] });
+
+  // After a money judgment. Indiana Legal Help and the courts' self-help pages don't cover this, so the
+  // source is Indiana Legal Services' guide. For people being sued, not for a case the person started.
+  if (key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) out.push({
+    title: "If the court decides you owe money",
+    body: "Indiana Legal Services, a nonprofit law firm that gives free civil legal help, says proceedings supplemental hearings are held after a court has granted a money judgment against you, to find out if you have any income or property that can be taken to pay it. It says you must go to court if you get an order to appear, even if you have no income or property. If you are notified of the hearing and don't go, the judgment creditor can ask the court to set a \"rule to show cause\" hearing, where you are ordered to explain why you missed it, and if you also miss that one, the court may issue a warrant for your arrest (called a writ or body attachment). It also says a court may not put you in jail or punish you in any other way for not paying on a judgment debt.",
+    links: [SOURCES.proSup] });
 
   out.push({ title: "Get free help", body: `Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. ${HELP_DESK}`, links: [SOURCES.getHelp, SOURCES.helpDesk] });
   return out;
