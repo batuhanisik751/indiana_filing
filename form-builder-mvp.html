@@ -170,7 +170,7 @@ const OFFICIAL = {
       answer: { name: "Answer", number: "CCA-GF-0626-6008", pages: [6, 7] },
     },
     // Where "/s/ Name" goes when the user e-files (text baseline on each signature line).
-    signatures: [{ page: 5, x: 127, y: 547 }, { page: 5, x: 111, y: 170.5 }, { page: 7, x: 111, y: 157 }],
+    signatures: [{ page: 5, x: 127, y: 547, w: 266 }, { page: 5, x: 111, y: 170.5, w: 390 }, { page: 7, x: 111, y: 157, w: 426 }],
   },
   feeWaiverPacket: {
     file: "feeWaiverPacket",
@@ -182,7 +182,7 @@ const OFFICIAL = {
       motion: { name: "Verified Motion for Fee Waiver", number: "CCA-GF-0420-3006", pages: [2, 3] },
       order: { name: "Order on Fee Waiver", number: "CCA-GF-0420-3007", pages: [4] },
     },
-    signatures: [{ page: 1, x: 327, y: 557.5 }, { page: 3, x: 362, y: 262 }],
+    signatures: [{ page: 1, x: 327, y: 557.5, w: 210 }, { page: 3, x: 362, y: 262, w: 162 }],
   },
   continuancePacket: {
     file: "continuancePacket",
@@ -192,9 +192,10 @@ const OFFICIAL = {
     docs: {
       appearance: { name: "Appearance", number: "CCA-GF-1219-3000", pages: [3, 4] },
       motion: { name: "Verified Motion for Continuance", number: "CCA-GF-1219-3002", pages: [5, 6] },
-      order: { name: "Order on Verified Motion for Continuance", number: null, pages: [7, 8] },
+      // The Order's first page has no footer; its second page prints CCA-GF-1219-3002.
+      order: { name: "Order on Verified Motion for Continuance", number: "CCA-GF-1219-3002", pages: [7, 8] },
     },
-    signatures: [{ page: 4, x: 127, y: 525 }, { page: 4, x: 113, y: 121.5 }, { page: 6, x: 183, y: 588 }, { page: 6, x: 113, y: 184.5 }],
+    signatures: [{ page: 4, x: 127, y: 525, w: 266 }, { page: 4, x: 113, y: 121.5, w: 280 }, { page: 6, x: 183, y: 588, w: 354 }, { page: 6, x: 113, y: 184.5, w: 280 }],
   },
 };
 
@@ -205,7 +206,8 @@ const LIBS = {
     integrity: "sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" },
   pdfJs: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
     integrity: "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" },
-  pdfJsWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  pdfJsWorker: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+    integrity: "sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2" },
 };
 
 const FORM = {
@@ -225,7 +227,7 @@ const formNumber = (sit, form) => (sit.formNumbers && sit.formNumbers[form]) || 
 const FORM_NUMBER = {
   [FORM.appearance]: "CCA-GF-1225-6003", [FORM.answer]: "CCA-GF-0626-6008",
   [FORM.fwAppearance]: "CCA-GF-0420-3012", [FORM.fwMotion]: "CCA-GF-0420-3006", [FORM.fwOrder]: "CCA-GF-0420-3007",
-  [FORM.contMotion]: "CCA-GF-1219-3002",
+  [FORM.contMotion]: "CCA-GF-1219-3002", [FORM.contOrder]: "CCA-GF-1219-3002",
 };
 
 /* ---------- small helpers ---------- */
@@ -307,7 +309,7 @@ const youSteps = sec => [
   { id: "phone", sec, type: "tel", label: "Phone number",
     q: "What is your phone number?",
     help: "The official form asks for a 10-digit phone number, including the area code." },
-  { id: "fax", sec, type: "tel", label: "Fax number", optional: true,
+  { id: "fax", sec, type: "tel", label: "Fax number", optional: true, noWords: true,
     q: "What is your fax number?",
     help: "Most people don't have one. Leave this blank if you don't." },
 ];
@@ -518,8 +520,10 @@ const fwExpenseSteps = sec => [
 
 // Continuance packet (to ask the court to move a hearing).
 const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties. For example, in an eviction case there might be a separate case about damages owed.";
+const CONT_COURT_NOTE = " Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, but the top of the form says to match your other court forms, so fill it in if you know it.";
 const contCaseSteps = sec => [
-  ...caseSteps(sec).filter(s => s.id !== "plaintiff" && s.id !== "courtDate"),
+  ...caseSteps(sec).filter(s => s.id !== "plaintiff" && s.id !== "courtDate")
+    .map(s => ["courtType", "courtTypeOther", "caseNumber", "caseTypeLetters"].includes(s.id) ? { ...s, optional: true, help: s.help + CONT_COURT_NOTE } : s),
   { id: "role", sec, type: "choice", label: "Who started the case",
     q: "Who started this case?",
     help: "The top of the form lists the two sides: the person who started the case first, then the other side.",
@@ -599,7 +603,7 @@ function contMotionFields(a) {
     f(FORM.contMotion, "2. My court hearing has been scheduled for", formDate(a.hearingDate), "hearingDate",
       [{ t: "text", name: "Court Hearing Date", value: formDate(a.hearingDate) }]),
     f(FORM.contMotion, "3. I need to change the date of the hearing because", a.reason, "reason",
-      [{ t: "lines", page: 5, x0: [370, 90, 90, 90, 90, 90], x1: 540, ys: [375.8, 353.9, 331.9, 310.0, 288.0, 266.0], value: a.reason }]),
+      [{ t: "lines", page: 5, x0: [370, 90, 90, 90, 90, 90], x1: 540, ys: [375.8, 353.9, 331.9, 310.0, 288.0, 266.0], value: a.reason, continues: "Item 3 (why I need to change the date)" }]),
     f(FORM.contMotion, "4. I am asking the court for", a.timeNeeded, "timeNeeded",
       [{ t: "text", name: "Number of Days/Weeks Needed", value: a.timeNeeded }]),
     f(FORM.contMotion, "5. The name of the other party", a.otherParty, "otherParty",
@@ -769,13 +773,13 @@ function answerFields(a) {
   return [
     f(FORM.answer, "1. My name is", a.name, "name"),
     f(FORM.answer, "3. Paragraphs I admit", empty(a.admitted) ? "Left blank" : a.admitted, "admitted",
-      [{ t: "lines", page: 6, x0: 90, x1: 540, ys: [376.1, 346.8], value: a.admitted }]),
+      [{ t: "lines", page: 6, x0: 90, x1: 540, ys: [376.1, 346.8], value: a.admitted, continues: "Item 3 (paragraphs admitted)" }]),
     f(FORM.answer, "4. Paragraphs I deny", empty(a.denied) ? "Left blank" : a.denied, "denied",
-      [{ t: "lines", page: 6, x0: 90, x1: 540, ys: [207.6, 185.8], value: a.denied }]),
+      [{ t: "lines", page: 6, x0: 90, x1: 540, ys: [207.6, 185.8], value: a.denied, continues: "Item 4 (paragraphs denied)" }]),
     f(FORM.answer, "5. Paragraphs I can't admit or deny", empty(a.notEnough) ? "Left blank" : a.notEnough, "notEnough",
-      [{ t: "lines", page: 7, x0: 90, x1: 540, ys: [756.7, 734.6], value: a.notEnough }]),
+      [{ t: "lines", page: 7, x0: 90, x1: 540, ys: [756.7, 734.6], value: a.notEnough, continues: "Item 5 (paragraphs I can't admit or deny)" }]),
     f(FORM.answer, "6. My defenses", empty(a.defenses) ? "Left blank" : a.defenses, "defenses",
-      [{ t: "lines", page: 7, x0: 90, x1: 540, ys: DEFENSE_LINES, value: a.defenses }]),
+      [{ t: "lines", page: 7, x0: 90, x1: 540, ys: DEFENSE_LINES, value: a.defenses, continues: "Item 6 (defenses)" }]),
   ];
 }
 
@@ -810,7 +814,7 @@ function signatureFields(a, key) {
   const efile = a.fileMethod === "efile";
   return [f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
     efile ? (empty(a.name) ? "" : `/s/ ${a.name}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
-    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, value: `/s/ ${a.name}` })) : [])];
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, w: s.w, value: `/s/ ${a.name}` })) : [])];
 }
 
 const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
@@ -831,7 +835,12 @@ function feeWaiverFields(a) {
     f(FORM.caption, "Respondent", empty(a.otherPerson) ? "Left blank" : a.otherPerson, "otherPerson", [{ t: "text", name: "Respondent", value: a.otherPerson }]),
     f(FORM.fwAppearance, "1. My name is", a.name, "name"),
     f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : a.address, "address",
-      [{ t: "text", name: "Address", value: a.agConfidential === "yes" ? "" : a.address }]),
+      a.agConfidential === "yes" ? [] : [
+        // Written on the four printed address lines (the field's box doesn't line up with them).
+        { t: "lines", page: 0, x0: 180, x1: 396, ys: [403.3, 389.5, 375.7, 361.9], value: a.address },
+        // The same field repeats on the Order's distribution list, which has three lines under the name.
+        // The Order's three lines are shorter, so the address runs on from line to line there.
+        { t: "lines", page: 4, x0: 72, x1: 275, ys: [184.1, 170.6, 157.2], value: String(a.address || "").replace(/\s*\n+\s*/g, ", ") }]),
     ...(a.agConfidential === "yes"
       ? [f(FORM.fwAppearance, "Email, phone and fax", "Left blank (Attorney General confidential address checked)", "agConfidential")]
       : [
@@ -883,7 +892,7 @@ function feeWaiverFields(a) {
     f(FORM.fwMotion, "8. and Total Expenses (added up for you)", `$${money(expenseTotal(a))}`, null,
       [{ t: "text", name: "MonthlyExpenses", value: money(expenseTotal(a)) }]),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
-    f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "draw", page: 3, x: 362, y: 224, value: a.name }]),
+    f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "draw", page: 3, x: 362, y: 224, w: 162, value: a.name }]),
     f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.agConfidential === "yes" ? "" : a.address].filter(Boolean).join("\n"), "name"),
   );
   return out;
@@ -906,23 +915,42 @@ function loadScript({ src, integrity }) {
   });
   return loaded[src];
 }
+// What the download needs: pdf-lib and the official PDF packet.
 async function loadPdfTools(file) {
   // Each official PDF is packed in its own script (see scripts/build-form-data.mjs).
-  await Promise.all([loadScript(LIBS.pdfLib), loadScript(LIBS.pdfJs), loadScript({ src: `forms/data/${file}.js` })]);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfJsWorker;
+  await Promise.all([loadScript(LIBS.pdfLib), loadScript({ src: `forms/data/${file}.js` })]);
+}
+// What only the preview needs: PDF.js and its worker. The worker is fetched with
+// an integrity check too, then started from a local copy.
+let workerReady = null;
+async function loadPreviewTools() {
+  await loadScript(LIBS.pdfJs);
+  if (!workerReady) workerReady = fetch(LIBS.pdfJsWorker.src, { integrity: LIBS.pdfJsWorker.integrity, mode: "cors" })
+    .then(r => { if (!r.ok) throw new Error("worker"); return r.blob(); })
+    .then(b => { pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(b); })
+    .catch(e => { workerReady = null; throw e; });
+  await workerReady;
 }
 
 const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 
-// The forms' standard fonts only cover Western European characters. Swap
-// anything else for "?" instead of failing, and report it.
+// The forms' standard fonts only cover Western European characters. A letter
+// outside that set is printed as its closest plain letter when there is one
+// (for example "Ł" as "L"), otherwise as "?". Either way it is reported.
+const LOOKALIKE = { "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ": "h", "ı": "i", "Ŀ": "L", "ŀ": "l", "Ŧ": "T", "ŧ": "t", "ĸ": "k",
+  "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "..." };
 function makeSafe(font, report) {
   const ok = new Map();
-  return text => Array.from(String(text ?? "").replace(/\t/g, " ")).map(ch => {
-    if (ch === "\n" || ch === "\r") return ch;
+  const fits = ch => {
     if (!ok.has(ch)) { try { font.widthOfTextAtSize(ch, 10); ok.set(ch, true); } catch { ok.set(ch, false); } }
-    if (ok.get(ch)) return ch;
-    report(ch); return "?";
+    return ok.get(ch);
+  };
+  return text => Array.from(String(text ?? "").replace(/\t/g, " ")).map(ch => {
+    if (ch === "\n" || ch === "\r" || fits(ch)) return ch;
+    const plain = LOOKALIKE[ch] ?? ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const out = plain && plain !== ch && Array.from(plain).every(fits) ? plain : "?";
+    report(ch, out);
+    return out;
   }).join("");
 }
 
@@ -951,7 +979,8 @@ function wrap(text, font, size, maxWidth) {
 const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
 
 // Text written on a form's printed rules: one rule per line, shrinking the
-// text if needed. Anything that still doesn't fit is reported.
+// text if needed. With op.continues, text that still doesn't fit goes on an
+// added page; otherwise it is reported as cut off.
 // x0 can be one number, or one per line when the first line starts after a label.
 const lineX0 = (op, i) => (Array.isArray(op.x0) ? op.x0[i] : op.x0);
 function wrapLines(text, font, size, op) {
@@ -983,13 +1012,20 @@ function fitLines(text, font, op) {
   return { size, lines: wrapLines(text, font, size, op).slice(0, op.ys.length), overflow: true };
 }
 
-// Pick a font size so the value fits inside the field's box.
+// Pick a font size so the value fits inside the field's box. A one-line box
+// that would need tiny text switches to two smaller lines when its box is tall
+// enough (wrap: true).
 function fitField(text, font, rect, multiline, maxSize) {
-  const width = rect.width - 4, height = rect.height - 2;
-  for (const size of [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6]) {
-    if (!multiline) { if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false }; continue; }
-    if (wrap(text, font, size, width).length * size * 1.25 <= height) return { size, overflow: false };
+  const width = Math.abs(rect.width) - 4, height = Math.abs(rect.height) - 2;
+  const sizes = [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6];
+  const fitsLines = size => wrap(text, font, size, width).length * size * 1.15 <= height;
+  if (!multiline) {
+    for (const size of sizes.filter(s => s >= 7.5)) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
+    for (const size of sizes) if (fitsLines(size)) return { size, overflow: false, wrap: true };
+    for (const size of sizes) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
+    return { size: 6, overflow: true };
   }
+  for (const size of sizes) if (fitsLines(size)) return { size, overflow: false };
   return { size: 6, overflow: true };
 }
 
@@ -1010,21 +1046,23 @@ async function buildPdf(key, a) {
   }
 
   for (const item of sit.fields(a)) {
-    const safe = makeSafe(font, ch => notes.push({ kind: "chars", step: item.step, label: item.label, ch }));
+    const safe = makeSafe(font, (ch, out) => notes.push({ kind: "chars", step: item.step, label: item.label, ch, out }));
     for (const op of item.pdf) {
       if (op.t === "text") {
         const tf = form.getTextField(op.name);
         const value = safe(op.value);
         tf.setText(value);
         if (!value) continue;
-        // A field can appear on several pages; size the text for its smallest box.
-        const rect = tf.acroField.getWidgets().map(w => w.getRectangle())
-          .reduce((m, r) => (r.width * r.height < m.width * m.height ? r : m));
-        const fit = fitField(value, font, rect, tf.isMultiline(), op.maxSize || off.maxSize);
-        tf.setFontSize(fit.size);
-        // Some widgets carry their own font size, which would win over the field's.
-        tf.acroField.getWidgets().forEach(w => { if (w.getDefaultAppearance()) w.setDefaultAppearance(`/Helv ${fit.size} Tf 0 g`); });
-        if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
+        // A field can appear in several boxes (for example the caption and "My name is"),
+        // so size the text for each box on its own.
+        const fits = tf.acroField.getWidgets().map(w => {
+          const fit = fitField(value, font, w.getRectangle(), tf.isMultiline(), op.maxSize || off.maxSize);
+          w.setDefaultAppearance(`/Helv ${fit.size} Tf 0 g`);
+          return fit;
+        });
+        if (fits.some(x => x.wrap)) tf.enableMultiline();
+        tf.setFontSize(Math.min(...fits.map(x => x.size)));
+        if (fits.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
       } else if (op.t === "radio") {
         form.getRadioGroup(op.name).select(op.option);
       } else if (op.t === "check") {
@@ -1043,24 +1081,94 @@ async function buildPdf(key, a) {
   form.flatten();
 
   const pages = src.getPages();
+  const docOfPage = pg => sit.official.docs.find(k => off.docs[k].pages.includes(pg));
+  const continuations = {};
   for (const { op, item, value } of draws) {
-    if (op.t === "draw") { pages[op.page].drawText(value, { x: op.x, y: op.y, size: 11, font }); continue; }
-    const fit = fitLines(value, font, op);
+    if (op.t === "draw") {
+      // Shrink to fit the line it sits on (op.w); report if even small text won't fit.
+      let size = 11;
+      while (op.w && size > 6 && font.widthOfTextAtSize(value, size) > op.w) size -= 0.5;
+      pages[op.page].drawText(value, { x: op.x, y: op.y, size, font });
+      if (op.w && font.widthOfTextAtSize(value, size) > op.w) notes.push({ kind: "overflow", step: item.step, label: item.label });
+      continue;
+    }
+    let fit = fitLines(value, font, op);
+    if (fit.overflow && op.continues) {
+      // Keep the last rule for the note, and move the rest to an added page.
+      const keep = op.ys.length - 1;
+      const all = wrapLines(value, font, 9, op);
+      fit = { size: 9, lines: [...all.slice(0, keep), "(continued on attached page)"] };
+      const doc = docOfPage(op.page);
+      (continuations[doc] = continuations[doc] || []).push({ label: op.continues, text: all.slice(keep).join(" ") });
+      notes.push({ kind: "continued", step: item.step, label: item.label, doc: off.docs[doc].name });
+    }
     fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: lineX0(op, i) + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
     if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
   }
 
+  cleanUpAfterFlatten(src);
+
+  // An added page that carries the rest of a long answer, right after its form.
+  const caption = [a.caseNumber ? `Case number: ${a.caseNumber}` : "", a.county ? `${a.county} County` : ""].filter(Boolean).join("    ");
+  const addContinuation = async (out, docKey) => {
+    const conts = continuations[docKey];
+    if (!conts) return;
+    const f = await out.embedFont(PDFLib.StandardFonts.Helvetica);
+    const bold = await out.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    // The E-Filing User Guide asks for a 1-inch top margin and numbered pages, so text starts below 1 inch.
+    const added = [out.addPage([612, 792])];
+    let y = 708;
+    const line = (text, fnt, size, gap) => {
+      for (const l of wrap(safeOut(text), fnt, size, 468)) {
+        if (y < 72) { added.push(out.addPage([612, 792])); y = 708; }
+        added[added.length - 1].drawText(l, { x: 72, y, size, font: fnt }); y -= gap;
+      }
+    };
+    const d = off.docs[docKey];
+    line(`Attachment to ${d.name}${d.number ? ` (${d.number})` : ""}`, bold, 12, 18);
+    if (caption) line(caption, f, 10, 14);
+    if (a.name) line(`Filed by: ${a.name}`, f, 10, 20);
+    for (const c of conts) { line(`Continued from: ${c.label}`, bold, 10, 15); line(c.text, f, 10, 14); y -= 10; }
+    added.forEach((pg, i) => pg.drawText(`Attachment page ${i + 1} of ${added.length}`, { x: 72, y: 40, size: 9, font: f }));
+  };
+  const safeOut = makeSafe(font, () => {});
   const docs = sit.official.docs.map(k => ({ key: k, ...off.docs[k] }));
-  const make = async (pageList, title) => {
+  const make = async (parts, title) => {
     const out = await PDFDocument.create();
-    (await out.copyPages(src, pageList)).forEach(p => out.addPage(p));
+    for (const d of parts) {
+      (await out.copyPages(src, d.pages)).forEach(p => out.addPage(p));
+      await addContinuation(out, d.key);
+    }
     out.setTitle(title);
     out.setCreator("Indiana Court Form Helper");
     return out.save();
   };
-  const all = await make(docs.flatMap(d => d.pages), `${sit.title} (official Indiana forms)`);
-  const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make(d.pages, d.number ? `${d.name} (${d.number})` : d.name) }))) : [];
+  const all = await make(docs, `${sit.title} (official Indiana forms)`);
+  const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make([d], d.number ? `${d.name} (${d.number})` : d.name) }))) : [];
   return { all, each, notes };
+}
+
+function cleanUpAfterFlatten(doc) {
+  const { PDFName, PDFArray, PDFDict, PDFRef } = PDFLib;
+  const ctx = doc.context;
+  for (const page of doc.getPages()) {
+    const annots = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
+    if (annots) {
+      const kept = annots.asArray().filter(r => !(r instanceof PDFRef) || ctx.lookup(r) !== undefined);
+      if (kept.length) page.node.set(PDFName.of("Annots"), ctx.obj(kept)); else page.node.delete(PDFName.of("Annots"));
+    }
+    const res = page.node.Resources();
+    const xobjs = res && res.lookupMaybe(PDFName.of("XObject"), PDFDict);
+    if (!xobjs) continue;
+    for (const [, ref] of xobjs.entries()) {
+      const stream = ref instanceof PDFRef ? ctx.lookup(ref) : ref;
+      const dict = stream && stream.dict;
+      if (dict && !dict.has(PDFName.of("Subtype")) && dict.has(PDFName.of("BBox"))) {
+        dict.set(PDFName.of("Type"), PDFName.of("XObject"));
+        dict.set(PDFName.of("Subtype"), PDFName.of("Form"));
+      }
+    }
+  }
 }
 
 /* ---------- preview and download ---------- */
@@ -1084,17 +1192,19 @@ function ensurePdf() {
 // Problems found while putting answers on the PDF (text too long, characters the font can't print).
 function pdfFlags() {
   if (!pdfState.result || pdfState.key !== pdfKey()) return [];
-  const overflow = new Map(), chars = new Map();
+  const overflow = new Map(), chars = new Map(), continued = new Map();
   for (const n of pdfState.result.notes) {
     const k = `${n.step}|${n.label}`;
     if (n.kind === "overflow") overflow.set(k, n);
-    else { if (!chars.has(k)) chars.set(k, { ...n, list: new Set() }); chars.get(k).list.add(n.ch); }
+    else if (n.kind === "chars") { if (!chars.has(k)) chars.set(k, { ...n, list: new Map() }); chars.get(k).list.set(n.ch, n.out); }
+    else if (n.kind === "continued") continued.set(k, n);
   }
   return [
-    ...[...overflow.values()].map(n => ({ level: "check", title: n.label, why: "This is too long for the space on the official form, so part of it is cut off. Try shortening it.", fix: n.step })),
+    ...[...overflow.values()].map(n => ({ level: "check", title: n.label, why: "This is too long for the space on the official form, so part of it may be cut off. Check it in the preview below.", fix: n.step })),
+    ...[...continued.values()].map(n => ({ level: "check", title: n.label, why: `This is longer than the lines on the form, so it continues on a page added at the end of the ${n.doc}, marked "continued on attached page." Check it in the preview below.`, fix: n.step })),
     ...[...chars.values()].map(n => {
-      const list = [...n.list].map(c => `"${c}"`).join(", ");
-      return { level: "check", title: n.label, why: `The form's font can't print ${list}, so ${n.list.size > 1 ? "they were" : "it was"} replaced with "?". Try typing it another way.`, fix: n.step };
+      const list = [...n.list].map(([c, o]) => `"${c}" (printed as "${o}")`).join(", ");
+      return { level: "check", title: n.label, why: `The form's font can't print some characters exactly: ${list}. Check that this is how you want it to appear.`, fix: n.step };
     }),
   ];
 }
@@ -1119,9 +1229,10 @@ async function renderPreview(bytes, el) {
   }
 }
 
+// Plain letters, numbers and dashes only, and well under the E-Filing User Guide's 100-character limit.
 const fileStem = s => String(s).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 function downloadPdf(bytes, name) {
-  const caseNo = answers.caseNumber && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber)}` : "";
+  const caseNo = answers.caseNumber && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber).slice(0, 30)}` : "";
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
   const link = document.createElement("a");
   link.href = url; link.download = `${fileStem(name)}${caseNo}.pdf`;
@@ -1131,7 +1242,7 @@ function downloadPdf(bytes, name) {
 
 function pdfSectionHtml(sit) {
   if (pdfState.busy || !pdfState.key) return `<p class="note" role="status">Filling in the official form…</p>`;
-  if (pdfState.error) return `<div class="note" role="alert">We couldn't make the PDF. This needs an internet connection the first time. <button class="link" id="retryPdf">Try again</button></div>`;
+  if (pdfState.error) return `<div class="note" role="alert">We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection. <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
     <div class="downloads">
@@ -1150,12 +1261,13 @@ function wirePdfSection(sit) {
   document.getElementById("dlAll").onclick = () => downloadPdf(all, sit.title);
   app.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => {
     const d = each.find(x => x.key === b.dataset.dl);
-    downloadPdf(d.bytes, d.name);
+    // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
+    downloadPdf(d.bytes, sitKey === "respond" ? d.name : `${sit.title} ${d.name}`);
   });
-  renderPreview(all, document.getElementById("preview")).catch(e => {
+  loadPreviewTools().then(() => renderPreview(all, document.getElementById("preview"))).catch(e => {
     console.error(e);
     const el = document.getElementById("preview");
-    if (el) el.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the download still works.</p>`;
+    if (el) el.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
   });
 }
 
@@ -1514,7 +1626,7 @@ function runChecks() {
 
   if (has("caseNumber")) {
     handled.add("caseNumber");
-    if (empty(a.caseNumber)) flags.push({ level: "missing", title: "Case number", why: "The case number is blank.", fix: "caseNumber" });
+    if (empty(a.caseNumber)) { if (!vis.find(s => s.id === "caseNumber").optional) flags.push({ level: "missing", title: "Case number", why: "The case number is blank.", fix: "caseNumber" }); }
     else {
       const m = caseMatch(a.caseNumber);
       if (!m) flags.push({ level: "check", title: "Case number", why: "It doesn't look like an Indiana case number (for example 49D01-2610-CC-001234). Compare it with your papers.", fix: "caseNumber" });

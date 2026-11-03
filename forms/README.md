@@ -10,6 +10,10 @@ These are the official Indiana court forms the tool fills in. They are approved 
 
 Downloaded November 2, 2026.
 
+## Why "appearance only" uses the Appearance from the Answer packet
+
+Indiana Legal Help offers two Appearance forms for people without a lawyer. The general one (CCA-GF-0221-3000, "Appearance by Unrepresented Party") says "I am filing this case on my own behalf," which fits someone starting a case. The one in the Answer packet (CCA-GF-1225-6003, "Appearance by Self-Represented Person in Civil Case") is newer and is written for a defendant: its caption reads Plaintiff v. Defendant and its Certificate of Service is addressed to the plaintiff or the plaintiff's attorney. The tool's "appearance only" situation is for people being sued, so it uses CCA-GF-1225-6003.
+
 ## Updating a form
 
 When Indiana Legal Help publishes a new version:
