@@ -1833,12 +1833,15 @@ const kindOf = t => Object.hasOwn(CASE_KINDS, t?.kind) ? CASE_KINDS[t.kind] : CA
 // "I have a small claims case" already says the paper is a Notice of Claim.
 const paperOf = t => t.kind === "smallclaims" ? "notice" : t.paper;
 // Has the person answered a sorting question yet? (Choosing the kind of case isn't an answer.)
-const triageAnswered = t => TRIAGE_STEPS.some(s => !empty(t?.[s.id]));
+const triageAnswered = t => TRIAGE_STEPS.some(s => s.id !== "kind" && !empty(t?.[s.id]));
 // What saved sorting answers are called in the clear signal to other tabs.
 const sortingTag = t => `sorting:${Object.hasOwn(CASE_KINDS, t?.kind) ? t.kind : "eviction"}`;
 const cleanTriage = o => { const t = strings(o); if (!Object.hasOwn(CASE_KINDS, t.kind)) delete t.kind; return t; };
 
 const TRIAGE_STEPS = [
+  // Only when changing these answers from the summary: the first screen answered this the first time.
+  { id: "kind", label: "Kind of case", q: "What is your case about?", help: "Pick the one that fits.", showIf: () => triageFromSummary,
+    options: Object.entries(CASE_KINDS).map(([k, c]) => [k, c.pick]) },
   { id: "paper", label: "Main paper you got", q: "What is the main paper you got called?", showIf: t => t.kind !== "smallclaims",
     help: "Look at the title near the top of the first page.",
     options: [["notice", "Notice of Claim"], ["complaint", "Complaint (it may come with a Summons)"], ["unsure", "Something else, or I'm not sure"]] },
@@ -2876,7 +2879,7 @@ function renderSummary(rerender = false) {
     announce("Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
-  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage }; triage = triage.kind ? { kind: triage.kind } : {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
+  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
   markNewTabLinks(app);
   if (rerender) return;
