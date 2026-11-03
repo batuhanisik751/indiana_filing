@@ -1651,6 +1651,7 @@ const SOURCES = {
   efileSite: { href: "https://efile.incourts.gov/", text: "efile.incourts.gov (the state's e-filing provider)" },
   tr86: { href: "https://rules.incourts.gov/Content/trial/rule86/current.htm", text: "Trial Rule 86" },
   feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
+  feeWaiverInstructions: { href: LINKS.feeWaiverInstructions, text: "Indiana Legal Help: Fee waiver instructions" },
   smallClaims: { href: "https://www.in.gov/courts/files/small-claims-manual.pdf", text: "Indiana Small Claims Manual" },
   newDate: { href: LINKS.continuance, text: "Indiana Legal Help: How to Ask for a New Court Date" },
   contInstructions: { href: LINKS.continuanceInstructions, text: "Indiana Legal Help: Continuance instructions" },
@@ -1695,7 +1696,7 @@ function nextSteps(key, a) {
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
     body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order is the judge's decision on your request: its instructions have you fill in only the top section and your name and address. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
-    links: [SOURCES.feeFaq, SOURCES.inPerson] });
+    links: [SOURCES.feeFaq, SOURCES.feeWaiverInstructions, SOURCES.inPerson] });
 
   // 2. Signing.
   if (!efile && !paper) out.push({
