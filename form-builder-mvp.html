@@ -2127,7 +2127,7 @@ function saveProgress() {
       const same = prev && Number.isFinite(prev.savedAt) && sortingKey(prev.triage) === sortingKey(held);
       saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage: held, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
       if (saveOk) savedHere = true;
-    }
+    } else if (!picked) saveOk = true; // nothing here to save
     return;
   }
   let old = null;
@@ -2372,7 +2372,7 @@ const app = document.getElementById("app");
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
-  savedHere = true;
+  savedHere = true; saveOk = true;
   editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
