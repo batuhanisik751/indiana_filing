@@ -610,6 +610,7 @@ const contRequestSteps = sec => [
     q: "How much more time are you asking for?",
     help: "The form says to write the number of days or weeks you need before your new court date, and not to write a specific date." },
   { id: "spokeDate", sec, type: "date", label: "Date you spoke to the other party", optional: true,
+    need: "The form asks for this date. If it's blank, it will be flagged at the end.",
     q: "On what date did you speak to the other party about filing this continuance?",
     help: "The form asks for the date you spoke to the other party about changing the court date." },
   { id: "otherAgreed", sec, type: "choice", label: "Did the other party agree",
@@ -2418,6 +2419,8 @@ function unsureNext(step, where) {
   // What the tool does with this answer, not which one to pick.
   if (step.id === "fwCourtType") return where === "summary" ? "To leave it blank on the form, choose Fix, then \"I don't know.\"" : "To leave it blank on the form, choose \"I don't know.\"";
   if (step.id === "localRuleText" && sitKey !== "feewaiver") return ""; // the advice already says
+  // Item 6 of the sworn motion doesn't say this date is optional, so the tool doesn't either.
+  if (step.id === "spokeDate") return where === "summary" ? "Then come back and answer it." : "Answer it any time; until then it is flagged at the end.";
   if (where === "summary") return step.optional ? "To leave it blank, choose Fix, then Save and review." : "Then come back and answer it.";
   return returnToSummary && step.optional ? "To leave it blank, choose Save and review." : "Answer it any time; until then it is flagged at the end.";
 }
