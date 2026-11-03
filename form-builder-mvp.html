@@ -1931,7 +1931,7 @@ function finishTriageChange() {
 function startSituation(key, from = "pick") {
   const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
   // Coming back to the same form (for example with Back from its first question) keeps the answers.
-  if (sitKey === key && hasAnswers()) {
+  if (sitKey === key && (hasAnswers() || triageFromSummary)) {
     cameFrom(); cur = 0; returnToSummary = false;
     mode = triageFromSummary ? "summary" : "step"; finishTriageChange(); return render();
   }
