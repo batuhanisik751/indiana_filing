@@ -2386,7 +2386,7 @@ function unsureAdvice(step) {
   if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
   if (PARAGRAPH_IDS.test(id)) return "Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't tell you which paragraphs go where; you can get free legal help.";
   if (sitKey === "feewaiver" && id === "county") return "Indiana's court directory lists the courts and clerk's offices in each county. It doesn't say which county your case belongs in; you can get free legal help.";
-  if (id === "fwCourtType") return "The official instructions say to select the court type if you know it and leave it blank if not, so you can choose \"I don't know.\"";
+  if (id === "fwCourtType") return "The official instructions say to select the court type if you know it and leave it blank if not.";
   if (id === "fwCaseType") return "The official instructions say to insert the case type or leave it blank.";
   if (id === "otherPerson") return "The official instructions say that if there is no other person involved in your case (like a name change), leave this blank. If you're not sure who it is, you can get free legal help.";
   if (sitKey === "feewaiver" && id === "localRuleText") return "The official instructions say to put information here if it's required by a local rule. If you don't know of one, you can leave it blank or ask the clerk's office.";
