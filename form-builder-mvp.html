@@ -1893,6 +1893,7 @@ function triageResult(t) {
 
 let triage = {}, fromTriage = false;
 let triagePrev = {};            // earlier sorting answers, pre-selected when changing them
+let triageTouched = false;      // this page has had sorting answers (answered here, or reopened from a saved copy)
 let triageFromSummary = false;  // the person is changing their sorting answers from the summary
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
@@ -1956,7 +1957,7 @@ function renderTriage() {
     const next = () => {
       const c = app.querySelector("input[name=ans]:checked");
       if (!c) { document.getElementById("err").textContent = "Pick one to continue."; return; }
-      triageHist.push({ ...triage }); triage[step.id] = c.value; render();
+      triageHist.push({ ...triage }); triage[step.id] = c.value; triageTouched = true; render();
     };
     document.getElementById("next").onclick = next;
     app.querySelectorAll("input[name=ans]").forEach(i => i.addEventListener("keydown", e => {
@@ -1979,7 +1980,7 @@ function renderTriage() {
     <div class="nav"><button class="ghost" id="back">Back</button></div>`;
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
-  app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triageHist.push({ ...triage }); triage.paper = b.dataset.paper; render(); });
+  app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triageHist.push({ ...triage }); triage.paper = b.dataset.paper; triageTouched = true; render(); });
   const all = document.getElementById("allChoices");
   if (all) all.onclick = () => { mode = "pick"; render(); };
   document.getElementById("back").onclick = triageBack;
@@ -1998,6 +1999,10 @@ function triageBack() {
     const last = answered[answered.length - 1].id;
     triagePrev = { ...triagePrev, [last]: triage[last] }; delete triage[last]; return render();
   }
+  // Leaving the sorting questions after taking the answers back: their saved copy goes too. Someone who
+  // opened a card and left without answering keeps it, and the first screen still offers to continue.
+  if (triageTouched) { const d = readSaved(); if (d && d.triageOnly && kindOf(d.triage) === kindOf(triage)) clearSaved(); }
+  triageTouched = false;
   mode = fromNotSure ? "notsure" : "pick"; render();
 }
 
@@ -2081,10 +2086,6 @@ function saveProgress() {
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
       if (saveOk) savedHere = true;
-    } else if (mode === "triage" && prev && prev.triageOnly && !picked && kindOf(prev.triage) === kindOf(triage)) {
-      // The person went back past the first sorting question. (Other screens, like the first screen
-      // offering to continue, leave the copy alone, and so does starting a different kind of case.)
-      clearSaved();
     }
     return;
   }
@@ -2125,7 +2126,7 @@ function clearFormEverywhere(form) { clearSaved(); store.set(CLEAR_KEY, JSON.str
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
   if (d.triageOnly) {
-    resetAnswers(); triage = cleanTriage(d.triage); fromNotSure = d.fromNotSure === true; mode = "triage";
+    resetAnswers(); triage = cleanTriage(d.triage); triageTouched = true; fromNotSure = d.fromNotSure === true; mode = "triage";
     if (keep) keep();
     return render();
   }
@@ -2265,7 +2266,7 @@ const app = document.getElementById("app");
 
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
-  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
+  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
   savedHere = true;
   editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
@@ -2580,7 +2581,7 @@ function renderPick(quiet = false) {
   toggle.onclick = () => { pickMore = !pickMore; toggle.setAttribute("aria-expanded", String(pickMore)); more.hidden = !pickMore; };
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-kind]").forEach(b => b.onclick = () => {
-    triage = { kind: b.dataset.kind }; triagePrev = {}; triageHist = []; fromNotSure = false; mode = "triage"; render();
+    triage = { kind: b.dataset.kind }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = false; mode = "triage"; render();
   });
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => startSituation(b.dataset.k, "pick"));
   // On first load, leave focus at the top of the page so the header and card come first.
@@ -2617,7 +2618,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (Object.hasOwn(CASE_KINDS, k)) { triage = { kind: k }; triagePrev = {}; triageHist = []; fromNotSure = true; mode = "triage"; return render(); }
+    if (Object.hasOwn(CASE_KINDS, k)) { triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
