@@ -2067,6 +2067,7 @@ let lastSavingOn = null; // the saving setting this page last knew (set at start
 let savedHereWhy = "deleted"; // or "replaced"
 let otherTab = false;   // has another tab been saving this same form?
 let otherTabTimer = null;
+let lastWritten = null;  // the saved copy as this page last wrote or opened it
 const OTHER_TAB_QUIET_MS = 120000;
 let draft = null;       // what's typed in the open question but not saved yet
 
@@ -2118,7 +2119,7 @@ function saveProgress() {
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       // Reopening these answers isn't a change, so it doesn't restart the 30 days.
       const same = prev && Number.isFinite(prev.savedAt) && JSON.stringify(cleanTriage(prev.triage)) === JSON.stringify(cleanTriage(triage));
-      saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
+      saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
       if (saveOk) savedHere = true;
     }
     return;
@@ -2126,8 +2127,9 @@ function saveProgress() {
   let old = null;
   try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
   if (!hasAnswers() && !(draft && !empty(draft.value))) {
-    // Nothing typed yet, or every answer was erased: don't keep an empty copy.
-    if (old && old.sitKey === sitKey) clearSaved();
+    // Every answer was erased: don't keep an empty copy. Only this page's own copy, though: a tab with
+    // nothing typed yet must not delete what another tab saved.
+    if (old && old.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) clearSaved();
     return;
   }
   // The choice on the open question counts right away: choosing the Address Confidentiality Program
@@ -2150,11 +2152,13 @@ function saveProgress() {
     Object.keys(d.unsure || {}).sort()]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
   const json = JSON.stringify({ ...data, savedAt });
-  if (json === store.get(STORE_KEY)) { savedHere = true; return; }
-  saveOk = store.set(STORE_KEY, json);
+  if (json === store.get(STORE_KEY)) { savedHere = true; lastWritten = json; return; }
+  saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
 }
 function clearSaved() { store.del(STORE_KEY); }
+// Writes the saved copy and remembers it, so this page can tell its own copy from another tab's.
+function writeCopy(json) { const ok = store.set(STORE_KEY, json); if (ok) lastWritten = json; return ok; }
 const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
 function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
@@ -2162,6 +2166,7 @@ function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now(
 function clearFormEverywhere(form) { clearSaved(); store.set(CLEAR_KEY, JSON.stringify({ at: Date.now(), form })); store.del(CLEAR_KEY); }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
+  lastWritten = store.get(STORE_KEY);
   if (d.triageOnly) {
     resetAnswers(); triage = cleanTriage(d.triage); triageTouched = true; fromNotSure = d.fromNotSure === true; mode = "triage";
     if (keep) keep();
