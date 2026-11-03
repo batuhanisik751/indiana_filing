@@ -21,12 +21,12 @@ The first screen starts with the five kinds of civil cases the tool's forms fit,
 | Choice | Indiana case type | Filed in 2024 |
 |---|---|---|
 | I'm being sued over a debt | Civil Collections (CC) | 140,846 |
-| I have a small claims case | Small Claims (SC) | 77,278 |
+| I'm being sued in small claims court | Small Claims (SC) | 77,278 |
 | I got eviction papers | Eviction (EV) | 68,866 |
 | I'm being sued over an injury or damage | Civil Tort (CT) | 13,086 |
 | I'm being sued in another kind of civil case | Civil Plenary (PL) | 10,718 |
 
-Each one asks what the main paper is called (Notice of Claim or Complaint; "I have a small claims case" skips this) and, for a Notice of Claim, whether the person can make their court date. Then it explains what official sources say about that kind of paper and lets the person choose: the Appearance, the Appearance and Answer, or the continuance forms. On the summary, "Change these answers" reopens these questions, including the kind of case.
+Each one asks what the main paper is called (Notice of Claim or Complaint; "I'm being sued in small claims court" skips this) and, for a Notice of Claim, whether the person can make their court date. Then it explains what official sources say about that kind of paper and lets the person choose: the Appearance, the Appearance and Answer, or the continuance forms. On the summary, "Change these answers" reopens these questions, including the kind of case.
 
 "My situation is different," below them, opens the forms directly (the table below), "I'm not sure which one fits," and links to the official self-help pages for protection orders, divorce, paternity, expungement and estates, whose forms the tool can't fill yet.
 
