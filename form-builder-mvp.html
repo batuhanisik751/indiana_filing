@@ -1783,7 +1783,7 @@ function nextSteps(key, a) {
     : `In other kinds of cases, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`;
   const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.courtStaff, SOURCES.getHelp] : [])];
   const defaultFact = notSmallClaims ? "" : `${ifSC}, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
-  const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
+  const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   const dismissFact = notSmallClaims ? "" : dismissText;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
@@ -1796,8 +1796,8 @@ function nextSteps(key, a) {
     links: [...(a.role === "me" ? (noSourceFact || !dismissFact ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? [SOURCES.smallClaims] : [])] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
-    body: dismissText,
-    links: [SOURCES.smallClaims] });
+    body: [dismissText, noSourceFact].filter(Boolean).join(" "),
+    links: [SOURCES.smallClaims, ...(noSourceFact ? [SOURCES.courtStaff, SOURCES.getHelp] : [])] });
 
   // After a money judgment. Indiana Legal Help and the courts' self-help pages don't cover this, so the
   // source is Indiana Legal Services' guide. For people being sued, not for a case the person started.
