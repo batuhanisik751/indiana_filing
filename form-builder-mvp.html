@@ -346,7 +346,7 @@ const caseSteps = sec => [
 const youSteps = sec => [
   { id: "name", sec, type: "text", label: "Your full name",
     q: "What is your full legal name?",
-    help: "Use the same name the court has for you on your papers." },
+    help: "The form asks for your name. It says to fill out its top section to match the other court forms filed in this case." },
   { id: "acp", sec, type: "choice", label: "Address Confidentiality Program",
     q: "Are you in the Indiana Attorney General's Address Confidentiality Program?",
     help: "The Attorney General's office says program participants have their mail sent to a secure substitute address, which is also used for government services and legal process.",
@@ -2383,7 +2383,7 @@ const MONEY_IDS = new Set(["hourlyRate", "monthlyHours", "otherIncomeDesc", "oth
 function unsureAdvice(step) {
   const id = step.id;
   if (PROGRAM_IDS.test(id)) return "The Attorney General's office says to email confidential@atg.in.gov to learn more about the Address Confidentiality Program.";
-  if (id === "name" && sitKey !== "feewaiver") return "Use the same name the court has for you on your papers. Check your court papers, or get free legal help.";
+  if (id === "name" && sitKey !== "feewaiver") return "The form says to fill out its top section to match the other court forms filed in this case. Check how your name appears on your court papers, or get free legal help.";
   if (YOU_IDS.test(id)) return "This is about you, so there's nothing to look up.";
   if (id === "bank") return "Check your bank statements, or get free legal help.";
   if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
