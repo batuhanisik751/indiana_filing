@@ -2065,6 +2065,8 @@ function clearSaved() { store.del(STORE_KEY); }
 const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
 function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
+// Deleting one form's answers also clears that form (and only that form) in other open tabs.
+function clearFormEverywhere(form) { clearSaved(); store.set(CLEAR_KEY, JSON.stringify({ at: Date.now(), form })); store.del(CLEAR_KEY); }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
   if (d.triageOnly) {
@@ -2117,6 +2119,16 @@ function updatePrivacyNote() {
 window.addEventListener("storage", e => {
   if (e.key === CLEAR_KEY) {
     if (e.newValue === null) return; // the signal removing itself
+    // Start over or Delete saved answers name one form; Clear my data names none (every form).
+    let form = null;
+    try { const v = JSON.parse(e.newValue); if (v && typeof v === "object" && typeof v.form === "string") form = v.form; } catch { /* a plain time */ }
+    if (form && form !== sitKey) { if (mode === "pick") renderPick(true); return; } // a different form: nothing to delete here
+    if (form) {
+      const title = SITUATIONS[form] ? SITUATIONS[form].title : "this form";
+      resetAnswers(); mode = "pick"; render();
+      announce(`Your answers for "${title}" were deleted in another tab.`);
+      return;
+    }
     // The person deleted their answers in another tab: delete them here too.
     const had = hasAnswers();
     if (!had && mode === "pick") { resetAnswers(); renderPick(true); updatePrivacyNote(); return; } // nothing changes here
@@ -2478,8 +2490,9 @@ function renderPick(quiet = false) {
       if (now) restoreSaved(now); else { renderPick(); announce("Those saved answers are no longer on this device."); }
     };
     document.getElementById("discard").onclick = () => {
-      if (!confirm("Delete your saved answers? This can't be undone.")) return;
-      clearSaved(); resetAnswers(); render();
+      if (!confirm(`Delete your saved answers for "${savedTitle(saved)}"? This also clears them in any other open tab with this form. This can't be undone.`)) return;
+      if (saved.triageOnly) clearSaved(); else clearFormEverywhere(saved.sitKey);
+      resetAnswers(); render();
       announce("Your saved answers were deleted.");
     };
   }
@@ -2742,8 +2755,8 @@ function renderSummary(rerender = false) {
   });
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
-    if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
-    clearSaved(); resetAnswers(); mode = "pick"; render();
+    if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device.`)) return;
+    clearFormEverywhere(sitKey); resetAnswers(); mode = "pick"; render();
     announce("Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
