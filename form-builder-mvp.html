@@ -1977,7 +1977,7 @@ function renderTriage() {
   if (step) {
     const ti = triageVisible().indexOf(step);
     app.innerHTML = `
-      <div class="barlabel"><span>Your papers</span><span>Question ${ti + 1}</span></div>
+      <div class="barlabel"><span>Your papers</span><span>Question ${ti + 1 - (triageFromSummary && triage.kind && !triageHist.some(h => !h.kind) ? 1 : 0)}</span></div>
       <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
       <p class="help" id="qhelp">${esc(step.help)}</p>
       <div class="choices" role="radiogroup" aria-labelledby="q" aria-describedby="qhelp">${step.options.map(([val, lab]) =>
