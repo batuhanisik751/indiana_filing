@@ -629,7 +629,7 @@ function contCaptionFields(a) {
 function contAppearanceFields(a) {
   const receive = { Choice1: "At my street address", Choice2: "At my email address", Choice3: "At the Attorney General confidential address" }[a.receiveAt] || "";
   return [
-    f(FORM.appearance, "1. My name is", a.name, "name", [{ t: "text", name: "Petitioner or Repondent Name", value: a.name }]),
+    f(FORM.appearance, "1. My name is", a.name, "name", [{ t: "text", name: "Petitioner or Repondent Name", value: a.name, growUp: true }]),
     f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
       [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], runOn: true, value: myAddress(a) }]),
     f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
@@ -1015,14 +1015,18 @@ const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 // (for example "Ł" as "L"), otherwise as "?". Either way it is reported.
 const LOOKALIKE = { "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ": "h", "ı": "i", "Ŀ": "L", "ŀ": "l", "Ŧ": "T", "ŧ": "t", "ĸ": "k",
   "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "..." };
+// Accents typed as separate marks become one letter (NFC), and invisible formatting
+// characters (zero-width spaces, soft hyphens) are dropped.
+const cleanText = v => String(v ?? "").normalize("NFC").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");
 function makeSafe(font, report) {
   const ok = new Map();
   const fits = ch => {
     if (!ok.has(ch)) { try { font.widthOfTextAtSize(ch, 10); ok.set(ch, true); } catch { ok.set(ch, false); } }
     return ok.get(ch);
   };
-  return text => Array.from(String(text ?? "").replace(/\t/g, " ")).map(ch => {
+  return text => Array.from(cleanText(text).replace(/\t/g, " ")).map(ch => {
     if (ch === "\n" || ch === "\r" || fits(ch)) return ch;
+    if (/[\u0300-\u036f]/.test(ch)) return ""; // a leftover accent mark with no letter
     const plain = LOOKALIKE[ch] ?? ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const out = plain && plain !== ch && Array.from(plain).every(fits) ? plain : "?";
     report(ch, out);
@@ -1067,7 +1071,9 @@ function wrapLines(text, font, size, op) {
       const tryLine = line ? (joined ? line + word : `${line} ${word}`) : word;
       if (font.widthOfTextAtSize(tryLine, size) <= widthAt(lines.length)) { line = tryLine; lineEnd = start + word.length; continue; }
       if (line) { lines.push(line); ends.push(lineEnd); }
-      // A single piece longer than the line is broken by characters.
+      // A single piece longer than the line is broken by characters (unless only spaces may
+      // break it, as pdf-lib wraps: then it stays whole and the caller sees it doesn't fit).
+      if (op.spacesOnly) { line = word; lineEnd = start + word.length; continue; }
       let piece = "", used = 0;
       for (const ch of word) {
         if (piece && font.widthOfTextAtSize(piece + ch, size) > widthAt(lines.length)) { lines.push(piece); ends.push(start + used); piece = ""; }
@@ -1100,9 +1106,21 @@ function fitLines(text, font, op) {
         return { size, lines, overflow: false, ys };
       }
     }
-    const last = op.layouts[op.layouts.length - 1], size = last.sizes[last.sizes.length - 1];
-    const lines = wrapLines(one, font, size, op).slice(0, last.n);
-    return { size, lines, overflow: true, ys: place(lines, size) };
+    // Nothing fits: of each layout's smallest size, use the one that shows the most text,
+    // and end it with "…" so the cut is visible.
+    let best = null;
+    for (const { n, sizes } of op.layouts) {
+      const size = sizes[sizes.length - 1], all = wrapLines(one, font, size, op);
+      const lines = all.slice(0, n), ys = place(lines, size);
+      if (op.maxTop && lines.length > 1 && ys[0] + 2.5 + size * 0.95 > op.maxTop) continue;
+      const shown = lines.join(" ").length;
+      if (!best || shown > best.shown) best = { size, lines, ys, shown };
+    }
+    const lines = best.lines.slice(), width = (op.x1 - lineX0(op, lines.length - 1) - 4);
+    let lastLine = lines[lines.length - 1];
+    while (lastLine && font.widthOfTextAtSize(lastLine + "…", best.size) > width) lastLine = lastLine.slice(0, -1);
+    lines[lines.length - 1] = lastLine.replace(/\s+$/, "") + "…";
+    return { size: best.size, lines, overflow: true, ys: best.ys };
   }
   const variants = op.runOn ? [text, String(text).replace(/\s*\n+\s*/g, ", ")] : [text];
   for (const size of SIZES) {
@@ -1187,13 +1205,17 @@ async function buildPdf(key, a) {
           // A name that doesn't fit its caption box, or only in small text, is drawn on the
           // box's rule instead. (Only caption boxes: narrow ones at the left margin.)
           const r = w.getRectangle();
-          if ((fit.overflow || fit.size < 7.5) && op.growUp && (op.growUp === "all" || (r.x < 80 && r.width < 190))) {
+          const caption = r.x < 80 && r.width < 190;
+          if ((fit.overflow || fit.size < 7.5) && op.growUp) {
             const pg = widgetPage(w);
             if (pg >= 0) {
               blankWidgets.push(w);
-              const vLine = op.growUp === "vLine";
+              // Under the printed "v.", and in other boxes with text around them, the lines
+              // stay within the box; caption lines (and the fee waiver's) can grow above it.
+              const vLine = op.growUp === "vLine" && caption;
+              const keepInside = vLine || (!caption && op.growUp !== "all");
               draws.push({ op: { t: "lines", page: pg, x0: r.x, x1: r.x + r.width, ys: [r.y + 0.5], layouts: vLine ? NAME_V_LINE : NAME_LAYOUTS,
-                maxTop: vLine ? r.y + r.height + 1.4 : null }, item, value });
+                maxTop: keepInside ? r.y + r.height + 1.4 : null }, item, value });
               return { drawn: true };
             }
           }
@@ -1348,7 +1370,13 @@ function ensurePdf() {
     pdfState = { key, result, error, busy: false };
     if (mode === "summary") {
       keepFocus(() => renderSummary(true));
-      announce(error ? "We couldn't make the PDF." : "Your filled form is ready to download.");
+      if (pendingFocus && document.activeElement && document.activeElement.matches(".status")) {
+        const t = app.querySelectorAll(`ul.flags [data-fix="${pendingFocus.id}"]`)[pendingFocus.nth] || app.querySelector(`ul.flags [data-fix="${pendingFocus.id}"]`);
+        if (t) { t.focus(); t.scrollIntoView({ block: "center" }); }
+      }
+      pendingFocus = null;
+      const n = app.querySelectorAll("ul.flags li").length;
+      announce(error ? "We couldn't make the PDF." : `Your filled form is ready to download. ${n ? `${n} item${n > 1 ? "s" : ""} to review before filing.` : "Nothing to review."}`);
     }
   })();
 }
@@ -1836,7 +1864,7 @@ function startSituation(key, from = "pick") {
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
-  cameFrom(); triageFromSummary = false; triageBeforeEdit = null;
+  cameFrom(); triageFromSummary = false; triageBeforeEdit = null; savedHere = true;
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
@@ -1926,6 +1954,7 @@ const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), tru
 const savingOn = () => storageWorks && store.get(PREF_KEY) !== "off";
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
+let savedHereWhy = "deleted"; // or "replaced"
 let otherTab = false;   // is the form also open in another tab?
 let draft = null;       // what's typed in the open question but not saved yet
 
@@ -2023,7 +2052,9 @@ function updatePrivacyNote() {
   el.textContent = otherTab ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || (working && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
-    : (working || live) && !savedHere ? "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent."
+    : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
+      ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
+      : "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent.")
     : working ? "Saved only on this device. Nothing is sent."
     : "Answers save only on this device. Nothing is sent.";
 }
@@ -2032,21 +2063,35 @@ window.addEventListener("storage", e => {
   if (e.key === CLEAR_KEY) {
     // The person deleted their answers in another tab: delete them here too.
     const had = hasAnswers();
+    if (!had && mode === "pick") { resetAnswers(); renderPick(true); updatePrivacyNote(); return; } // nothing changes here
     resetAnswers(); mode = "pick"; render();
     if (had) announce("Your answers were deleted in another tab.");
     return;
   }
   if (e.key === PREF_KEY) {
-    if (savingOn()) saveProgress(); // turned back on: save this page's answers again
+    const hadCard = !!document.getElementById("resume"), live = sitKey && hasAnswers();
+    if (savingOn()) {
+      saveProgress(); // turned back on: save this page's answers again
+      if (live && saveOk) { savedHere = true; announce("Saving was turned back on in another tab. Your answers are saved on this device."); }
+    } else if (hadCard) announce("Saving was turned off in another tab, and the saved answers were deleted.");
+    else if (live) announce("Saving was turned off in another tab. Your answers are still on this page, but they aren't saved.");
     updatePrivacyNote(); if (mode === "pick") renderPick(true); return;
   }
   if (e.key !== STORE_KEY) return;
   if (e.newValue === null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
     if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
-    savedHere = false; // deleted in another tab
+    savedHere = false; savedHereWhy = "deleted"; // deleted in another tab
   } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
   if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
   updatePrivacyNote();
+  // Another tab saved a different form over this page's answers.
+  if (e.newValue !== null && sitKey && hasAnswers()) {
+    let other = null; try { other = JSON.parse(e.newValue).sitKey; } catch { /* unreadable */ }
+    if (other && other !== sitKey) {
+      if (savedHere) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
+      savedHere = false; savedHereWhy = "replaced"; updatePrivacyNote();
+    }
+  }
   if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true; updatePrivacyNote();
@@ -2078,6 +2123,7 @@ let fromNotSure = false; // came here from "Which one fits?"
 let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
 let fixFrom = null;      // where on the summary the person tapped Fix or Edit ("flags" or "vals")
 let fixNth = 0;          // which of several Edit buttons for the same answer was tapped
+let pendingFocus = null; // a Fix button to focus once the PDF check finishes
 let editOriginal = null; // the answer before an edit from the summary, for Cancel
 let lastProgress = {};   // the progress bar's last position
 let triageHist = [];     // earlier sorting answers, for Back
@@ -2119,7 +2165,7 @@ function shown(step) {
 /* ---------- checks: run only at the end ---------- */
 // Where to look when you're not sure, by kind of question.
 const CASE_IDS = /^(county|courtType|courtTypeOther|caseNumber|caseTypeLetters|courtDate|plaintiff|hearingDate|role|otherParty|otherPartyAddress|related|relatedNumbers|rel\d\w+|svc\dName|svc\dAddress|fwCourtType|otherPerson|fwCaseType)$/;
-const YOU_IDS = /^(name|address|email|phone|fax|acceptEmail|receiveAt|adults|children|supported|otherAgreed|spokeDate)$/;
+const YOU_IDS = /^(name|address|email|phone|fax|acceptEmail|receiveAt|adults|children|supported)$/;
 const PROGRAM_IDS = /^(acp|acpAddress|agConfidential)$/;
 const PARAGRAPH_IDS = /^(admitted|denied|notEnough)$/;
 const MONEY_IDS = new Set(["hourlyRate", "monthlyHours", "otherIncomeDesc", "otherCostsDesc", ...INCOME.map(x => x[0]), ...EXPENSES.map(x => x[0])]);
@@ -2135,7 +2181,13 @@ function unsureAdvice(step) {
   if (id === "fwCaseType") return "The official instructions say to insert the case type or leave it blank.";
   if (id === "otherPerson") return "The official instructions say that if there is no other person involved in your case (like a name change), leave this blank. If you're not sure who it is, you can get free legal help.";
   if (sitKey === "feewaiver" && id === "localRuleText") return "The official instructions say to put information here if it's required by a local rule. If you don't know of one, you can leave it blank or ask the clerk's office.";
-  if (id === "localRuleText") return "Ask the clerk's office what your county's local rule requires. If you're not aware of one, go back and choose \"I'm not aware of any.\"";
+  if (id === "localRuleText") return "Ask the clerk's office what your county's local rule requires. If you're not aware of one, edit \"Local rule information\" and choose \"I'm not aware of any.\"";
+  if (id === "otherAgreed") return "This is about what the other party told you. If you couldn't reach them, you can get free legal help.";
+  if (id === "spokeDate") return "Check your texts, emails or call log for the date. If you didn't speak to them, you can leave it blank.";
+  if (id === "timeNeeded") return "The form says to write the number of days or weeks you need, not a date.";
+  if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
+  if (INCOME.some(x => x[0] === id) || id === "otherIncomeDesc") return "Check your benefit letters or statements, or get free legal help.";
+  if (EXPENSES.some(x => x[0] === id) || id === "otherCostsDesc") return "Check your bills or statements, or get free legal help.";
   if (/^svc\dDate$/.test(id)) return "This is the date you send the copy, so there's nothing to look up.";
   if (id === "signDate") return "This is the date you sign the form, so there's nothing to look up.";
   if (/^rel\d/.test(id) || id === "relatedNumbers") return "Check the papers from that case, look it up at mycase.in.gov, or ask the clerk's office.";
@@ -2146,6 +2198,12 @@ function unsureAdvice(step) {
     ? "Check your records, or get free legal help."
     : "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office.";
   return step.type === "choice" ? "This tool can't choose this for you. You can get free legal help." : "This tool can't tell you what to write here. You can get free legal help.";
+}
+// What to do next, after the advice.
+function unsureNext(step, where) {
+  if (step.id === "localRuleText" && sitKey !== "feewaiver") return ""; // the advice already says
+  if (where === "summary") return step.optional ? "To leave it blank, choose Fix, then Save and review." : "Then come back and answer it.";
+  return returnToSummary && step.optional ? "To leave it blank, choose Save and review." : "Answer it any time; until then it is flagged at the end.";
 }
 // The source an "I'm not sure" note names, linked.
 function unsureLink(step) {
@@ -2161,10 +2219,14 @@ function unsureLink(step) {
 // "Until 11/20", "Nov 24", "the 3rd of December", "until March": dates, which the
 // continuance form says not to write. "1/2 month" and "maybe 3 weeks" are not.
 const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const MM = "(?:0?[1-9]|1[0-2])", DD = "(?:0?[1-9]|[12]\\d|3[01])";
+const WEEKDAY = "(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)?";
 const UNIT = "(?:(?:more|additional|extra|full|business|working|calendar|court)\\s+)?(?:weeks?|wks?|days?|months?|mos?|hours?|hrs?)\\b";
 const DATE_RES = [
-  // 11/20, 11-20-2026, 12.15 (but not "1/2 month" or "2.5 weeks")
-  new RegExp(`\\b\\d{1,2}[\\/.-]\\d{1,2}(?:[\\/.-]\\d{2,4})?\\b(?!\\s*${UNIT})`, "i"),
+  // 11/20, 12.15, 11-20-2026 (a real month and day; not "1-1/2 months", "2.5 weeks" or "10-14 days")
+  new RegExp(`(?<![\\d\\/.-])\\b${MM}[\\/.]${DD}(?:[\\/.]\\d{2,4})?\\b(?![\\/\\d]|\\s*${UNIT}|\\s*a\\s+(?:month|week))`, "i"),
+  new RegExp(`(?<![\\d\\/.-])\\b${MM}-${DD}-\\d{2,4}\\b`, "i"),
+  new RegExp(`\\b(?:until|till|by|on|after|before)\\s+${MM}-${DD}\\b(?!\\s*${UNIT})`, "i"),
   // Nov 24, December 3rd, Jan 2027
   new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,4}(?:st|nd|rd|th)?\\b`, "i"),
   // the 3rd of December, 24 Nov
@@ -2174,12 +2236,17 @@ const DATE_RES = [
   // a month name on its own
   new RegExp(`^\\s*${MONTH}\\.?\\s*$`, "i"),
   // the 24th, until the 15th, "until the 30" (a day of the month)
-  new RegExp(`\\b(?:the|on|by|until|till|before|after)\\s+(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)\\b(?!\\s*(?:or\\b|-|to\\b|${UNIT}|hearings?|available|times?))`, "i"),
+  new RegExp(`\\b(?:the|on|by|until|till|before|after)\\s+(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)\\b(?!\\s*(?:or\\b|-|to\\b|${UNIT}|hearings?|available|times?|appointment|surgery|shift|trimester|quarter|test|session|job|lawyer|try|attempt|round|visit))`, "i"),
   /\b(?:on|by|until|till|before|after)\s+the\s+\d{1,2}\s*(?:$|[.,;)])/i,
   /^\s*(?:the\s+)?\d{1,2}(?:st|nd|rd|th)\s*\.?\s*$/i,
-  // next Friday, until Monday (not "I work Monday through Friday")
-  /\b(?:next|this|on|until|till|by|after|before|coming)\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day\b/i,
-  /\b(?:tomorrow|christmas|xmas|thanksgiving|new year'?s?(?:\s+day)?|easter|memorial day|labor day|independence day|juneteenth|halloween|valentine'?s(?:\s+day)?|martin luther king|mlk day|presidents'? day|veterans'? day|columbus day)\b/i,
+  // next Friday, until Mon, 2 weeks from Friday, or a weekday on its own (not "I work Monday through Friday")
+  new RegExp(`\\b(?:next|this|on|until|till|by|after|before|coming|from)\\s+${WEEKDAY}\\b`, "i"),
+  new RegExp(`^\\s*(?:a\\s+)?${WEEKDAY}\\.?(?:\\s+(?:morning|afternoon|evening|night|please))?(?:\\s*$|\\s*,|\\s+(?:the\\s+)?\\d)`, "i"),
+  // the end of the month, next month, mid-month, this weekend, after the holidays
+  /\b(?:end|middle|beginning|start)\s+of\s+(?:the\s+)?(?:month|year)\b|\bend\s+of\s+month\b|\bnext\s+month\b|\bmid-?month\b|\b(?:this|next)\s+weekend\b|\b(?:after|until|till)\s+(?:the\s+)?holidays\b/i,
+  // the twentieth, December twentieth (spelled out)
+  new RegExp(`\\b(?:the|${MONTH})\\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|twenty-\\w+|thirtieth|thirty-first)\\b(?!\\s*(?:${UNIT}|week|time|hearing|appointment|try|attempt|round|visit))`, "i"),
+  /\b(?:tomorrow|christmas|x-?mas|hanukkah|chanukah|kwanzaa|passover|diwali|thanksgiving|new year'?s?(?:\s+day)?|easter|memorial day|labor day|independence day|juneteenth|halloween|valentine'?s(?:\s+day)?|martin luther king|mlk day|presidents'? day|veterans'? day|columbus day)\b/i,
 ];
 const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 
@@ -2270,8 +2337,8 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.label, fix: s.id, unsure: true, link: unsureLink(s),
-      why: `You marked this "I'm not sure." ${unsureAdvice(s)} ${s.optional ? "To leave it blank, choose Fix, then Save and review." : "Then come back and answer it."}` });
+    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s),
+      why: `You marked this "I'm not sure." ${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
 
   // Everything else that is required but blank.
@@ -2428,7 +2495,7 @@ function renderStep() {
     </div>
     ${returnToSummary ? `<p class="need">Cancel goes back to the summary without changing this answer.</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
-    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} Answer it any time; until then it is flagged at the end.` : "Not sure? Skip it for now. It will be flagged at the end."}</p>`;
+    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Skip it for now. It will be flagged at the end."}</p>`;
   // E2: focus the chosen answer, not just the first option.
   const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) el.focus();
   document.getElementById("back").onclick = () => {
@@ -2460,7 +2527,7 @@ function renderStep() {
 
 function readInput(step) {
   if (step.type === "choice") { const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : ""; return; }
-  let val = document.getElementById("ans").value.trim();
+  let val = cleanText(document.getElementById("ans").value).trim();
   if (step.upper) val = val.toUpperCase();
   answers[step.id] = val;
 }
@@ -2498,7 +2565,7 @@ function save(step) {
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   readInput(step);
   // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
-  if (!empty(answers[step.id]) || step.optional) delete unsure[step.id];
+  if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   const v = answers[step.id];
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v)) {
     document.getElementById("err").textContent = step.type === "money"
@@ -2536,7 +2603,8 @@ function renderSummary(rerender = false) {
   ensurePdf();
   const flags = [...runChecks(), ...pdfFlags()];
   const missing = flags.filter(x => x.level === "missing").length;
-  const ready = flags.length === 0;
+  const checking = pdfState.busy || !pdfState.key; // the PDF's own checks aren't in yet
+  const ready = flags.length === 0 && !checking;
   const fields = sit.fields(a);
 
   // Every visible question gets an Edit link somewhere on this page.
@@ -2552,8 +2620,8 @@ function renderSummary(rerender = false) {
     <div class="barlabel"><span>Summary</span><span>Done</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
-      <strong>${ready ? "Nothing to review." : `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing`}</strong>
-      ${ready ? "Read it over once more before you file it yourself." : `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.`}
+      <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : "Checking your filled form…"}</strong>
+      ${ready ? "Read it over once more before you file it yourself." : flags.length ? `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.${checking ? " Still checking the filled form…" : ""}` : "This takes a few seconds."}
     </div>
     ${flags.length ? `<ul class="flags">${flags.map((x, i) => `
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
@@ -2607,6 +2675,8 @@ function renderSummary(rerender = false) {
     ? app.querySelectorAll(`ul.flags [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
     : app.querySelectorAll(`dl.vals [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
+  // A Fix button for a flag from the PDF check may only appear once the check finishes.
+  pendingFocus = back && back.matches(".status") && lastEdited ? { id: lastEdited, nth: fixNth } : null;
   lastEdited = null; fixFrom = null;
 }
 
