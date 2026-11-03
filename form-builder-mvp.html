@@ -2177,7 +2177,7 @@ function updatePrivacyNote() {
     : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
       ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
       : "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent.")
-    : working ? "Saved only on this device. Nothing is sent."
+    : working && savedIsMine() ? "Saved only on this device. Nothing is sent."
     : "Answers save only on this device. Nothing is sent.";
 }
 // Another tab saving the same form would replace this tab's answers (and the other way around).
