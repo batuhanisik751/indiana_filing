@@ -932,7 +932,7 @@ function feeWaiverFields(a) {
       ? [f(FORM.fwAppearance, "Email, phone and fax", "Left blank (Attorney General confidential address checked)", "agConfidential")]
       : [
         f(FORM.fwAppearance, "Email address", empty(a.email) ? "Left blank" : a.email, "email", [{ t: "text", name: "Email address", value: a.email }]),
-        f(FORM.fwAppearance, "I will accept service at the above email address", !empty(a.email) ? yesNo(a.acceptEmail) : "No (no email given)", "acceptEmail",
+        f(FORM.fwAppearance, "I will accept service at the above email address", !empty(a.email) ? yesNo(a.acceptEmail) : "No (no email given)", !empty(a.email) ? "acceptEmail" : "email",
           [{ t: "check", name: "Check Box1", on: !empty(a.email) && a.acceptEmail === "yes" }]),
         f(FORM.fwAppearance, "Phone", a.phone, "phone", [{ t: "text", name: "Phone", value: a.phone }]),
         f(FORM.fwAppearance, "Fax", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax", value: a.fax }]),
