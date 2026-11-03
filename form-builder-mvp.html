@@ -2253,7 +2253,9 @@ window.addEventListener("storage", e => {
 lastSavingOn = savingOn();
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
-  if ((!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) { e.preventDefault(); e.returnValue = ""; }
+  const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)));
+  const sortingAtRisk = !sitKey && mode === "triage" && triageAnswered(triage) && (!savingOn() || !saveOk);
+  if (formAtRisk || sortingAtRisk) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
 function setSaving(on) {
