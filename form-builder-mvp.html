@@ -1486,7 +1486,7 @@ function pdfSectionHtml(sit) {
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
       ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` <span class="nowrap">(${esc(d.number)})</span>` : ""}</button>`).join("")}
     </div>
-    ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code, and a proposed order under the "Proposed Order" filing code.</p>` : ""}
+    ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code${sit.official.docs.includes("order") ? ', and a proposed order under the "Proposed Order" filing code' : ""}.</p>` : ""}
     <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>
     <div class="preview" id="preview"></div>`;
 }
