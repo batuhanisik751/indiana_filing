@@ -2058,7 +2058,11 @@ function saveProgress() {
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
       if (saveOk) savedHere = true;
-    } else if (prev && prev.triageOnly && !picked) clearSaved();
+    } else if (mode === "triage" && prev && prev.triageOnly && !picked && kindOf(prev.triage) === kindOf(triage)) {
+      // The person went back past the first sorting question. (Other screens, like the first screen
+      // offering to continue, leave the copy alone, and so does starting a different kind of case.)
+      clearSaved();
+    }
     return;
   }
   let old = null;
