@@ -2008,9 +2008,11 @@ function readSaved() {
   try {
     const d = JSON.parse(raw);
     const age = d ? Date.now() - d.savedAt : NaN;
-    const usable = d && d.v === 1 && Object.hasOwn(SITUATIONS, d.sitKey) && !SITUATIONS[d.sitKey].triage
-      && Number.isFinite(d.savedAt) && age > -864e5 && age <= MAX_AGE_DAYS * 864e5
-      && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.keys(d.unsure || {}).length > 0);
+    const fresh = d && d.v === 1 && Number.isFinite(d.savedAt) && age > -864e5 && age <= MAX_AGE_DAYS * 864e5;
+    const usable = fresh && (d.triageOnly
+      ? Object.values(strings(d.triage)).some(v => !empty(v)) // only the eviction sorting answers so far
+      : Object.hasOwn(SITUATIONS, d.sitKey) && !SITUATIONS[d.sitKey].triage
+        && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.keys(d.unsure || {}).length > 0));
     if (usable) return d;
   } catch { /* unreadable */ }
   store.del(STORE_KEY);
@@ -2019,8 +2021,22 @@ function readSaved() {
 // Only the question screens and the summary hold answers worth saving, and only
 // answers to questions that are shown: a hidden answer (like a home address after
 // choosing the Address Confidentiality Program) is never kept on the device.
+// What a saved copy is called on the first screen and in messages.
+const savedTitle = d => d.triageOnly ? SITUATIONS.eviction.pick : SITUATIONS[d.sitKey].title;
 function saveProgress() {
-  if (!savingOn() || !sitKey) return;
+  if (!savingOn()) return;
+  if (!sitKey) {
+    // Only the eviction sorting answers so far: keep them too, so a refresh doesn't lose them.
+    // A copy saved for a form is never replaced by these.
+    let prev = null;
+    try { prev = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
+    const picked = Object.values(triage).some(v => !empty(v));
+    if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
+      saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
+      if (saveOk) savedHere = true;
+    } else if (prev && prev.triageOnly && !picked) clearSaved();
+    return;
+  }
   let old = null;
   try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
   if (!hasAnswers() && !(draft && !empty(draft.value))) {
@@ -2051,6 +2067,11 @@ const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_
 function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
+  if (d.triageOnly) {
+    resetAnswers(); triage = strings(d.triage); fromNotSure = d.fromNotSure === true; mode = "triage";
+    if (keep) keep();
+    return render();
+  }
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
@@ -2145,7 +2166,7 @@ function setSaving(on) {
   const saved = !on && readSaved();
   if (saved && !confirm(sitKey && hasAnswers()
     ? "Turn off saving? This deletes the answers saved on this device. Your answers stay on this page until you close it."
-    : `Turn off saving? This deletes your saved answers for "${SITUATIONS[saved.sitKey].title}". This can't be undone.`)) return false;
+    : `Turn off saving? This deletes your saved answers for "${savedTitle(saved)}". This can't be undone.`)) return false;
   store.set(PREF_KEY, on ? "on" : "off");
   if (on) saveProgress(); else clearSaved();
   updatePrivacyNote();
@@ -2431,7 +2452,7 @@ function renderPick(quiet = false) {
       <div class="nav"><button class="primary" id="backToWork">Go back</button></div>
     </div>` : saved ? `<div class="resume">
       <h2 class="cardtitle" tabindex="-1">Continue where you left off?</h2>
-      <span>${esc(SITUATIONS[saved.sitKey].title)}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
+      <span>${esc(savedTitle(saved))}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
       <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
     </div>` : ""}
     <h1 tabindex="-1">What do you need to do?</h1>
