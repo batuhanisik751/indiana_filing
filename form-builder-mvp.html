@@ -147,6 +147,7 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
 const COUNTIES = ["Adams","Allen","Bartholomew","Benton","Blackford","Boone","Brown","Carroll","Cass","Clark","Clay","Clinton","Crawford","Daviess","Dearborn","Decatur","DeKalb","Delaware","Dubois","Elkhart","Fayette","Floyd","Fountain","Franklin","Fulton","Gibson","Grant","Greene","Hamilton","Hancock","Harrison","Hendricks","Henry","Howard","Huntington","Jackson","Jasper","Jay","Jefferson","Jennings","Johnson","Knox","Kosciusko","LaGrange","Lake","LaPorte","Lawrence","Madison","Marion","Marshall","Martin","Miami","Monroe","Montgomery","Morgan","Newton","Noble","Ohio","Orange","Owen","Parke","Perry","Pike","Porter","Posey","Pulaski","Putnam","Randolph","Ripley","Rush","St. Joseph","Scott","Shelby","Spencer","Starke","Steuben","Sullivan","Switzerland","Tippecanoe","Tipton","Union","Vanderburgh","Vermillion","Vigo","Wabash","Warren","Warrick","Washington","Wayne","Wells","White","Whitley"];
 
 const LINKS = {
+  acp: "https://www.in.gov/attorneygeneral/about-the-office/appeals/victim-services/address-confidentiality-program/",
   answerInstructions: "https://indianalegalhelp.org/wp-content/uploads/2026/08/Answer-20260801.pdf",
   continuance: "https://indianalegalhelp.org/how-to-ask-for-a-new-court-date/",
   continuanceInstructions: "https://indianalegalhelp.org/wp-content/uploads/2024/12/Continuance-Motion-202409.pdf",
@@ -284,9 +285,19 @@ const youSteps = sec => [
   { id: "name", sec, type: "text", label: "Your full name",
     q: "What is your full legal name?",
     help: "Use the same name the court has for you on your papers." },
+  { id: "acp", sec, type: "choice", label: "Address Confidentiality Program",
+    q: "Are you in the Indiana Attorney General's Address Confidentiality Program?",
+    help: "The Attorney General's office says program participants have their mail sent to a secure substitute address, which is also used for government services and legal process. Most people are not in this program.",
+    link: { href: LINKS.acp, text: "About the Address Confidentiality Program" },
+    options: [["no", "No"], ["yes", "Yes"]] },
   { id: "address", sec, type: "textarea", short: true, label: "Mailing address",
+    showIf: a => a.acp !== "yes",
     q: "What is your mailing address?",
     help: "Include your street, apartment number, city, state and ZIP code. The form gives this to the court and the other side as a way to contact you. You'll choose later where you want to receive court papers." },
+  { id: "acpAddress", sec, type: "textarea", short: true, label: "Substitute address",
+    showIf: a => a.acp === "yes",
+    q: "What is your Address Confidentiality Program substitute address?",
+    help: "Don't enter your home address. This address goes on the form and is shared with the court and the other side. The Attorney General's office says to email confidential@atg.in.gov or work with a trained victim advocate if you have questions about court filings." },
   { id: "email", sec, type: "email", label: "Email",
     q: "What is your email address?",
     help: "The official form says an email address is required." },
@@ -409,20 +420,23 @@ const fwCaseSteps = sec => [
 
 const fwYouSteps = sec => {
   const base = Object.fromEntries(youSteps(sec).map(s => [s.id, s]));
+  const contact = a => a.agConfidential !== "yes";
   return [
-    base.name, base.address,
-    { ...base.email, optional: true, help: "Leave this blank if you don't have one." },
+    base.name,
+    { id: "agConfidential", sec, type: "choice", label: "Attorney General confidential address",
+      q: "Do you want to use the Attorney General confidential address for this case?",
+      help: "The form says you may check this box if, in a related case, you have used the Attorney General confidential address. On the form it is an alternative (\"OR\") to your address, email, phone and fax, so if you choose yes we won't ask for those or put them on the form.",
+      link: { href: LINKS.acp, text: "About the Address Confidentiality Program" },
+      options: [["no", "No"], ["yes", "Yes"]] },
+    { ...base.address, showIf: contact },
+    { ...base.email, optional: true, showIf: contact, help: "Leave this blank if you don't have one." },
     { id: "acceptEmail", sec, type: "choice", label: "Accept service by email",
-      showIf: a => !empty(a.email),
+      showIf: a => contact(a) && !empty(a.email),
       q: "Will you accept court papers at this email address?",
       help: "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.",
       options: [["no", "No"], ["yes", "Yes"]] },
-    { ...base.phone, help: "The form asks for your phone number, including the area code." },
-    { ...base.fax, noWords: true },
-    { id: "agConfidential", sec, type: "choice", label: "Attorney General confidential address",
-      q: "Do you want to use the Attorney General confidential address for this case?",
-      help: "The form says you may check this box if you have used the Attorney General confidential address in a related case. Its instructions say to check it if you are using that address. On the form it is an alternative (\"OR\") to the contact information above.",
-      options: [["no", "No"], ["yes", "Yes"]] },
+    { ...base.phone, showIf: contact, help: "The form asks for your phone number, including the area code." },
+    { ...base.fax, showIf: contact, noWords: true },
     { id: "related", sec, type: "choice", label: "Related cases",
       q: "Are there other court cases related to this one?",
       help: "The form asks whether there are other cases related to this case. " + relatedHelp,
@@ -554,8 +568,8 @@ function contAppearanceFields(a) {
   const receive = { Choice1: "At my street address", Choice2: "At my email address", Choice3: "At the Attorney General confidential address" }[a.receiveAt] || "";
   return [
     f(FORM.appearance, "1. My name is", a.name, "name", [{ t: "text", name: "Petitioner or Repondent Name", value: a.name }]),
-    f(FORM.appearance, "3. My address", a.address, "address",
-      [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], value: a.address }]),
+    f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
+      [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], value: myAddress(a) }]),
     f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
     f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
     f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
@@ -598,11 +612,11 @@ function contMotionFields(a) {
 
 function contOrderFields(a) {
   const meFirst = a.role === "me";
-  const petAddr = meFirst ? a.address : a.otherPartyAddress, resAddr = meFirst ? a.otherPartyAddress : a.address;
+  const petAddr = meFirst ? myAddress(a) : a.otherPartyAddress, resAddr = meFirst ? a.otherPartyAddress : myAddress(a);
   return [
-    f(FORM.contOrder, "Distribution: first party's address", empty(petAddr) ? "Left blank" : petAddr, meFirst ? "address" : "otherPartyAddress",
+    f(FORM.contOrder, "Distribution: first party's address", empty(petAddr) ? "Left blank" : petAddr, meFirst ? myAddressStep(a) : "otherPartyAddress",
       [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [698.5, 676.6], value: petAddr }]),
-    f(FORM.contOrder, "Distribution: second party's address", empty(resAddr) ? "Left blank" : resAddr, meFirst ? "otherPartyAddress" : "address",
+    f(FORM.contOrder, "Distribution: second party's address", empty(resAddr) ? "Left blank" : resAddr, meFirst ? "otherPartyAddress" : myAddressStep(a),
       [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [610.6, 588.6], value: resAddr }]),
   ];
 }
@@ -705,6 +719,9 @@ const courtTypeText = a => a.courtType === "other"
 const caseLetters = a => { const m = caseMatch(a.caseNumber); return m ? m[2] : String(a.caseTypeLetters || "").toUpperCase(); };
 const f = (form, label, value, step, pdf = []) => ({ form, label, value: value ?? "", step, pdf });
 const yesNo = v => v === "yes" ? "Yes" : v === "no" ? "No" : "";
+// The address that may go on a form: the program's substitute address for participants, never their home address.
+const myAddress = a => (a.acp === "yes" ? a.acpAddress : a.address);
+const myAddressStep = a => (a.acp === "yes" ? "acpAddress" : "address");
 
 function captionFields(a) {
   const ct = courtTypeText(a);
@@ -722,8 +739,8 @@ function appearanceFields(a) {
   const receive = { Choice1: "At my street address", Choice2: "At my email address", Choice3: "At the Attorney General confidential address" }[a.receiveAt] || "";
   return [
     f(FORM.appearance, "1. My name is", a.name, "name"),
-    f(FORM.appearance, "3. My address", a.address, "address",
-      [{ t: "lines", page: 4, x0: 72, x1: 540, ys: [447.5, 425.5], value: a.address }]),
+    f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
+      [{ t: "lines", page: 4, x0: 72, x1: 540, ys: [447.5, 425.5], value: myAddress(a) }]),
     f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
     f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
     f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
@@ -810,12 +827,17 @@ function feeWaiverFields(a) {
     f(FORM.caption, "Petitioner (you)", a.name, "name", [{ t: "text", name: "Name", value: a.name }, { t: "text", name: "Petitioner", value: a.name }]),
     f(FORM.caption, "Respondent", empty(a.otherPerson) ? "Left blank" : a.otherPerson, "otherPerson", [{ t: "text", name: "Respondent", value: a.otherPerson }]),
     f(FORM.fwAppearance, "1. My name is", a.name, "name"),
-    f(FORM.fwAppearance, "2. Address", a.address, "address", [{ t: "text", name: "Address", value: a.address }]),
-    f(FORM.fwAppearance, "Email address", empty(a.email) ? "Left blank" : a.email, "email", [{ t: "text", name: "Email address", value: a.email }]),
-    f(FORM.fwAppearance, "I will accept service at the above email address", !empty(a.email) ? yesNo(a.acceptEmail) : "No (no email given)", "acceptEmail",
-      [{ t: "check", name: "Check Box1", on: !empty(a.email) && a.acceptEmail === "yes" }]),
-    f(FORM.fwAppearance, "Phone", a.phone, "phone", [{ t: "text", name: "Phone", value: a.phone }]),
-    f(FORM.fwAppearance, "Fax", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax", value: a.fax }]),
+    f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : a.address, "address",
+      [{ t: "text", name: "Address", value: a.agConfidential === "yes" ? "" : a.address }]),
+    ...(a.agConfidential === "yes"
+      ? [f(FORM.fwAppearance, "Email, phone and fax", "Left blank (Attorney General confidential address checked)", "agConfidential")]
+      : [
+        f(FORM.fwAppearance, "Email address", empty(a.email) ? "Left blank" : a.email, "email", [{ t: "text", name: "Email address", value: a.email }]),
+        f(FORM.fwAppearance, "I will accept service at the above email address", !empty(a.email) ? yesNo(a.acceptEmail) : "No (no email given)", "acceptEmail",
+          [{ t: "check", name: "Check Box1", on: !empty(a.email) && a.acceptEmail === "yes" }]),
+        f(FORM.fwAppearance, "Phone", a.phone, "phone", [{ t: "text", name: "Phone", value: a.phone }]),
+        f(FORM.fwAppearance, "Fax", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax", value: a.fax }]),
+      ]),
     f(FORM.fwAppearance, "Attorney General confidential address", yesNo(a.agConfidential), "agConfidential",
       [{ t: "check", name: "Check Box2", on: a.agConfidential === "yes" }]),
     f(FORM.fwAppearance, "3. Case type", empty(a.fwCaseType) ? "Left blank" : a.fwCaseType, "fwCaseType", [{ t: "text", name: "CaseType", value: a.fwCaseType }]),
@@ -859,7 +881,7 @@ function feeWaiverFields(a) {
       [{ t: "text", name: "MonthlyExpenses", value: money(expenseTotal(a)) }]),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
     f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "draw", page: 3, x: 362, y: 224, value: a.name }]),
-    f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.address].filter(Boolean).join("\n"), "name"),
+    f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.agConfidential === "yes" ? "" : a.address].filter(Boolean).join("\n"), "name"),
   );
   return out;
 }
