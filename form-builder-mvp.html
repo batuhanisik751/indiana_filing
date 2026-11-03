@@ -2487,6 +2487,8 @@ function runChecks() {
         flags.push({ level: "check", title: "Case number", why: `The first two digits (${m[1]}) don't match ${a.county} County's number (${countyCode(a.county)}). One of them may be wrong.`, fix: "caseNumber" });
     }
     const letters = caseLetters(a), lettersFix = caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters";
+    if (fromTriage && paperOf(triage) === "notice" && CASE_CODES.has(letters) && !["SC", "EV"].includes(letters))
+      flags.push({ level: "check", title: "Case type letters", why: `You said your main paper is a Notice of Claim, which the Small Claims Manual says starts a small claims case, but the case type letters are ${letters}. Compare them with your papers.`, fix: lettersFix });
     if (sitKey === "respond" && letters === "SC")
       flags.push({ level: "check", title: "Small claims case", why: "Your case type is SC, which means small claims. Indiana Legal Help says Answers are not usually filed in small claims court. Check with the clerk whether you need one.", fix: lettersFix });
     if (sitKey === "respond" && letters === "EV")
