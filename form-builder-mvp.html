@@ -433,7 +433,9 @@ const fwYouSteps = sec => {
       help: "The form says you may check this box if, in a related case, you have used the Attorney General confidential address. On the form it is an alternative (\"OR\") to your address, email, phone and fax, so if you choose yes we won't ask for those or put them on the form.",
       link: { href: LINKS.acp, text: "About the Address Confidentiality Program" },
       options: [["no", "No"], ["yes", "Yes"]] },
-    { ...base.address, showIf: contact },
+    { ...base.acp, showIf: contact },
+    { ...base.address, showIf: a => contact(a) && a.acp !== "yes" },
+    { ...base.acpAddress, showIf: a => contact(a) && a.acp === "yes" },
     { ...base.email, optional: true, showIf: contact, help: "Leave this blank if you don't have one." },
     { id: "acceptEmail", sec, type: "choice", label: "Accept service by email",
       showIf: a => contact(a) && !empty(a.email),
@@ -576,7 +578,7 @@ function contAppearanceFields(a) {
   return [
     f(FORM.appearance, "1. My name is", a.name, "name", [{ t: "text", name: "Petitioner or Repondent Name", value: a.name }]),
     f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
-      [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], value: myAddress(a) }]),
+      [{ t: "lines", page: 3, x0: 72, x1: 540, ys: [423.7, 401.6], runOn: true, value: myAddress(a) }]),
     f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
     f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
     f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
@@ -622,9 +624,9 @@ function contOrderFields(a) {
   const petAddr = meFirst ? myAddress(a) : a.otherPartyAddress, resAddr = meFirst ? a.otherPartyAddress : myAddress(a);
   return [
     f(FORM.contOrder, "Distribution: first party's address", empty(petAddr) ? "Left blank" : petAddr, meFirst ? myAddressStep(a) : "otherPartyAddress",
-      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [698.5, 676.6], value: petAddr }]),
+      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [698.5, 676.6], runOn: true, value: petAddr }]),
     f(FORM.contOrder, "Distribution: second party's address", empty(resAddr) ? "Left blank" : resAddr, meFirst ? "otherPartyAddress" : myAddressStep(a),
-      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [610.6, 588.6], value: resAddr }]),
+      [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [610.6, 588.6], runOn: true, value: resAddr }]),
   ];
 }
 
@@ -747,7 +749,7 @@ function appearanceFields(a) {
   return [
     f(FORM.appearance, "1. My name is", a.name, "name"),
     f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
-      [{ t: "lines", page: 4, x0: 72, x1: 540, ys: [447.5, 425.5], value: myAddress(a) }]),
+      [{ t: "lines", page: 4, x0: 72, x1: 540, ys: [447.5, 425.5], runOn: true, value: myAddress(a) }]),
     f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
     f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
     f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
@@ -834,13 +836,13 @@ function feeWaiverFields(a) {
     f(FORM.caption, "Petitioner (you)", a.name, "name", [{ t: "text", name: "Name", value: a.name }, { t: "text", name: "Petitioner", value: a.name }]),
     f(FORM.caption, "Respondent", empty(a.otherPerson) ? "Left blank" : a.otherPerson, "otherPerson", [{ t: "text", name: "Respondent", value: a.otherPerson }]),
     f(FORM.fwAppearance, "1. My name is", a.name, "name"),
-    f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : a.address, "address",
+    f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : myAddress(a), myAddressStep(a),
       a.agConfidential === "yes" ? [] : [
         // Written on the four printed address lines (the field's box doesn't line up with them).
-        { t: "lines", page: 0, x0: 180, x1: 396, ys: [403.3, 389.5, 375.7, 361.9], value: a.address },
+        { t: "lines", page: 0, x0: 180, x1: 396, ys: [403.3, 389.5, 375.7, 361.9], runOn: true, value: myAddress(a) },
         // The same field repeats on the Order's distribution list, which has three lines under the name.
         // The Order's three lines are shorter, so the address runs on from line to line there.
-        { t: "lines", page: 4, x0: 72, x1: 275, ys: [184.1, 170.6, 157.2], value: String(a.address || "").replace(/\s*\n+\s*/g, ", ") }]),
+        { t: "lines", page: 4, x0: 72, x1: 275, ys: [184.1, 170.6, 157.2], runOn: true, value: myAddress(a) }]),
     ...(a.agConfidential === "yes"
       ? [f(FORM.fwAppearance, "Email, phone and fax", "Left blank (Attorney General confidential address checked)", "agConfidential")]
       : [
@@ -893,7 +895,7 @@ function feeWaiverFields(a) {
       [{ t: "text", name: "MonthlyExpenses", value: money(expenseTotal(a)) }]),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
     f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "draw", page: 3, x: 362, y: 224, w: 162, value: a.name }]),
-    f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.agConfidential === "yes" ? "" : a.address].filter(Boolean).join("\n"), "name"),
+    f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.agConfidential === "yes" ? "" : myAddress(a)].filter(Boolean).join("\n"), "name"),
   );
   return out;
 }
@@ -983,33 +985,49 @@ const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
 // added page; otherwise it is reported as cut off.
 // x0 can be one number, or one per line when the first line starts after a label.
 const lineX0 = (op, i) => (Array.isArray(op.x0) ? op.x0[i] : op.x0);
+// Returns the wrapped lines, plus lines.ends: where in the text each line stops,
+// so text that doesn't fit can continue elsewhere exactly as the person typed it.
 function wrapLines(text, font, size, op) {
-  const lines = []; let line = "";
+  const src = String(text), lines = [], ends = [];
   const widthAt = n => op.x1 - lineX0(op, Math.min(n, op.ys.length - 1)) - 4;
-  for (const para of String(text).split(/\r?\n/)) {
-    line = "";
-    for (const word of para.split(/\s+/).filter(Boolean)) {
+  let offset = 0;
+  for (const para of src.split(/\r?\n/)) {
+    const base = offset;
+    let line = "", lineEnd = base;
+    const wordRe = /\S+/g; let m;
+    while ((m = wordRe.exec(para)) !== null) {
+      const word = m[0], start = base + m.index;
       const tryLine = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(tryLine, size) <= widthAt(lines.length)) { line = tryLine; continue; }
-      if (line) lines.push(line);
-      let piece = "";
+      if (font.widthOfTextAtSize(tryLine, size) <= widthAt(lines.length)) { line = tryLine; lineEnd = start + word.length; continue; }
+      if (line) { lines.push(line); ends.push(lineEnd); }
+      // A single word longer than the line is broken by characters.
+      let piece = "", used = 0;
       for (const ch of word) {
-        if (piece && font.widthOfTextAtSize(piece + ch, size) > widthAt(lines.length)) { lines.push(piece); piece = ""; }
-        piece += ch;
+        if (piece && font.widthOfTextAtSize(piece + ch, size) > widthAt(lines.length)) { lines.push(piece); ends.push(start + used); piece = ""; }
+        piece += ch; used += ch.length;
       }
-      line = piece;
+      line = piece; lineEnd = start + word.length;
     }
-    lines.push(line);
+    lines.push(line); ends.push(lineEnd);
+    offset = base + para.length;
+    if (src[offset] === "\r") offset++;
+    if (src[offset] === "\n") offset++;
   }
+  lines.ends = ends;
   return lines;
 }
+// For addresses (op.runOn), lines may run together ("street, city") before the
+// text is made smaller, so a 3-line address fits a form that has 2 lines.
 function fitLines(text, font, op) {
+  const variants = op.runOn ? [text, String(text).replace(/\s*\n+\s*/g, ", ")] : [text];
   for (const size of SIZES) {
-    const lines = wrapLines(text, font, size, op);
-    if (lines.length <= op.ys.length) return { size, lines, overflow: false };
+    for (const t of variants) {
+      const lines = wrapLines(t, font, size, op);
+      if (lines.length <= op.ys.length) return { size, lines, overflow: false };
+    }
   }
   const size = SIZES[SIZES.length - 1];
-  return { size, lines: wrapLines(text, font, size, op).slice(0, op.ys.length), overflow: true };
+  return { size, lines: wrapLines(variants[variants.length - 1], font, size, op).slice(0, op.ys.length), overflow: true };
 }
 
 // Pick a font size so the value fits inside the field's box. A one-line box
@@ -1063,6 +1081,7 @@ async function buildPdf(key, a) {
         if (fits.some(x => x.wrap)) tf.enableMultiline();
         tf.setFontSize(Math.min(...fits.map(x => x.size)));
         if (fits.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
+        else if (Math.min(...fits.map(x => x.size)) < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...fits.map(x => x.size)) });
       } else if (op.t === "radio") {
         form.getRadioGroup(op.name).select(op.option);
       } else if (op.t === "check") {
@@ -1090,6 +1109,7 @@ async function buildPdf(key, a) {
       while (op.w && size > 6 && font.widthOfTextAtSize(value, size) > op.w) size -= 0.5;
       pages[op.page].drawText(value, { x: op.x, y: op.y, size, font });
       if (op.w && font.widthOfTextAtSize(value, size) > op.w) notes.push({ kind: "overflow", step: item.step, label: item.label });
+      else if (size < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size });
       continue;
     }
     let fit = fitLines(value, font, op);
@@ -1099,11 +1119,14 @@ async function buildPdf(key, a) {
       const all = wrapLines(value, font, 9, op);
       fit = { size: 9, lines: [...all.slice(0, keep), "(continued on attached page)"] };
       const doc = docOfPage(op.page);
-      (continuations[doc] = continuations[doc] || []).push({ label: op.continues, text: all.slice(keep).join(" ") });
+      // The rest of the answer, exactly as typed (line breaks kept).
+      const rest = value.slice(all.ends[keep - 1]).replace(/^[ \t]+/, "").replace(/^\r?\n/, "");
+      (continuations[doc] = continuations[doc] || []).push({ label: op.continues, text: rest });
       notes.push({ kind: "continued", step: item.step, label: item.label, doc: off.docs[doc].name });
     }
     fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: lineX0(op, i) + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
     if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
+    else if (fit.size < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size: fit.size });
   }
 
   cleanUpAfterFlatten(src);
@@ -1129,7 +1152,9 @@ async function buildPdf(key, a) {
     if (caption) line(caption, f, 10, 14);
     if (a.name) line(`Filed by: ${a.name}`, f, 10, 20);
     for (const c of conts) { line(`Continued from: ${c.label}`, bold, 10, 15); line(c.text, f, 10, 14); y -= 10; }
-    added.forEach((pg, i) => pg.drawText(`Attachment page ${i + 1} of ${added.length}`, { x: 72, y: 40, size: 9, font: f }));
+    // Number the added pages after the form's own pages.
+    const formPages = off.docs[docKey].pages.length;
+    added.forEach((pg, i) => pg.drawText(`Page ${formPages + i + 1} of ${formPages + added.length} (attachment to the ${off.docs[docKey].name})`, { x: 72, y: 40, size: 9, font: f }));
   };
   const safeOut = makeSafe(font, () => {});
   const docs = sit.official.docs.map(k => ({ key: k, ...off.docs[k] }));
@@ -1143,7 +1168,7 @@ async function buildPdf(key, a) {
     out.setCreator("Indiana Court Form Helper");
     return out.save();
   };
-  const all = await make(docs, `${sit.title} (official Indiana forms)`);
+  const all = await make(docs, `${sit.title}: ${docs.map(d => d.number ? `${d.name} (${d.number})` : d.name).join(", ")}`);
   const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make([d], d.number ? `${d.name} (${d.number})` : d.name) }))) : [];
   return { all, each, notes };
 }
@@ -1192,15 +1217,18 @@ function ensurePdf() {
 // Problems found while putting answers on the PDF (text too long, characters the font can't print).
 function pdfFlags() {
   if (!pdfState.result || pdfState.key !== pdfKey()) return [];
-  const overflow = new Map(), chars = new Map(), continued = new Map();
+  const overflow = new Map(), chars = new Map(), continued = new Map(), small = new Map();
   for (const n of pdfState.result.notes) {
     const k = `${n.step}|${n.label}`;
     if (n.kind === "overflow") overflow.set(k, n);
     else if (n.kind === "chars") { if (!chars.has(k)) chars.set(k, { ...n, list: new Map() }); chars.get(k).list.set(n.ch, n.out); }
     else if (n.kind === "continued") continued.set(k, n);
+    else if (n.kind === "small") { if (!small.has(k) || small.get(k).size > n.size) small.set(k, n); }
   }
   return [
     ...[...overflow.values()].map(n => ({ level: "check", title: n.label, why: "This is too long for the space on the official form, so part of it may be cut off. Check it in the preview below.", fix: n.step })),
+    ...[...small.values()].filter(n => !overflow.has(`${n.step}|${n.label}`)).map(n => ({ level: "check", title: n.label,
+      why: `This is printed in small ${n.size}-point text so it fits the box on the official form. Check in the preview below that it's readable.`, fix: n.step })),
     ...[...continued.values()].map(n => ({ level: "check", title: n.label, why: `This is longer than the lines on the form, so it continues on a page added at the end of the ${n.doc}, marked "continued on attached page." Check it in the preview below.`, fix: n.step })),
     ...[...chars.values()].map(n => {
       const list = [...n.list].map(([c, o]) => `"${c}" (printed as "${o}")`).join(", ");
@@ -1235,7 +1263,7 @@ function downloadPdf(bytes, name) {
   const caseNo = answers.caseNumber && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber).slice(0, 30)}` : "";
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
   const link = document.createElement("a");
-  link.href = url; link.download = `${fileStem(name)}${caseNo}.pdf`;
+  link.href = url; link.download = `${fileStem(name).slice(0, 95 - caseNo.length)}${caseNo}.pdf`;
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
@@ -1247,7 +1275,7 @@ function pdfSectionHtml(sit) {
   return `
     <div class="downloads">
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
-      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only</button>`).join("")}
+      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
     </div>
     ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says each document is filed under its own filing code.</p>` : ""}
     <div class="preview" id="preview"></div>`;
@@ -1258,11 +1286,13 @@ function wirePdfSection(sit) {
   if (retry) retry.onclick = () => { pdfState = { key: null }; ensurePdf(); renderSummary(true); };
   if (!pdfState.result) return;
   const { all, each } = pdfState.result;
-  document.getElementById("dlAll").onclick = () => downloadPdf(all, sit.title);
+  const docs = sit.official.docs.map(k => OFFICIAL[sit.official.packet].docs[k]);
+  // One form: name the file after it and its number. Several: the situation's name.
+  document.getElementById("dlAll").onclick = () => downloadPdf(all, docs.length === 1 ? `${docs[0].name} ${docs[0].number}` : `${sit.title} forms`);
   app.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => {
     const d = each.find(x => x.key === b.dataset.dl);
     // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
-    downloadPdf(d.bytes, sitKey === "respond" ? d.name : `${sit.title} ${d.name}`);
+    downloadPdf(d.bytes, `${sitKey === "respond" ? "" : `${sit.title} `}${d.name} ${d.number || ""}`);
   });
   loadPreviewTools().then(() => renderPreview(all, document.getElementById("preview"))).catch(e => {
     console.error(e);
@@ -1278,11 +1308,12 @@ function wirePdfSection(sit) {
    ===================================================================== */
 // County clerk's offices from the Indiana Directory of Courts & Clerks
 // (https://www.in.gov/courts/files/court-directory.pdf, dated October 21, 2026, downloaded November 3, 2026):
-// mailing address lines and main phone number.
+// address lines and main phone number. For counties where the directory only
+// gives a P.O. box, mailing: true, and note quotes where the directory says the office is.
 const CLERKS = {
   "Adams": { address: ["112 S. 2nd Street, Room A", "Decatur, IN 46733-1618"], phone: "260-724-5309" },
   "Allen": { address: ["715 South Calhoun Street, # 201", "Fort Wayne, IN 46802"], phone: "260-449-7245" },
-  "Bartholomew": { address: ["P.O. Box 924", "Columbus, IN 47202-0924"], phone: "812-379-1600" },
+  "Bartholomew": { address: ["P.O. Box 924", "Columbus, IN 47202-0924"], phone: "812-379-1600", mailing: true },
   "Benton": { address: ["706 E. 5th Street", "Fowler, IN 47944"], phone: "765-884-0930" },
   "Blackford": { address: ["110 W. Washington", "Hartford City, IN 47348"], phone: "765-348-1130" },
   "Boone": { address: ["212 Courthouse Square", "Lebanon, IN 46052"], phone: "765-482-3510" },
@@ -1302,12 +1333,12 @@ const CLERKS = {
   "Elkhart": { address: ["1905 Reliance Road", "Goshen, IN 46526"], phone: "574-538-3000" },
   "Fayette": { address: ["401 N. Central Avenue", "Connersville, IN 47331"], phone: "765-825-1813" },
   "Floyd": { address: ["311 Hauss Square, # 235", "New Albany, IN 47150"], phone: "812-948-5415" },
-  "Fountain": { address: ["PO BOX 183 (mailing address; the Clerk’s Office is in the Fountain County Courthouse)", "Covington, IN 47932"], phone: "765-793-2192" },
+  "Fountain": { address: ["PO BOX 183", "Covington, IN 47932"], phone: "765-793-2192", mailing: true, note: "The Clerk’s Office is in the Fountain County Courthouse." },
   "Franklin": { address: ["459 Main Street", "Brookville, IN 47012"], phone: "765-647-5111" },
   "Fulton": { address: ["815 Main Street", "Rochester, IN 46975"], phone: "574-223-4824" },
   "Gibson": { address: ["101 N. Main Street", "Princeton, IN 47670-1562"], phone: "812-386-6474" },
   "Grant": { address: ["101 E. 4th Street", "Marion, IN 46952"], phone: "765-668-8121" },
-  "Greene": { address: ["PO BOX 229", "Bloomfield, IN 47424"], phone: "812-384-8532" },
+  "Greene": { address: ["PO BOX 229", "Bloomfield, IN 47424"], phone: "812-384-8532", mailing: true },
   "Hamilton": { address: ["One Hamilton Square, # 106", "Noblesville, IN 46060"], phone: "317-776-9629" },
   "Hancock": { address: ["9 East Main Street, Rm. 213", "Greenfield, IN 46140"], phone: "317-477-1109, 1143" },
   "Harrison": { address: ["300 N. Capitol Ave.", "Corydon, IN 47112"], phone: "812-738-4289" },
@@ -1319,7 +1350,7 @@ const CLERKS = {
   "Jasper": { address: ["115 W. Washington Street, # 204", "Rensselaer, IN 47978"], phone: "219-866-4927" },
   "Jay": { address: ["120 N. Court Street", "Portland, IN 47371"], phone: "260-726-6915" },
   "Jefferson": { address: ["300 East Main Street, # 203", "Madison, IN 47250"], phone: "812-265-8922" },
-  "Jennings": { address: ["PO BOX 385 mailing address-", "Vernon, IN 47282"], phone: "812-352-3070" },
+  "Jennings": { address: ["PO BOX 385", "Vernon, IN 47282"], phone: "812-352-3070", mailing: true, note: "The Clerk’s Office is in the Jennings County Courthouse." },
   "Johnson": { address: ["PO BOX 368", "Five East Jefferson Street", "Franklin, IN 46131"], phone: "317-346-4450" },
   "Knox": { address: ["111 North Seventh Street", "Vincennes, IN 47591"], phone: "812-885-2521" },
   "Kosciusko": { address: ["121 N. Lake Street", "Warsaw, IN 46580"], phone: "574-372-2334" },
@@ -1330,25 +1361,25 @@ const CLERKS = {
   "Madison": { address: ["16 E. Ninth Street, #213", "Anderson, IN 46016"], phone: "765-641-9443" },
   "Marion": { address: ["675 Justice Way", "Indianapolis, IN 46203"], phone: "317-327-4740" },
   "Marshall": { address: ["211 W. Madison St.", "Plymouth, IN 46563"], phone: "574-936-8922" },
-  "Martin": { address: ["PO BOX 120 mailing address-", "Shoals, IN 47581"], phone: "812-247-3651" },
+  "Martin": { address: ["PO BOX 120", "Shoals, IN 47581"], phone: "812-247-3651", mailing: true, note: "The Clerk’s Office is in the Martin County Courthouse." },
   "Miami": { address: ["25 North Broadway, Room 208", "Peru, IN 46970"], phone: "765-472-3901 x256" },
-  "Monroe": { address: ["PO BOX 547 (mailing address)", "Bloomington, IN 47402"], phone: "812-349-2600" },
+  "Monroe": { address: ["PO BOX 547", "Bloomington, IN 47402"], phone: "812-349-2600", mailing: true, note: "The Clerk’s Office is in the Monroe County Justice Building." },
   "Montgomery": { address: ["100 East Main Street", "Crawfordsville, IN 47933"], phone: "765-364-6430" },
   "Morgan": { address: ["Morgan County Justice Campus", "180 S. Main St.", "Martinsville, IN 46151"], phone: "765-205-1548" },
-  "Newton": { address: ["PO BOX 49 (mailing address)", "Kentland, IN 47951"], phone: "219-474-6081" },
+  "Newton": { address: ["PO BOX 49", "Kentland, IN 47951"], phone: "219-474-6081", mailing: true, note: "The Clerk’s Office is in the Newton County Courthouse." },
   "Noble": { address: ["101 North Orange Street", "Albion, IN 46701"], phone: "260-636-2736" },
-  "Ohio": { address: ["PO BOX 185 (mailing address)", "Rising Sun, IN 47040"], phone: "812-438-2610" },
+  "Ohio": { address: ["PO BOX 185", "Rising Sun, IN 47040"], phone: "812-438-2610", mailing: true },
   "Orange": { address: ["1 Court Street", "Paoli, IN 47454"], phone: "812-723-2649" },
-  "Owen": { address: ["PO BOX 146 (mailing address)", "Spencer, IN 47460"], phone: "812-829-5015" },
+  "Owen": { address: ["PO BOX 146", "Spencer, IN 47460"], phone: "812-829-5015", mailing: true, note: "The Clerk’s Office is in the Owen County Courthouse." },
   "Parke": { address: ["116 West High Street, Room 204", "Rockville, IN 47872"], phone: "765-569-5132" },
   "Perry": { address: ["2219 Payne Street", "Tell City, IN 47586"], phone: "812-547-3741" },
-  "Pike": { address: ["PO BOX 125 (mailing address)", "Petersburg, IN 47567"], phone: "812-354-6025" },
+  "Pike": { address: ["PO BOX 125", "Petersburg, IN 47567"], phone: "812-354-6025", mailing: true, note: "The Clerk’s Office is in the Pike County Courthouse." },
   "Porter": { address: ["16 Lincolnway, # 209", "Valparaiso, IN 46383"], phone: "219-465-3450" },
   "Posey": { address: ["300 Main Street, Room 115", "Mount Vernon, IN 47620"], phone: "812-838-1306" },
   "Pulaski": { address: ["117 East Main Street", "Winamac, IN 46996"], phone: "574-946-3313" },
   "Putnam": { address: ["One Courthouse Square", "Greencastle, IN 46135"], phone: "765-653-2648" },
   "Randolph": { address: ["100 S. Main Street, Room 201", "Winchester, IN 47394"], phone: "765-584-4214" },
-  "Ripley": { address: ["PO Box 177 mailing address)", "Versailles, IN 47042"], phone: "812-689-6115" },
+  "Ripley": { address: ["PO Box 177", "Versailles, IN 47042"], phone: "812-689-6115", mailing: true, note: "The Clerk’s Office is in the Ripley County Courthouse." },
   "Rush": { address: ["101 E. 2nd Street, Room 209", "Rushville, IN 46173"], phone: "765-932-2086" },
   "St. Joseph": { address: ["101 South Main Street", "South Bend, IN 46601"], phone: "574-235-9635" },
   "Scott": { address: ["One East McClain Avenue", "Scottsburg, IN 47170"], phone: "812-752-8420" },
@@ -1358,10 +1389,10 @@ const CLERKS = {
   "Steuben": { address: ["305 South Martha Street", "Steuben County Judicial Center, 1st Floor", "Angola, IN 46703"], phone: "260-668-1000" },
   "Sullivan": { address: ["P.O. Box 370", "100 Courthouse Square", "Sullivan, IN 47882"], phone: "812-268-4657" },
   "Switzerland": { address: ["212 West Main Street", "Vevay, IN 47043"], phone: "812-427-4415" },
-  "Tippecanoe": { address: ["PO BOX 1665 (mailing address)", "Lafayette, IN 47901"], phone: "765-423-9326" },
+  "Tippecanoe": { address: ["PO BOX 1665", "Lafayette, IN 47901"], phone: "765-423-9326", mailing: true },
   "Tipton": { address: ["101 East Jefferson Street", "Tipton, IN 46072"], phone: "765-675-2795" },
   "Union": { address: ["26 West Union Street", "Liberty, IN 47353"], phone: "765-458-6121" },
-  "Vanderburgh": { address: ["PO BOX 3356 (mailing address)", "Evansville, IN 47732-3356"], phone: "812-435-5160" },
+  "Vanderburgh": { address: ["PO BOX 3356", "Evansville, IN 47732-3356"], phone: "812-435-5160", mailing: true, note: "The Clerk’s Office is in the new Vanderburgh County Courthouse." },
   "Vermillion": { address: ["PO BOX 10", "255 South Main", "Newport, IN 47966"], phone: "765-492-3500" },
   "Vigo": { address: ["33 South Third Street", "Courthouse, 1st Floor", "Terre Haute, IN 47807"], phone: "812-462-3211" },
   "Wabash": { address: ["69 West Hill Street", "Wabash, IN 46992"], phone: "260-563-0661" },
@@ -1373,6 +1404,19 @@ const CLERKS = {
   "White": { address: ["PO BOX 350", "110 North Main Street", "Monticello, IN 47960"], phone: "574-583-7032" },
   "Whitley": { address: ["101 West Van Buren Street", "Columbia City, IN 46725"], phone: "260-248-3102" },
 };
+
+const MARION_SMALL_CLAIMS = [
+  ["Center Township", "300 E. Fall Creek Parkway N. Drive, Indianapolis, IN 46205", "317-920-4530"],
+  ["Decatur Township", "3730 South Foltz St., Indianapolis, IN 46241", "317-241-2854"],
+  ["Franklin Township", "4531 Independence Square, Indianapolis, IN 46203", "317-784-1751"],
+  ["Lawrence Township", "4455 McCoy St., Indianapolis, IN 46226", "317-545-2369"],
+  ["Perry Township", "4925 S. Shelby St., #100, Indianapolis, IN 46227", "317-786-9242"],
+  ["Pike Township", "5665 Lafayette Rd., Suite B, Indianapolis, IN 46254", "317-293-1842"],
+  ["Warren Township", "501 N. Post Rd., Suite C, Indianapolis, IN 46219", "317-327-8919"],
+  ["Washington Township", "5302 N. Keystone Ave., Suite E, Indianapolis, IN 46220", "317-327-8184"],
+  ["Wayne Township", "5401 W. Washington St., Indianapolis, IN 46241", "317-241-9573"],
+];
+const SCM_NOT_MARION = "The Small Claims Manual also says it does not address the specific jurisdiction or procedures of Marion County Small Claims Court.";
 
 const SOURCES = {
   answerInstructions: { href: LINKS.answerInstructions, text: "Indiana Legal Help: Answer instructions" },
@@ -1415,7 +1459,7 @@ function nextSteps(key, a) {
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
-    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The judge decides whether to grant your request. If the judge grants it, the Order form lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
+    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order form is completed by the judge. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
     links: [SOURCES.feeFaq] });
 
   // 2. Signing.
@@ -1440,20 +1484,27 @@ function nextSteps(key, a) {
       links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount] : [])] });
   } else {
     out.push({ title: "File at the courthouse",
-      body: `${clerk ? `The Indiana court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}. ` : "Bring the printed forms to the court where they need to be filed. "}Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, so you may want to call first.`,
+      body: [
+        "Indiana Legal Help says to bring the forms to the court where they need to be filed.",
+        !clerk ? "" : clerk.mailing
+          ? `The Indiana court directory gives a mailing address for the ${a.county} County Clerk's Office: ${clerk.address.join(", ")}.${clerk.note ? ` It also says: "${clerk.note}"` : ""} Phone: ${clerk.phone}.`
+          : `The Indiana court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}.`,
+        a.county === "Marion" ? `The directory also lists Marion County's nine township small claims courts: ${MARION_SMALL_CLAIMS.map(([n, ad, ph]) => `${n}, ${ad} (${ph})`).join("; ")}.` : "",
+        "Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, and some prefer you not bring any, so you may want to contact the court first.",
+      ].filter(Boolean).join(" "),
       links: [SOURCES.inPerson, SOURCES.directory] });
   }
 
   // 4. Fees and the fee waiver option.
   if (key !== "feewaiver") out.push({
     title: "Filing fee",
-    body: "Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it.",
-    links: [SOURCES.feeFaq, SOURCES.inPerson] });
+    body: `Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it, and its filing fee page points to the fee waiver instructions and form on its "How to File Forms with the Court in Person" page (family law cases have their own form).${efile ? " If you e-file, the E-Filing User Guide says to set up a waiver payment account with your e-filing provider, which helps make sure fees aren't charged when they aren't due." : ""}`,
+    links: [SOURCES.feeFaq, SOURCES.inPerson, ...(efile ? [SOURCES.waiverAccount] : [])] });
 
   // 5. Serving the other side.
   if (key === "feewaiver") out.push({
     title: "Serving the other side",
-    body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's instructions say that when a court case begins, both sides need to receive official forms, which is called service of process.${efile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2) when serving a filing that starts a case." : ""}`,
+    body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's instructions say that when a court case begins, it's important for both sides to know about it and receive official forms, which is called service of process. They describe three ways: First Class U.S. mail (paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. Indiana Legal Help says the fee to start a case with sheriff service is $185.${efile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2), which says that when you file the papers that start a case, you also file completed summonses designating the manner of service, and that you are responsible for service of process." : ""}`,
     links: [SOURCES.answerInstructions, ...(efile ? [SOURCES.efileGuide, SOURCES.tr86] : [])] });
   else out.push({
     title: "Send a copy to the other side",
@@ -1462,19 +1513,20 @@ function nextSteps(key, a) {
 
   // 6. Court dates and what missing one can mean.
   // What missing a court date can mean, in the Small Claims Manual's own terms.
-  const defaultFact = "If you miss a court date, you can lose the case: in small claims court, the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.";
-  const dismissFact = "In small claims court, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.";
+  const marionNote = a.county === "Marion" ? ` ${SCM_NOT_MARION}` : "";
+  const defaultFact = `In small claims court, missing a court date can mean losing the case: the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
+  const dismissFact = `In small claims court, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}${defaultFact} If you need a new date, Indiana Legal Help says only an order signed by the judge can change a court date or time.`,
-    links: [SOURCES.mycase, SOURCES.smallClaims, SOURCES.newDate] });
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}${defaultFact}${key === "respond" ? " In superior or circuit court, Indiana Legal Help says that if you don't file an Answer when you should, the court might decide the case without you." : ""} If you need a new date, Indiana Legal Help says only an order signed by the judge can change a court date or time.`,
+    links: [SOURCES.mycase, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.respond] : []), SOURCES.newDate] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     body: a.role === "me" ? dismissFact : defaultFact,
     links: [SOURCES.smallClaims] });
   if (key === "feewaiver") out.push({
     title: "Go to every court date",
-    body: `If the court sets a hearing in your case, go to it. ${dismissFact}`,
+    body: `If the court sets a hearing in your case: ${dismissFact}`,
     links: [SOURCES.smallClaims] });
 
   out.push({ title: "Get free help", body: "Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county.", links: [SOURCES.getHelp] });
@@ -1514,6 +1566,7 @@ const SMALL_CLAIMS_FACTS = [
   "A written answer usually isn't filed. Indiana Legal Help says Answers are not usually filed in small claims court, and Small Claims Rule 4 says all defenses are \"deemed at issue without responsive pleadings,\" adding that this does not change the burden of proof.",
   "Indiana Legal Help says that when you respond to a case someone else started, you file an Appearance to tell the court who you are and how the court and others can contact you. Small Claims Rule 4 says the court may ask you to enter an appearance before trial, and that not entering one is not grounds for a default judgment.",
   "Go to court at the time on your Notice of Claim. The Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment.",
+  "The Small Claims Manual says it does not address the specific jurisdiction or procedures of Marion County Small Claims Court. If your case is in Marion County, the court directory lists its township small claims courts.",
 ];
 
 function triageResult(t) {
@@ -1662,6 +1715,9 @@ function runChecks() {
     flags.push({ level: "check", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
+  if (a.receiveAt === "Choice3" && a.acp !== "yes")
+    flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
+
   const notMail = (sitKey === "respond" || sitKey === "appearance") && vis.find(s => /^svc\dMethod$/.test(s.id) && a[s.id] && a[s.id] !== "First Class U.S. mail");
   if (notMail)
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
