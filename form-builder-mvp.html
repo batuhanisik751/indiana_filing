@@ -110,6 +110,9 @@ dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }
 ol.steps { padding-left: 1.4rem; margin: 0 0 1rem; }
+ul.facts { padding-left: 1.2rem; margin: 0 0 .75rem; }
+ul.facts li { margin: 0 0 .6rem; }
+p.srcs { font-size: .85rem; }
 ol.steps li { margin: 0 0 1rem; }
 ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }
@@ -631,6 +634,11 @@ const SIGN_HELP = {
   feewaiver: "This date is printed next to the signature line. If you file on paper, the official instructions say to sign after you print the form.",
 };
 const SITUATIONS = {
+  eviction: {
+    pick: "I got eviction papers",
+    blurb: "Answer one or two questions about your papers, and we'll show which official forms fit.",
+    triage: true,
+  },
   respond: {
     pick: "I'm being sued and need to respond to the complaint",
     blurb: "Fills the official Appearance and Answer forms. Indiana Legal Help says Answers are not usually filed in small claims court.",
@@ -1212,6 +1220,110 @@ function nextStepsHtml(key, a) {
 }
 
 /* =====================================================================
+   EVICTION: SORTING QUESTIONS
+   People who say "I got eviction papers" answer factual questions about
+   their papers (not "what should I do?"). The tool then shows which
+   official forms fit and why, and the person chooses where to go.
+   Every statement names its official source.
+   ===================================================================== */
+const TRIAGE_STEPS = [
+  { id: "paper", q: "What is the main paper you got called?",
+    help: "Look at the title near the top of the first page.",
+    options: [["notice", "Notice of Claim"], ["complaint", "Complaint (it may come with a Summons)"], ["unsure", "Something else, or I'm not sure"]] },
+  { id: "canGo", showIf: t => t.paper === "notice",
+    q: "Can you go to court at the date and time on your Notice of Claim?",
+    help: "The date and time are printed on the Notice of Claim.",
+    options: [["yes", "Yes"], ["no", "No, I need to ask for a new date"]] },
+];
+
+const SMALL_CLAIMS_FACTS = [
+  "Your case is in small claims court. Indiana's Small Claims Manual says a Notice of Claim is a written statement of a claim against the defendant that serves as notice that the lawsuit has been filed and that the party is ordered to appear in court.",
+  "You don't have to file a written answer. Small Claims Rule 4 says all defenses are \"deemed at issue\" without one, which means your defenses count even without a written answer. Indiana Legal Help also says Answers are not usually filed in small claims court.",
+  "Indiana Legal Help says that when you respond to a case someone else started, you file an Appearance to tell the court who you are and how the court and others can contact you. Small Claims Rule 4 says the court may ask you to enter an appearance before trial, and that not entering one is not grounds for a default judgment.",
+  "Go to court at the time on your Notice of Claim. The Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment.",
+];
+
+function triageResult(t) {
+  if (t.paper === "notice") return {
+    title: "Small claims eviction: what fits",
+    facts: SMALL_CLAIMS_FACTS,
+    sources: [SOURCES.smallClaims, { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" }, SOURCES.respond],
+    choices: t.canGo === "no"
+      ? [["continuance", "Ask the court to move my court date", "Fills the official Appearance and Verified Motion for Continuance."],
+         ["appearance", "Fill out the Appearance only", "Gives the court your contact information."]]
+      : [["appearance", "Fill out the Appearance", "Gives the court your contact information."],
+         ["continuance", "I can't make my court date after all", "Fills the official Appearance and Verified Motion for Continuance."]],
+  };
+  if (t.paper === "complaint") return {
+    title: "Eviction complaint: what fits",
+    facts: [
+      "Indiana Legal Help says a Complaint is the official legal document filed by the plaintiff to start a civil lawsuit against you.",
+      "Indiana Legal Help says you usually need to file an Answer if the case is filed in superior or circuit court, and that if you don't write an Answer when you should, the court might decide the case without you.",
+      "Its Answer instructions say you generally have twenty days to file your Answer once you've received the complaint.",
+    ],
+    sources: [SOURCES.respond, SOURCES.answerInstructions],
+    choices: [["respond", "Fill out the Appearance and Answer", "The official forms for responding to a complaint."],
+              ["continuance", "I need to ask the court to move a court date", "Fills the official Appearance and Verified Motion for Continuance."]],
+  };
+  return {
+    title: "Let's find out what kind of case it is",
+    facts: [
+      "Check the title at the top of your papers. The Small Claims Manual says a small claims case is started with a Notice of Claim, and Indiana Legal Help says a civil lawsuit is started with a Complaint.",
+      "You can look up your case at mycase.in.gov. Indiana's court staff page says staff can give you information from your case file, including when your next court hearing is.",
+    ],
+    sources: [SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }, SOURCES.directory, SOURCES.getHelp],
+    choices: [],
+  };
+}
+
+let triage = {}, fromTriage = false;
+const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
+
+function startSituation(key) {
+  sitKey = key; steps = SITUATIONS[key].steps(); answers = {}; cur = 0; mode = "step"; returnToSummary = false; render();
+}
+
+function renderTriage() {
+  const step = triageVisible().find(s => !triage[s.id]);
+  if (step) {
+    app.innerHTML = `
+      <h2 class="q" id="q" tabindex="-1">${esc(step.q)}</h2>
+      <p class="help">${esc(step.help)}</p>
+      <div class="choices" role="radiogroup" aria-labelledby="q">${step.options.map(([val, lab]) =>
+        `<label class="choice"><input type="radio" name="ans" value="${esc(val)}"><span>${esc(lab)}</span></label>`).join("")}</div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="nav"><button class="ghost" id="back">Back</button><button class="primary" id="next">Continue</button></div>`;
+    app.querySelector("#q").focus();
+    document.getElementById("next").onclick = () => {
+      const c = app.querySelector("input[name=ans]:checked");
+      if (!c) { document.getElementById("err").textContent = "Pick one to continue."; return; }
+      triage[step.id] = c.value; render();
+    };
+    document.getElementById("back").onclick = () => {
+      const answered = triageVisible().filter(s => triage[s.id]);
+      if (!answered.length) { mode = "pick"; return render(); }
+      delete triage[answered[answered.length - 1].id]; render();
+    };
+    return;
+  }
+  const r = triageResult(triage);
+  app.innerHTML = `
+    <h1 tabindex="-1">${esc(r.title)}</h1>
+    <ul class="facts">${r.facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    <p class="srcs">${r.sources.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}</p>
+    ${r.choices.length ? `<h2 class="sub">Choose what you want to do</h2>
+      ${r.choices.map(([k, label, blurb]) => `<button class="pick" data-start="${k}"><strong>${esc(label)}</strong><span>${esc(blurb)}</span></button>`).join("")}` : ""}
+    <div class="note">This tool shows what official sources say about your kind of papers. It can't tell you what to do in your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>
+    <div class="nav"><button class="ghost" id="back">Back</button></div>`;
+  app.querySelector("h1").focus();
+  app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => { fromTriage = true; startSituation(b.dataset.start); });
+  document.getElementById("back").onclick = () => {
+    const answered = triageVisible().filter(s => triage[s.id]);
+    delete triage[answered[answered.length - 1].id]; render();
+  };
+}
+
+/* =====================================================================
    APP STATE
    ===================================================================== */
 let sitKey = null, steps = [], answers = {};
@@ -1318,8 +1430,9 @@ function renderPick() {
     ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>`;
   app.querySelectorAll(".pick").forEach(b => b.onclick = () => {
-    sitKey = b.dataset.k;
-    steps = SITUATIONS[sitKey].steps(); answers = {}; cur = 0; mode = "step"; returnToSummary = false; render();
+    if (SITUATIONS[b.dataset.k].triage) { triage = {}; mode = "triage"; return render(); }
+    fromTriage = false;
+    startSituation(b.dataset.k);
   });
   app.querySelector("h1").focus?.();
 }
@@ -1364,7 +1477,7 @@ function renderStep() {
   document.getElementById("back").onclick = () => {
     if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
     readInput(step); // keep what was typed
-    if (cur === 0) { mode = "pick"; return render(); }
+    if (cur === 0) { mode = fromTriage ? "triage" : "pick"; return render(); }
     cur--; render();
   };
   document.getElementById("next").onclick = () => save(step);
@@ -1467,7 +1580,7 @@ function renderSummary(rerender = false) {
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
     if (!confirm("Start over? This clears every answer you have entered.")) return;
-    sitKey = null; answers = {}; mode = "pick"; render();
+    sitKey = null; answers = {}; triage = {}; fromTriage = false; mode = "pick"; render();
   };
   wirePdfSection(sit);
   if (rerender) return;
@@ -1477,7 +1590,7 @@ function renderSummary(rerender = false) {
   lastEdited = null;
 }
 
-function render() { ({ pick: renderPick, step: renderStep, summary: renderSummary })[mode](); }
+function render() { ({ pick: renderPick, triage: renderTriage, step: renderStep, summary: renderSummary })[mode](); }
 render();
 </script>
 </body>
