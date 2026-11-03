@@ -1774,8 +1774,8 @@ function nextSteps(key, a) {
   const dismissFact = notSmallClaims ? "" : `${ifSC}, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
-    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? [SOURCES.smallClaims] : []), ...(key === "respond" ? [SOURCES.answerTopic] : [])] });
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
+    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? [SOURCES.smallClaims] : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     body: (a.role === "me" ? [dismissFact, noSourceFact] : [missFact, defaultFact, noSourceFact]).filter(Boolean).join(" "),
