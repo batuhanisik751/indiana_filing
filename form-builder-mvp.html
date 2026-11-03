@@ -15,6 +15,7 @@
   --ok: #1E7A3C; --ok-bg: #E7F4EA;
   --warn: #A8452E; --warn-bg: #FBEDE8;
   --check: #8A5A00; --check-bg: #FFF4D9;
+  --field-line: #6F8487;
   --mark: #FFE39A; --paper: #FFFFFF; --paper-ink: #1B1B1B; --paper-line: #D9D9D2; --miss: #B3261E;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
@@ -26,7 +27,7 @@
     --bg: #0E1A1C; --surface: #16272A; --ink: #E4EEED; --muted: #9DB2B3; --line: #2B4043;
     --accent: #4FC1B7; --accent-ink: #062321;
     --ok: #7FD69A; --ok-bg: #16301F; --warn: #F09A80; --warn-bg: #3A2019; --check: #F2C25A; --check-bg: #372B10;
-    --miss: #F09A80;
+    --miss: #F09A80; --field-line: #6B8587;
   }
 }
 :root[data-theme="dark"] {
@@ -34,23 +35,24 @@
   --bg: #0E1A1C; --surface: #16272A; --ink: #E4EEED; --muted: #9DB2B3; --line: #2B4043;
   --accent: #4FC1B7; --accent-ink: #062321;
   --ok: #7FD69A; --ok-bg: #16301F; --warn: #F09A80; --warn-bg: #3A2019; --check: #F2C25A; --check-bg: #372B10;
-  --miss: #F09A80;
+  --miss: #F09A80; --field-line: #6B8587;
 }
 *, *::before, *::after { box-sizing: inherit; }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 1.125rem; line-height: 1.55; }
 .wrap { max-width: 36rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
-header.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+header.top { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.toprow, .saverow { display: flex; justify-content: space-between; align-items: center; gap: 0 1rem; flex-wrap: wrap; }
 .brand { font-weight: 700; font-size: 1rem; }
-.topright { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; text-align: right; }
 .helplink { font-weight: 700; font-size: .95rem; display: inline-block; padding: .5rem 0; }
 footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
-footer li { margin: 0 0 .35rem; }
-.privacy { font-size: .85rem; color: var(--muted); text-align: right; }
-.headbtns { display: flex; gap: 1rem; justify-content: flex-end; flex-wrap: wrap; }
+footer li { margin: 0 0 .5rem; }
+footer li a { display: inline-block; padding: .3rem 0; }
+.privacy { font-size: .85rem; color: var(--muted); }
+.headbtns { display: flex; gap: 1.25rem; margin-left: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }
-h2.q { font-size: 1.55rem; line-height: 1.2; margin: 0 0 .75rem; }
+h1.q { font-size: 1.55rem; line-height: 1.2; margin: 0 0 .75rem; }
 h2.sub { font-size: 1.2rem; margin: 2rem 0 .5rem; }
 p { margin: 0 0 1rem; }
 .help { color: var(--muted); margin: 0 0 1.25rem; }
@@ -63,7 +65,7 @@ p { margin: 0 0 1rem; }
 .barlabel { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
 
 input[type=text], input[type=tel], input[type=email], input[type=date], input[type=time], input[type=number], textarea, select {
-  width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: .85rem 1rem;
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 2px solid var(--field-line); border-radius: 10px; padding: .85rem 1rem;
 }
 textarea { min-height: 8rem; resize: vertical; }
 textarea.short { min-height: 5rem; }
@@ -142,12 +144,14 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
 <body>
 <div class="wrap">
   <header class="top">
-    <span class="brand">Indiana Court Form Helper</span>
-    <span class="topright">
+    <div class="toprow">
+      <span class="brand">Indiana Court Form Helper</span>
       <a class="helplink" href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find legal help</a>
+    </div>
+    <div class="saverow">
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
       <span class="headbtns"><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
-    </span>
+    </div>
   </header>
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <main id="app"></main>
@@ -675,7 +679,7 @@ function contServiceFields(a) {
       f(FORM.service, `Type of service used${label}`, a[`svc${i}Method`], `svc${i}Method`, [{ t: "text", name: `Service Type ${i}`, value: a[`svc${i}Method`], maxSize: 10 }]),
       f(FORM.service, `Date of service${label}`, formDate(a[`svc${i}Date`]), `svc${i}Date`, [{ t: "text", name: `Service Date ${i}`, value: formDate(a[`svc${i}Date`]), maxSize: 10 }]),
     );
-    if (i < MAX_RECIPIENTS) out.push(f(FORM.service, "Anyone else to send a copy to", yesNo(a[`svcMore${i}`]), `svcMore${i}`));
+    if (i < MAX_RECIPIENTS) out.push(f(FORM.service, `Anyone else to send a copy to (after person ${i})`, yesNo(a[`svcMore${i}`]), `svcMore${i}`));
   }
   out.push(f(FORM.service, "Date next to your signature (on both forms)", formDate(a.signDate), "signDate",
     [{ t: "draw", page: 4, x: 461, y: 121.5, value: formDate(a.signDate) }, { t: "draw", page: 6, x: 461, y: 184.5, value: formDate(a.signDate) }]));
@@ -834,7 +838,7 @@ function serviceFields(a, withAnswer) {
       f(FORM.service, `Type of service used${label}`, a[`svc${i}Method`], `svc${i}Method`, typeFields.map(name => ({ t: "text", name, value: a[`svc${i}Method`], maxSize: 10, multiline: true }))),
       f(FORM.service, `Date of service${label}`, formDate(a[`svc${i}Date`]), `svc${i}Date`, [{ t: "text", name: `Service Date ${i}`, value: formDate(a[`svc${i}Date`]), maxSize: 10 }]),
     );
-    if (i < MAX_RECIPIENTS) out.push(f(FORM.service, "Anyone else to send a copy to", yesNo(a[`svcMore${i}`]), `svcMore${i}`));
+    if (i < MAX_RECIPIENTS) out.push(f(FORM.service, `Anyone else to send a copy to (after person ${i})`, yesNo(a[`svcMore${i}`]), `svcMore${i}`));
   }
   const dates = [{ t: "draw", page: 5, x: 111, y: 148.5, value: formDate(a.signDate) }];
   if (withAnswer) dates.push({ t: "draw", page: 7, x: 111, y: 134.5, value: formDate(a.signDate) });
@@ -1276,25 +1280,38 @@ function ensurePdf() {
     catch (e) { error = true; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
-    if (mode === "summary") { const y = window.scrollY; keepFocus(() => renderSummary(true)); window.scrollTo(0, y); }
+    if (mode === "summary") {
+      keepFocus(() => renderSummary(true));
+      announce(error ? "We couldn't make the PDF." : "Your filled form is ready to download.");
+    }
   })();
 }
 
 // Re-drawing the summary replaces its buttons; put focus back on the same one.
+// The page also keeps its place: the focused element (or the edited row) stays
+// where it was on screen, even though the PDF section above it has grown.
 function keepFocus(redraw) {
   const el = document.activeElement;
   let find = null;
   if (el && el !== document.body && app.contains(el)) {
-    const attr = el.id ? "id" : ["data-fix", "data-dl"].find(n => el.hasAttribute(n));
+    const attr = el.id ? "id" : ["data-fix", "data-dl", "href"].find(n => el.hasAttribute(n));
     if (attr) {
-      const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
+      const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `${attr === "href" ? "a" : ""}[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
       const i = [...app.querySelectorAll(sel)].indexOf(el);
       find = () => app.querySelectorAll(sel)[i];
     } else if (el.matches("h1, .status")) find = () => app.querySelector(el.matches("h1") ? "h1" : ".status");
   }
+  const anchor = el && el !== document.body && app.contains(el) ? el : null;
+  const top = anchor ? anchor.getBoundingClientRect().top : null, y = window.scrollY;
+  const wasPdfNote = el && el.id === "pdfStatus";
   redraw();
-  const target = find && find();
-  if (target) target.focus({ preventScroll: true });
+  let target = find && find();
+  // A6: after "Try again", the status note is replaced by the downloads (or the error).
+  if (!target && wasPdfNote) target = document.getElementById("dlAll") || document.getElementById("retryPdf");
+  if (target) {
+    target.focus({ preventScroll: true });
+    if (top !== null) window.scrollBy(0, target.getBoundingClientRect().top - top); else target.scrollIntoView({ block: "center" });
+  } else window.scrollTo(0, y);
 }
 
 // Problems found while putting answers on the PDF (text too long, characters the font can't print).
@@ -1352,7 +1369,7 @@ function downloadPdf(bytes, name) {
 }
 
 function pdfSectionHtml(sit) {
-  if (pdfState.busy || !pdfState.key) return `<p class="note" role="status">Filling in the official form…</p>`;
+  if (pdfState.busy || !pdfState.key) return `<p class="note" id="pdfStatus" tabindex="-1">Filling in the official form…</p>`;
   if (pdfState.error) return `<div class="note" role="alert">We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection. <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
@@ -1367,7 +1384,7 @@ function pdfSectionHtml(sit) {
 
 function wirePdfSection(sit) {
   const retry = document.getElementById("retryPdf");
-  if (retry) retry.onclick = () => { pdfState = { key: null }; ensurePdf(); renderSummary(true); };
+  if (retry) retry.onclick = () => { pdfState = { key: null }; ensurePdf(); renderSummary(true); document.getElementById("pdfStatus")?.focus(); };
   if (!pdfState.result) return;
   const { all, each } = pdfState.result;
   const docs = sit.official.docs.map(k => OFFICIAL[sit.official.packet].docs[k]);
@@ -1378,10 +1395,15 @@ function wirePdfSection(sit) {
     // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
     downloadPdf(d.bytes, `${sitKey === "respond" ? "" : `${sit.title} `}${d.name} ${d.number || ""}`);
   });
-  loadPreviewTools().then(() => renderPreview(all, document.getElementById("preview"))).catch(e => {
+  // E15: draw into this summary's preview box only, and only once.
+  const box = document.getElementById("preview");
+  const token = box.dataset.token = String(Math.random());
+  loadPreviewTools().then(() => {
+    if (!box.isConnected || box.dataset.token !== token) return;
+    return renderPreview(all, box);
+  }).catch(e => {
     console.error(e);
-    const el = document.getElementById("preview");
-    if (el) el.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
+    if (box.isConnected) box.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
   });
 }
 
@@ -1717,9 +1739,8 @@ function startSituation(key, from = "pick") {
   // Coming back to the same form (for example with Back from its first question) keeps the answers.
   if (sitKey === key && hasAnswers()) {
     cameFrom(); cur = 0; returnToSummary = false;
-    mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false; return render();
+    mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false; triageBeforeEdit = null; return render();
   }
-  triageFromSummary = false;
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
   const title = SITUATIONS[key].title;
@@ -1743,7 +1764,7 @@ function startSituation(key, from = "pick") {
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
-  cameFrom();
+  cameFrom(); triageFromSummary = false; triageBeforeEdit = null;
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
@@ -1754,24 +1775,26 @@ const CASE_FORMS = ["respond", "appearance", "continuance"];
 function renderTriage() {
   const step = triageVisible().find(s => !triage[s.id]);
   if (step) {
+    const ti = triageVisible().indexOf(step);
     app.innerHTML = `
-      <h2 class="q" id="q" tabindex="-1">${esc(step.q)}</h2>
-      <p class="help">${esc(step.help)}</p>
-      <div class="choices" role="radiogroup" aria-labelledby="q">${step.options.map(([val, lab]) =>
+      <div class="barlabel"><span>Your papers</span><span>Question ${ti + 1}</span></div>
+      <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
+      <p class="help" id="qhelp">${esc(step.help)}</p>
+      <div class="choices" role="radiogroup" aria-labelledby="q" aria-describedby="qhelp">${step.options.map(([val, lab]) =>
         `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${triagePrev[step.id] === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>
       <p class="err" id="err" role="alert"></p>
       <div class="nav"><button class="ghost" id="back">Back</button><button class="primary" id="next">Continue</button></div>`;
     (app.querySelector("input[name=ans]:checked") || app.querySelector("#q")).focus();
-    document.getElementById("next").onclick = () => {
+    const next = () => {
       const c = app.querySelector("input[name=ans]:checked");
       if (!c) { document.getElementById("err").textContent = "Pick one to continue."; return; }
-      triage[step.id] = c.value; render();
+      triageHist.push({ ...triage }); triage[step.id] = c.value; render();
     };
-    document.getElementById("back").onclick = () => {
-      const answered = triageVisible().filter(s => triage[s.id]);
-      if (!answered.length) { mode = fromNotSure ? "notsure" : "pick"; return render(); }
-      delete triage[answered[answered.length - 1].id]; render();
-    };
+    document.getElementById("next").onclick = next;
+    app.querySelectorAll("input[name=ans]").forEach(i => i.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.repeat && !e.isComposing) { e.preventDefault(); next(); }
+    }));
+    document.getElementById("back").onclick = triageBack;
     return;
   }
   const r = triageResult(triage);
@@ -1788,13 +1811,26 @@ function renderTriage() {
     <div class="nav"><button class="ghost" id="back">Back</button></div>`;
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
-  app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triage.paper = b.dataset.paper; render(); });
+  app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triageHist.push({ ...triage }); triage.paper = b.dataset.paper; render(); });
   const all = document.getElementById("allChoices");
   if (all) all.onclick = () => { mode = "pick"; render(); };
-  document.getElementById("back").onclick = () => {
-    const answered = triageVisible().filter(s => triage[s.id]);
-    delete triage[answered[answered.length - 1].id]; render();
-  };
+  document.getElementById("back").onclick = triageBack;
+}
+
+// Back in the sorting questions goes to the previous screen, with its answer selected.
+function triageBack() {
+  if (triageHist.length) { triagePrev = { ...triagePrev, ...triage }; triage = triageHist.pop(); return render(); }
+  const answered = triageVisible().filter(s => triage[s.id]);
+  if (triageFromSummary && triageBeforeEdit && !answered.length) {
+    // C11: changing the answers from the summary, then going back: return to the summary unchanged.
+    triage = triageBeforeEdit; triageBeforeEdit = null; triageFromSummary = false; mode = "summary"; return render();
+  }
+  if (answered.length) {
+    // No history (for example after a reload): step back one question.
+    const last = answered[answered.length - 1].id;
+    triagePrev = { ...triagePrev, [last]: triage[last] }; delete triage[last]; return render();
+  }
+  mode = fromNotSure ? "notsure" : "pick"; render();
 }
 
 /* =====================================================================
@@ -1820,6 +1856,13 @@ let saveOk = true;      // did the last save work?
 let otherTab = false;   // is the form also open in another tab?
 let draft = null;       // what's typed in the open question but not saved yet
 
+// Links that open a new tab say so to screen-reader users.
+function markNewTabLinks(root = document) {
+  root.querySelectorAll('a[target="_blank"]:not([data-nt])').forEach(a => {
+    a.dataset.nt = "1";
+    a.insertAdjacentHTML("beforeend", '<span class="sr-only"> (opens in a new tab)</span>');
+  });
+}
 // Say something to screen-reader users without moving their focus.
 function announce(msg) {
   const el = document.getElementById("announce");
@@ -1940,11 +1983,17 @@ let unsure = {}; // questions the person marked "I'm not sure"
 let fromNotSure = false; // came here from "Which one fits?"
 let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
 let fixFrom = null;      // where on the summary the person tapped Fix or Edit ("flags" or "vals")
+let fixNth = 0;          // which of several Edit buttons for the same answer was tapped
+let editOriginal = null; // the answer before an edit from the summary, for Cancel
+let lastProgress = {};   // the progress bar's last position
+let triageHist = [];     // earlier sorting answers, for Back
+let triageBeforeEdit = null; // sorting answers before "Change these answers"
 const app = document.getElementById("app");
 
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
-  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageFromSummary = false; fromTriage = false; fromNotSure = false;
+  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
+  editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
 }
@@ -1973,6 +2022,21 @@ function shown(step) {
 }
 
 /* ---------- checks: run only at the end ---------- */
+// Where to look when you're not sure, by kind of question.
+const CASE_IDS = /^(county|courtType|courtTypeOther|caseNumber|caseTypeLetters|courtDate|plaintiff|hearingDate|role|otherParty|otherPartyAddress|related|relatedNumbers|rel\d\w+|svc\dName|svc\dAddress|fwCourtType|otherPerson|fwCaseType)$/;
+const YOU_IDS = /^(name|address|email|phone|fax|acceptEmail)$/;
+const PROGRAM_IDS = /^(acp|acpAddress|agConfidential|receiveAt)$/;
+const MONEY_IDS = new Set(["hourlyRate", "monthlyHours", "bank", "adults", "children", "supported", "otherIncomeDesc", "otherCostsDesc", ...INCOME.map(x => x[0]), ...EXPENSES.map(x => x[0])]);
+function unsureAdvice(step) {
+  const id = step.id;
+  if (PROGRAM_IDS.test(id)) return "The Attorney General's office says to email confidential@atg.in.gov to learn more about the Address Confidentiality Program.";
+  if (YOU_IDS.test(id)) return "This is about you, so there's nothing to look up.";
+  if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
+  if (CASE_IDS.test(id)) return sitKey === "feewaiver"
+    ? "Check your records, or ask the clerk's office of the court where you'll file."
+    : "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office.";
+  return "This tool can't tell you what to write here. You can get free legal help.";
+}
 // "Until 11/20", "Nov 24", "the 3rd of December", "until March": dates, which the
 // continuance form says not to write. "1/2 month" and "maybe 3 weeks" are not.
 const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
@@ -2028,7 +2092,7 @@ function runChecks() {
     flags.push({ level: "missing", title: s.label, why: "This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50.", fix: s.id });
   });
 
-  if (sitKey === "respond" && ["admitted", "denied", "notEnough"].every(k => empty(a[k])))
+  if (sitKey === "respond" && ["admitted", "denied", "notEnough"].every(k => empty(a[k]) && !unsure[k]))
     flags.push({ level: "check", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
@@ -2054,7 +2118,7 @@ function runChecks() {
       if (a.related === "yes" && empty(a[`rel${i}Caption`]) && !empty(a[`rel${i}Number`]))
         flags.push({ level: "check", title: `Related case ${i} caption`, why: `You gave a case number for related case ${i} but no caption (case name), so the number prints next to a blank line.`, fix: `rel${i}Caption` });
     });
-    if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k])))
+    if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k]) && !unsure[k]))
       flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
     [["adults", "People over 18 who live with you"], ["children", "People under 18 who live with you"], ["supported", "People you financially support"]].forEach(([k, label]) => {
       if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: "This line on the form will be blank. Check that's what you mean.", fix: k, blank: true });
@@ -2069,12 +2133,9 @@ function runChecks() {
 
   // Questions the person marked "I'm not sure" and hasn't answered since.
   // A required one is still missing from the form, so it's flagged that way.
-  const unsureWhy = sitKey === "feewaiver"
-    ? "You marked this \"I'm not sure.\" Check your records or get free help, then come back and answer it."
-    : "You marked this \"I'm not sure.\" Check your court papers, look up your case at mycase.in.gov, or get free help, then come back and answer it.";
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.label, why: unsureWhy, fix: s.id, unsure: true });
+    flags.push({ level: s.optional ? "check" : "missing", title: s.label, why: `You marked this "I'm not sure." ${unsureAdvice(s)} Then come back and answer it.`, fix: s.id, unsure: true });
   });
 
   // Everything else that is required but blank.
@@ -2096,7 +2157,7 @@ function renderPick(quiet = false) {
       <span>${esc(SITUATIONS[saved.sitKey].title)}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
       <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
     </div>` : ""}
-    <h1>What do you need to do?</h1>
+    <h1 tabindex="-1">What do you need to do?</h1>
     <p class="help">Pick the one that fits. We'll ask one question at a time and fill in the official court form for you.</p>
     ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
     <button class="pick" id="notSure"><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
@@ -2126,10 +2187,11 @@ function renderPick(quiet = false) {
   }
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => {
-    if (SITUATIONS[b.dataset.k].triage) { triage = {}; triagePrev = {}; fromNotSure = false; mode = "triage"; return render(); }
+    if (SITUATIONS[b.dataset.k].triage) { triage = {}; triagePrev = {}; triageHist = []; fromNotSure = false; mode = "triage"; return render(); }
     startSituation(b.dataset.k, "pick");
   });
-  app.querySelector("h1").focus?.();
+  if (!quiet) app.querySelector("h1").focus();
+  markNewTabLinks(app);
 }
 
 // "I'm not sure which one fits": match the choices to what the person has
@@ -2157,7 +2219,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (SITUATIONS[k].triage) { triage = {}; triagePrev = {}; fromNotSure = true; mode = "triage"; return render(); }
+    if (SITUATIONS[k].triage) { triage = {}; triagePrev = {}; triageHist = []; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
@@ -2168,44 +2230,59 @@ function renderStep() {
   if (cur >= vis.length) cur = vis.length - 1;
   const step = vis[cur];
   const sit = SITUATIONS[sitKey];
-  const pct = Math.round((cur / vis.length) * 100);
+  // E14: moving forward never moves the bar backwards, even when new questions open.
+  let pct = Math.round((cur / vis.length) * 100);
+  if (lastProgress.sit === sitKey && cur > lastProgress.cur) pct = Math.max(pct, lastProgress.pct);
+  lastProgress = { sit: sitKey, cur, pct };
   const v = answers[step.id] ?? "";
+  // The original answer, so Cancel can put it back during an edit from the summary.
+  if (returnToSummary && (!editOriginal || editOriginal.id !== step.id)) editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id] };
   let input;
+  const desc = `aria-describedby="qhelp qneed"`;
   if (step.type === "choice") {
-    input = `<div class="choices" role="radiogroup" aria-labelledby="q">${step.options.map(([val, lab]) =>
+    input = `<div class="choices" role="radiogroup" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
       `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${v === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
   } else if (step.type === "select") {
-    input = `<select id="ans" aria-labelledby="q"><option value="">Choose a county</option>${step.options.map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    input = `<select id="ans" aria-labelledby="q" ${desc}><option value="">Choose a county</option>${step.options.map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
   } else if (step.type === "textarea") {
-    input = `<textarea id="ans" class="${step.short ? "short" : ""}" aria-labelledby="q">${esc(v)}</textarea>`;
+    input = `<textarea id="ans" class="${step.short ? "short" : ""}" aria-labelledby="q" ${desc}>${esc(v)}</textarea>`;
   } else if (step.type === "money") {
-    input = `<div class="money"><span aria-hidden="true">$</span><input id="ans" type="text" inputmode="decimal" aria-labelledby="q" value="${esc(v)}" autocomplete="off"></div>`;
+    input = `<div class="money"><span aria-hidden="true">$</span><input id="ans" type="text" inputmode="decimal" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="off"></div>`;
   } else if (step.type === "number") {
-    input = `<input id="ans" type="text" inputmode="decimal" aria-labelledby="q" value="${esc(v)}" autocomplete="off">`;
+    input = `<input id="ans" type="text" inputmode="decimal" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="off">`;
   } else {
     const ac = { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
-    input = `<input id="ans" type="${step.type}" aria-labelledby="q" value="${esc(v)}" autocomplete="${ac}">`;
+    input = `<input id="ans" type="${step.type}" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}">`;
   }
   const need = step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end.");
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
-    <h2 class="q" id="q" tabindex="-1">${esc(step.q)}</h2>
-    <p class="help">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
+    <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
+    <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
     ${input}
-    <p class="need">${esc(need)}</p>
+    <p class="need" id="qneed">${esc(need)}</p>
     <p class="err" id="err" role="alert"></p>
     <div class="nav">
-      <button class="ghost" id="back">${returnToSummary ? "Back to summary" : "Back"}</button>
+      <button class="ghost" id="back">${returnToSummary ? "Cancel" : "Back"}</button>
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
+    ${returnToSummary ? `<p class="need">Cancel goes back to the summary without changing this answer.</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
-    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? "You marked this \"I'm not sure.\" Answer it any time; until then it is flagged at the end." : "Not sure? Skip it for now. It will be flagged at the end so you can check your papers or get help."}</p>`;
-  const el = app.querySelector("#ans, input[name=ans]:checked, input[name=ans]"); if (el) el.focus();
+    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${unsureAdvice(step)} Answer it any time; until then it is flagged at the end.` : "Not sure? Skip it for now. It will be flagged at the end."}</p>`;
+  // E2: focus the chosen answer, not just the first option.
+  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) el.focus();
   document.getElementById("back").onclick = () => {
+    if (returnToSummary) {
+      // C19: Cancel puts the original answer back.
+      if (editOriginal && editOriginal.id === step.id) {
+        if (editOriginal.value === undefined) delete answers[step.id]; else answers[step.id] = editOriginal.value;
+        if (editOriginal.unsure) unsure[step.id] = true; else delete unsure[step.id];
+      }
+      editOriginal = null; followUps = []; returnToSummary = false; mode = "summary"; return render();
+    }
     readInput(step); // keep what was typed
     if (!empty(answers[step.id])) delete unsure[step.id];
-    if (returnToSummary) { followUps = []; returnToSummary = false; mode = "summary"; return render(); }
     if (cur === 0) { mode = fromTriage ? "triage" : fromNotSure ? "notsure" : "pick"; return render(); }
     cur--; render();
   };
@@ -2239,6 +2316,7 @@ function nextFollowUp() {
 }
 
 function markUnsure(step) {
+  const before = new Set(visible().map(s => s.id));
   readInput(step);
   if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
   answers[step.id] = "";
@@ -2246,8 +2324,11 @@ function markUnsure(step) {
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {
+    // Clearing an answer can open questions too (for example the case type letters).
     followUps = followUps.filter(id => id !== step.id);
+    vis.forEach(s => { if (!before.has(s.id) && empty(answers[s.id])) followUps.push(s.id); });
     if (nextFollowUp()) return;
+    editOriginal = null;
     returnToSummary = false; mode = "summary"; return render();
   }
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
@@ -2262,6 +2343,8 @@ function save(step) {
     document.getElementById("err").textContent = step.type === "money"
       ? "Use numbers only, like 1200 or 12.50."
       : "Use a number only, like 80.";
+    const box = document.getElementById("ans");
+    box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "err qhelp qneed"); box.focus();
     return;
   }
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);
@@ -2271,17 +2354,17 @@ function save(step) {
     // A changed answer can open follow-up questions (for example "Yes, there
     // are related cases"). Ask those, and only those, before going back to the summary.
     followUps = followUps.filter(id => id !== step.id);
-    vis.forEach(s => { if (!before.has(s.id) && !s.optional && empty(answers[s.id])) followUps.push(s.id); });
+    vis.forEach(s => { if (!before.has(s.id) && empty(answers[s.id])) followUps.push(s.id); });
     if (nextFollowUp()) return;
-    returnToSummary = false; mode = "summary"; return render();
+    editOriginal = null; returnToSummary = false; mode = "summary"; return render();
   }
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
 }
 
-function goFix(id, from = "vals") {
+function goFix(id, from = "vals", nth = 0) {
   const idx = visible().findIndex(s => s.id === id);
   if (idx < 0) return;
-  lastEdited = id; fixFrom = from; followUps = [];
+  lastEdited = id; fixFrom = from; fixNth = nth; followUps = []; editOriginal = null;
   cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
 }
 
@@ -2313,7 +2396,7 @@ function renderSummary(rerender = false) {
     ${flags.length ? `<ul class="flags">${flags.map(x => `
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
       <span class="flagtext">${esc(x.title)}<small>${esc(x.why)}</small></span>
-      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
+      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
     ${fromTriage && triage.paper ? `<div class="note">You started from "I got eviction papers." ${triageVisible().filter(s => triage[s.id]).map(s =>
       `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
@@ -2331,7 +2414,7 @@ function renderSummary(rerender = false) {
         <dl class="vals">${g.items.map(x => `
           <div><dt>${esc(x.label)}</dt>
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
-          ${x.step && visIds.has(x.step) ? `<button class="link edit" data-fix="${x.step}" aria-label="Edit ${esc(x.label)}">Edit</button>` : ""}</div>`).join("")}
+          ${x.step && visIds.has(x.step) ? `<button class="link edit" data-fix="${x.step}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
         </dl>
       </section>`).join("")}
 
@@ -2341,7 +2424,10 @@ function renderSummary(rerender = false) {
     </div>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
-  app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => goFix(b.dataset.fix, b.closest("ul.flags") ? "flags" : "vals"));
+  app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
+    const where = b.closest("ul.flags") ? "flags" : "vals";
+    goFix(b.dataset.fix, where, [...app.querySelectorAll(`${where === "flags" ? "ul.flags" : "dl.vals"} [data-fix="${b.dataset.fix}"]`)].indexOf(b));
+  });
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
     if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
@@ -2349,21 +2435,24 @@ function renderSummary(rerender = false) {
     announce("Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
-  if (et) et.onclick = () => { triagePrev = { ...triage }; triage = {}; triageFromSummary = true; mode = "triage"; render(); };
+  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
+  markNewTabLinks(app);
   if (rerender) return;
   // After an edit, bring the user back where they were: the flag they fixed
   // (or the review count, if that flag is gone), or the row they changed.
   const back = lastEdited && (fixFrom === "flags"
     ? app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
-    : app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
+    : app.querySelectorAll(`dl.vals [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
   lastEdited = null; fixFrom = null;
 }
 
 function render() {
   draft = null; // a new screen: what was typed has been saved or left
+  window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
+  markNewTabLinks();
   saveProgress();
   updatePrivacyNote();
 }
