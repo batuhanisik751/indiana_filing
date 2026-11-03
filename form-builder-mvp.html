@@ -2295,10 +2295,11 @@ window.addEventListener("storage", e => {
     if (saver && saver.sitKey && store.get(STORE_KEY) !== lastWritten) {
       // A blank is the same as no answer, and it's fine for the other tab to have more.
       const theirs = saver.draft ? { ...saver.answers, [saver.draft.id]: saver.draft.value } : saver.answers || {};
-      const mine = draft ? { ...visibleAnswers(), [draft.id]: draft.value } : visibleAnswers();
-      const shownIds = new Set(visible().map(s => s.id));
-      const lost = saver.sitKey !== sitKey || Object.entries(mine).some(([k, v]) => !empty(v) && theirs[k] !== v)
-        || Object.keys(unsure).some(k => unsure[k] && shownIds.has(k) && !(saver.unsure && saver.unsure[k]));
+      // What this page would keep: the choice on the open question counts, as it does when saving.
+      const current = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
+      const shownNow = steps.filter(s => !s.showIf || s.showIf(current));
+      const lost = saver.sitKey !== sitKey || shownNow.some(s => !empty(current[s.id]) && theirs[s.id] !== current[s.id])
+        || shownNow.some(s => unsure[s.id] && empty(current[s.id]) && !(saver.unsure && saver.unsure[s.id]));
       if (lost) {
         if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
         savedHere = false; savedHereWhy = "replaced";
