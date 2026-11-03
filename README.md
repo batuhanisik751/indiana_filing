@@ -39,6 +39,20 @@ The blank forms the tool fills are in [`forms/`](forms/), unchanged from Indiana
 
 These copies were downloaded on November 2, 2026. Indiana Legal Help may post newer versions, so check the official source before filing.
 
+### Forms for other case types
+
+`forms/` also holds official forms for five other case types. The tool doesn't fill these yet. Each folder's README lists every file, its form numbers and where it came from.
+
+| Case type | What's there | Folder | Official source |
+|---|---|---|---|
+| Protection orders | Petitions for an Order for Protection (for yourself or for a child), the Confidential Form, a cover sheet, instructions, and forms for later steps like dismissing, changing or extending an order | [`forms/protection-orders/`](forms/protection-orders/) | [Indiana courts: Protection, No Contact and Workplace Violence Restraining Orders](https://www.in.gov/courts/iocs/publications/po-forms/) |
+| Divorce | Four packets (with or without children, spouses agree or don't), Spouse's Waiver of Service, Motion to Dismiss | [`forms/divorce/`](forms/divorce/) | [Indiana Legal Help](https://indianalegalhelp.org/legal-topic/divorce-with-children-when-spouses-agree/) |
+| Paternity | Petition for Paternity packet, Paternity Waiver of Service | [`forms/paternity/`](forms/paternity/) | [Indiana Legal Help: Petition for Paternity](https://indianalegalhelp.org/legal-topic/petition-for-paternity/) |
+| Expungement | Conviction and non-conviction petitions and orders, inserts, fee waiver, and instructions | [`forms/expungement/`](forms/expungement/) | [Indiana Legal Help: Expungement](https://indianalegalhelp.org/legal-topic/expungement-criminal-and-non-conviction/) |
+| Estates | Small Estate Affidavit only. It isn't filed with the court, and we found no self-help forms for estate cases that are | [`forms/estates/`](forms/estates/) | [Indiana Legal Help: Small Estate](https://indianalegalhelp.org/legal-topic/small-estate/) |
+
+The protection order forms are the Indiana courts' own forms, not Coalition for Court Access forms, and have no fill-in fields. These copies were downloaded on November 3, 2026.
+
 ## Try it
 
 Open `form-builder-mvp.html` in a browser, or run a local server:

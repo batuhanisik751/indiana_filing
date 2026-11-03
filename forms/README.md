@@ -1,6 +1,6 @@
 # Official forms
 
-These are the official Indiana court forms the tool fills in. They are approved by the Coalition for Court Access and published on [IndianaLegalHelp.org](https://indianalegalhelp.org). They are stored here unchanged. The tool fills them in, in the user's browser: it fills the forms' fields and, where a form's answer boxes don't line up with its printed lines, writes the answer on the printed lines instead.
+The three PDFs in this folder are the official Indiana court forms the tool fills in. They are approved by the Coalition for Court Access and published on [IndianaLegalHelp.org](https://indianalegalhelp.org). They are stored here unchanged. The tool fills them in, in the user's browser: it fills the forms' fields and, where a form's answer boxes don't line up with its printed lines, writes the answer on the printed lines instead.
 
 | File | Forms inside (form number) | Pages the tool uses | Source |
 |---|---|---|---|
@@ -21,3 +21,15 @@ When Indiana Legal Help publishes a new version:
 1. Replace the PDF here (keep the file name, or update `FILES` in `scripts/build-form-data.mjs` and `file` in the app).
 2. Check that the field names haven't changed. The app's `OFFICIAL` section lists every field name it fills.
 3. Run `node scripts/build-form-data.mjs` from the repo root to regenerate the files in `forms/data/`.
+
+## Forms for other case types
+
+The subfolders hold official forms for other case types. The tool doesn't fill these yet, and `scripts/build-form-data.mjs` doesn't pack them. Each subfolder's README lists every file, its form numbers and the official page it came from.
+
+- [`protection-orders/`](protection-orders/): the Indiana courts' protection order forms (not Coalition for Court Access forms; no fill-in fields)
+- [`divorce/`](divorce/): Indiana Legal Help's four divorce packets, Spouse's Waiver of Service and Motion to Dismiss
+- [`paternity/`](paternity/): Indiana Legal Help's Petition for Paternity packet and Paternity Waiver of Service
+- [`expungement/`](expungement/): Indiana Legal Help's conviction and non-conviction expungement forms, inserts and fee waiver, with instructions
+- [`estates/`](estates/): Indiana Legal Help's Small Estate Affidavit, which is not filed with the court
+
+To update one, download the new version from the official page in that subfolder's README, replace the file (keep its name), and update the README's table.
