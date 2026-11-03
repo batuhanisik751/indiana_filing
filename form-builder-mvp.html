@@ -1954,7 +1954,8 @@ function startSituation(key, from = "pick") {
   } else if (prev) {
     // Answers both forms ask for (your contact details, and the case details when
     // both forms are for a case already in court) carry over.
-    const from = hasAnswers() ? visibleAnswers() : strings(saved.answers);
+    // What was on the open question counts: choosing the Address Confidentiality Program without pressing Continue.
+    const from = hasAnswers() ? visibleAnswers() : { ...strings(saved.answers), ...(saved.draft && typeof saved.draft.value === "string" ? { [saved.draft.id]: saved.draft.value } : {}) };
     const ids = new Set(SITUATIONS[key].steps().map(s => s.id));
     const sameCase = CASE_FORMS.includes(prev) && CASE_FORMS.includes(key);
     keep = Object.fromEntries(Object.entries(from).filter(([k, v]) => ids.has(k) && !empty(v) && (SHARED_YOU.includes(k) || (sameCase && SHARED_CASE.includes(k)))));
