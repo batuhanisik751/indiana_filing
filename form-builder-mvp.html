@@ -2031,7 +2031,7 @@ function triageBack() {
   }
   // Leaving the sorting questions after taking the answers back: their saved copy goes too. Someone who
   // opened a card and left without answering keeps it, and the first screen still offers to continue.
-  if (triageTouched) { const d = readSaved(); if (d && d.triageOnly && kindOf(d.triage) === kindOf(triage)) clearSaved(); }
+  if (triageTouched) { const d = readSaved(); if (d && d.triageOnly && kindOf(d.triage) === kindOf(triage) && store.get(STORE_KEY) === lastWritten) clearSaved(); }
   triageTouched = false;
   mode = fromNotSure ? "notsure" : "pick"; render();
 }
@@ -2129,7 +2129,11 @@ function saveProgress() {
   if (!hasAnswers() && !(draft && !empty(draft.value))) {
     // Every answer was erased: don't keep an empty copy. Only this page's own copy, though: a tab with
     // nothing typed yet must not delete what another tab saved.
-    if (old && old.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) clearSaved();
+    if (old && old.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) {
+      clearSaved();
+      // The sorting answers that led to this form are still good.
+      if (fromTriage && triageAnswered(triage)) saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
+    }
     return;
   }
   // The choice on the open question counts right away: choosing the Address Confidentiality Program
