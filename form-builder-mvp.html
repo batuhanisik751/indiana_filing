@@ -1783,7 +1783,7 @@ function runChecks() {
 
   if (has("caseNumber")) {
     handled.add("caseNumber");
-    if (empty(a.caseNumber)) { if (!vis.find(s => s.id === "caseNumber").optional) flags.push({ level: "missing", title: "Case number", why: "The case number is blank.", fix: "caseNumber" }); }
+    if (empty(a.caseNumber)) { if (!vis.find(s => s.id === "caseNumber").optional) flags.push({ level: "missing", title: "Case number", why: "The case number is blank.", fix: "caseNumber", blank: true }); }
     else {
       const m = caseMatch(a.caseNumber);
       if (!m) flags.push({ level: "check", title: "Case number", why: "It doesn't look like an Indiana case number (for example 49D01-2610-CC-001234). Compare it with your papers.", fix: "caseNumber" });
@@ -1830,36 +1830,40 @@ function runChecks() {
     if (has("timeNeeded") && /\d{1,2}\/\d{1,2}|january|february|march|april|may|june|july|august|september|october|november|december/i.test(a.timeNeeded || ""))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
     if (has("spokeDate") && empty(a.spokeDate))
-      flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate" });
+      flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate", blank: true });
   }
 
   if (sitKey === "feewaiver") {
     if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k])))
       flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
     [["adults", "People over 18 who live with you"], ["children", "People under 18 who live with you"], ["supported", "People you financially support"]].forEach(([k, label]) => {
-      if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: "This line on the form will be blank. Check that's what you mean.", fix: k });
+      if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: "This line on the form will be blank. Check that's what you mean.", fix: k, blank: true });
     });
   }
 
   // Certificate of service: name, address, method and date for each person.
   vis.filter(s => s.service && !(unsure[s.id] && empty(a[s.id]))).forEach(s => {
     handled.add(s.id);
-    if (empty(a[s.id])) flags.push({ level: "missing", title: "Certificate of Service", why: `"${s.label}" is blank.`, fix: s.id });
+    if (empty(a[s.id])) flags.push({ level: "missing", title: "Certificate of Service", why: `"${s.label}" is blank.`, fix: s.id, blank: true });
   });
 
   // Questions the person marked "I'm not sure" and hasn't answered since.
+  // A required one is still missing from the form, so it's flagged that way.
+  const unsureWhy = sitKey === "feewaiver"
+    ? "You marked this \"I'm not sure.\" Check your records or get free help, then come back and answer it."
+    : "You marked this \"I'm not sure.\" Check your court papers, look up your case at mycase.in.gov, or get free help, then come back and answer it.";
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: "check", title: s.label, why: "You marked this \"I'm not sure.\" Check your court papers, look up your case at mycase.in.gov, or get free help, then come back and answer it.", fix: s.id, unsure: true });
+    flags.push({ level: s.optional ? "check" : "missing", title: s.label, why: unsureWhy, fix: s.id, unsure: true });
   });
 
   // Everything else that is required but blank.
   vis.forEach(s => {
     if (handled.has(s.id) || s.optional) return;
-    if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, why: "This is blank.", fix: s.id });
+    if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, why: "This is blank.", fix: s.id, blank: true });
   });
   const unsureIds = new Set(flags.filter(f => f.unsure).map(f => f.fix));
-  return flags.filter(f => f.unsure || !(f.level === "missing" && unsureIds.has(f.fix)));
+  return flags.filter(f => f.unsure || !(f.blank && unsureIds.has(f.fix)));
 }
 
 /* ---------- screens ---------- */
@@ -1999,6 +2003,8 @@ function readInput(step) {
 
 // "I'm not sure": leave the answer blank, remember it, and move on.
 function markUnsure(step) {
+  readInput(step);
+  if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
   answers[step.id] = "";
   unsure[step.id] = true;
   const vis = visible();
