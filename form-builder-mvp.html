@@ -2235,6 +2235,9 @@ function unsureAdvice(step) {
   if (PROGRAM_IDS.test(id)) return "The Attorney General's office says to email confidential@atg.in.gov to learn more about the Address Confidentiality Program.";
   if (YOU_IDS.test(id)) return "This is about you, so there's nothing to look up.";
   if (id === "bank") return "Check your bank statements, or get free legal help.";
+  if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
+  if (INCOME.some(x => x[0] === id) || id === "otherIncomeDesc") return "Check your benefit letters or statements, or get free legal help.";
+  if (EXPENSES.some(x => x[0] === id) || id === "otherCostsDesc") return "Check your bills or statements, or get free legal help.";
   if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
   if (PARAGRAPH_IDS.test(id)) return "Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't tell you which paragraphs go where; you can get free legal help.";
   if (sitKey === "feewaiver" && id === "county") return "Indiana's court directory lists the courts and clerk's offices in each county. It doesn't say which county your case belongs in; you can get free legal help.";
@@ -2246,9 +2249,6 @@ function unsureAdvice(step) {
   if (id === "otherAgreed") return "This is about what the other party told you. If you couldn't reach them, you can get free legal help.";
   if (id === "spokeDate") return "Check your texts, emails or call log for the date. If you didn't speak to them, you can leave it blank.";
   if (id === "timeNeeded") return "The form says to write the number of days or weeks you need, not a date.";
-  if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
-  if (INCOME.some(x => x[0] === id) || id === "otherIncomeDesc") return "Check your benefit letters or statements, or get free legal help.";
-  if (EXPENSES.some(x => x[0] === id) || id === "otherCostsDesc") return "Check your bills or statements, or get free legal help.";
   if (/^svc\dDate$/.test(id)) return "This is the date you send the copy, so there's nothing to look up.";
   if (id === "signDate") return "This is the date you sign the form, so there's nothing to look up.";
   if (/^rel\d/.test(id) || id === "relatedNumbers") return "Check the papers from that case, look it up at mycase.in.gov, or ask the clerk's office.";
