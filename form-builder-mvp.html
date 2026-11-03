@@ -2234,8 +2234,10 @@ window.addEventListener("storage", e => {
   updatePrivacyNote();
   if (e.newValue === null || !sitKey || (mode !== "step" && mode !== "summary")) return;
   // Another tab saved this same form. A different form has its own message above.
-  let saver = null; try { saver = JSON.parse(e.newValue).sitKey; } catch { /* unreadable */ }
-  if (saver !== sitKey) return;
+  let saver = null; try { saver = JSON.parse(e.newValue); } catch { /* unreadable */ }
+  if (!saver || saver.sitKey !== sitKey) return;
+  // The saved copy now holds that tab's answers. If they differ from this page's, closing here would lose these.
+  if (JSON.stringify(saver.answers) !== JSON.stringify(visibleAnswers())) { savedHere = false; savedHereWhy = "replaced"; }
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true;
   // A tab can't tell when another one closes, so the message ends after a quiet while.
