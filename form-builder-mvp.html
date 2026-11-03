@@ -2117,6 +2117,8 @@ function saveProgress() {
     // A copy saved for a form is never replaced by these.
     let prev = null;
     try { prev = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
+    // This page's copy of a form whose answers were all erased: an erased answer mustn't stay on the device.
+    if (sitKey && prev && prev.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) { clearSaved(); prev = null; }
     const picked = triageAnswered(triage);
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       // Reopening these answers isn't a change, so it doesn't restart the 30 days.
