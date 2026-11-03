@@ -487,7 +487,7 @@ const fwYouSteps = sec => {
   const base = Object.fromEntries(youSteps(sec).map(s => [s.id, s]));
   const contact = a => a.agConfidential !== "yes";
   return [
-    base.name,
+    { ...base.name, help: "The form asks for your name." }, // no court papers yet: this starts the case
     { id: "agConfidential", sec, type: "choice", label: "Attorney General confidential address",
       q: "Do you want to use the Attorney General confidential address for this case?",
       help: "The form says you may check this box if, in a related case, you have used the Attorney General confidential address. On the form it is an alternative (\"OR\") to your address, email, phone and fax, so if you choose yes we won't ask for those or put them on the form.",
