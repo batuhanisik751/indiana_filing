@@ -276,6 +276,9 @@ const caseSteps = sec => [
     showIf: a => !caseMatch(a.caseNumber),
     q: "What two letters show your case type?",
     help: "The official form asks for the two letters in your case number that show the case type, like CC (civil collection) or PL (civil plenary). We fill this in for you when the case number is complete." },
+  { id: "courtDate", sec, type: "date", label: "Your next court date", optional: true,
+    q: "When is your next court date, if you have one?",
+    help: "It's on your court papers, or you can look it up at mycase.in.gov. Indiana's court staff page says staff can also tell you when your next hearing is. It doesn't go on the form; it goes in your next steps. Leave this blank if you don't have one yet." },
   { id: "plaintiff", sec, type: "text", label: "Plaintiff",
     q: "Who is suing you?",
     help: "This is the plaintiff: the person or company that started the case. Copy the name exactly as it appears on your papers." },
@@ -516,7 +519,7 @@ const fwExpenseSteps = sec => [
 // Continuance packet (to ask the court to move a hearing).
 const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties. For example, in an eviction case there might be a separate case about damages owed.";
 const contCaseSteps = sec => [
-  ...caseSteps(sec).filter(s => s.id !== "plaintiff"),
+  ...caseSteps(sec).filter(s => s.id !== "plaintiff" && s.id !== "courtDate"),
   { id: "role", sec, type: "choice", label: "Who started the case",
     q: "Who started this case?",
     help: "The top of the form lists the two sides: the person who started the case first, then the other side.",
@@ -1161,6 +1164,104 @@ function wirePdfSection(sit) {
    What to do after downloading. Every statement comes from an official
    Indiana source, named in the text and linked.
    ===================================================================== */
+// County clerk's offices from the Indiana Directory of Courts & Clerks
+// (https://www.in.gov/courts/files/court-directory.pdf, dated October 21, 2026, downloaded November 3, 2026):
+// mailing address lines and main phone number.
+const CLERKS = {
+  "Adams": { address: ["112 S. 2nd Street, Room A", "Decatur, IN 46733-1618"], phone: "260-724-5309" },
+  "Allen": { address: ["715 South Calhoun Street, # 201", "Fort Wayne, IN 46802"], phone: "260-449-7245" },
+  "Bartholomew": { address: ["P.O. Box 924", "Columbus, IN 47202-0924"], phone: "812-379-1600" },
+  "Benton": { address: ["706 E. 5th Street", "Fowler, IN 47944"], phone: "765-884-0930" },
+  "Blackford": { address: ["110 W. Washington", "Hartford City, IN 47348"], phone: "765-348-1130" },
+  "Boone": { address: ["212 Courthouse Square", "Lebanon, IN 46052"], phone: "765-482-3510" },
+  "Brown": { address: ["PO BOX 85", "20 E. Main Street", "Nashville, IN 47448"], phone: "812-988-5510" },
+  "Carroll": { address: ["101 W. Main Street", "Delphi, IN 46923"], phone: "765-564-4485" },
+  "Cass": { address: ["200 Court Park, # 103", "Logansport, IN 46947"], phone: "574-753-7740" },
+  "Clark": { address: ["Clark County Government Building", "501 E. Court Avenue", "Jeffersonville, IN 47130"], phone: "812-285-6244" },
+  "Clay": { address: ["609 E. National Avenue, # 213", "Brazil, IN 47834"], phone: "812-448-9024" },
+  "Clinton": { address: ["265 Courthouse Square", "Frankfort, IN 46041"], phone: "765-659-6335" },
+  "Crawford": { address: ["PO BOX 375", "715 Judicial Plaza Drive", "English, IN 47118"], phone: "812-338-2565" },
+  "Daviess": { address: ["P.O. Box 739", "200 E. Walnut Street", "Washington, IN 47501"], phone: "812-254-8669" },
+  "Dearborn": { address: ["165 Mary Street", "Lawrenceburg, IN 47025"], phone: "812-537-8867" },
+  "Decatur": { address: ["150 Courthouse Square, # 244", "Greensburg, IN 47240"], phone: "812-663-8223" },
+  "DeKalb": { address: ["PO BOX 230", "100 S. Main Street", "Auburn, IN 46706"], phone: "260-925-0912" },
+  "Delaware": { address: ["3100 S. Tillotson Avenue", "Muncie, IN 47302"], phone: "765-747-7726" },
+  "Dubois": { address: ["One Courthouse Square", "Jasper, IN 47546"], phone: "812-481-7035" },
+  "Elkhart": { address: ["1905 Reliance Road", "Goshen, IN 46526"], phone: "574-538-3000" },
+  "Fayette": { address: ["401 N. Central Avenue", "Connersville, IN 47331"], phone: "765-825-1813" },
+  "Floyd": { address: ["311 Hauss Square, # 235", "New Albany, IN 47150"], phone: "812-948-5415" },
+  "Fountain": { address: ["PO BOX 183 (mailing address; the Clerk’s Office is in the Fountain County Courthouse)", "Covington, IN 47932"], phone: "765-793-2192" },
+  "Franklin": { address: ["459 Main Street", "Brookville, IN 47012"], phone: "765-647-5111" },
+  "Fulton": { address: ["815 Main Street", "Rochester, IN 46975"], phone: "574-223-4824" },
+  "Gibson": { address: ["101 N. Main Street", "Princeton, IN 47670-1562"], phone: "812-386-6474" },
+  "Grant": { address: ["101 E. 4th Street", "Marion, IN 46952"], phone: "765-668-8121" },
+  "Greene": { address: ["PO BOX 229", "Bloomfield, IN 47424"], phone: "812-384-8532" },
+  "Hamilton": { address: ["One Hamilton Square, # 106", "Noblesville, IN 46060"], phone: "317-776-9629" },
+  "Hancock": { address: ["9 East Main Street, Rm. 213", "Greenfield, IN 46140"], phone: "317-477-1109, 1143" },
+  "Harrison": { address: ["300 N. Capitol Ave.", "Corydon, IN 47112"], phone: "812-738-4289" },
+  "Hendricks": { address: ["One Courthouse Square", "51 W. Main St., # 104", "Danville, IN 46122"], phone: "317-745-9231" },
+  "Henry": { address: ["1215 Race Street, Suite 120", "New Castle, IN 47362"], phone: "765-529-6401" },
+  "Howard": { address: ["104 N. Buckeye Street, Room 202", "Kokomo, IN 46901"], phone: "765-456-2000" },
+  "Huntington": { address: ["201 N. Jefferson Street, # 201", "Huntington, IN 46750"], phone: "260-358-4819" },
+  "Jackson": { address: ["P.O. BOX 318 (mailing address)", "109 S. Sugar Street", "Brownstown, IN 47220"], phone: "812-358-6117" },
+  "Jasper": { address: ["115 W. Washington Street, # 204", "Rensselaer, IN 47978"], phone: "219-866-4927" },
+  "Jay": { address: ["120 N. Court Street", "Portland, IN 47371"], phone: "260-726-6915" },
+  "Jefferson": { address: ["300 East Main Street, # 203", "Madison, IN 47250"], phone: "812-265-8922" },
+  "Jennings": { address: ["PO BOX 385 mailing address-", "Vernon, IN 47282"], phone: "812-352-3070" },
+  "Johnson": { address: ["PO BOX 368", "Five East Jefferson Street", "Franklin, IN 46131"], phone: "317-346-4450" },
+  "Knox": { address: ["111 North Seventh Street", "Vincennes, IN 47591"], phone: "812-885-2521" },
+  "Kosciusko": { address: ["121 N. Lake Street", "Warsaw, IN 46580"], phone: "574-372-2334" },
+  "LaGrange": { address: ["105 North Detroit Street", "LaGrange, IN 46761"], phone: "260-499-6371" },
+  "Lake": { address: ["2293 N. Main Street", "Crown Point, IN 46307"], phone: "219-755-3461" },
+  "LaPorte": { address: ["813 Lincolnway, #105", "LaPorte, IN 46350"], phone: "219-326-6808" },
+  "Lawrence": { address: ["916 15th Street, # 31", "Bedford, IN 47421"], phone: "812-275-7543" },
+  "Madison": { address: ["16 E. Ninth Street, #213", "Anderson, IN 46016"], phone: "765-641-9443" },
+  "Marion": { address: ["675 Justice Way", "Indianapolis, IN 46203"], phone: "317-327-4740" },
+  "Marshall": { address: ["211 W. Madison St.", "Plymouth, IN 46563"], phone: "574-936-8922" },
+  "Martin": { address: ["PO BOX 120 mailing address-", "Shoals, IN 47581"], phone: "812-247-3651" },
+  "Miami": { address: ["25 North Broadway, Room 208", "Peru, IN 46970"], phone: "765-472-3901 x256" },
+  "Monroe": { address: ["PO BOX 547 (mailing address)", "Bloomington, IN 47402"], phone: "812-349-2600" },
+  "Montgomery": { address: ["100 East Main Street", "Crawfordsville, IN 47933"], phone: "765-364-6430" },
+  "Morgan": { address: ["Morgan County Justice Campus", "180 S. Main St.", "Martinsville, IN 46151"], phone: "765-205-1548" },
+  "Newton": { address: ["PO BOX 49 (mailing address)", "Kentland, IN 47951"], phone: "219-474-6081" },
+  "Noble": { address: ["101 North Orange Street", "Albion, IN 46701"], phone: "260-636-2736" },
+  "Ohio": { address: ["PO BOX 185 (mailing address)", "Rising Sun, IN 47040"], phone: "812-438-2610" },
+  "Orange": { address: ["1 Court Street", "Paoli, IN 47454"], phone: "812-723-2649" },
+  "Owen": { address: ["PO BOX 146 (mailing address)", "Spencer, IN 47460"], phone: "812-829-5015" },
+  "Parke": { address: ["116 West High Street, Room 204", "Rockville, IN 47872"], phone: "765-569-5132" },
+  "Perry": { address: ["2219 Payne Street", "Tell City, IN 47586"], phone: "812-547-3741" },
+  "Pike": { address: ["PO BOX 125 (mailing address)", "Petersburg, IN 47567"], phone: "812-354-6025" },
+  "Porter": { address: ["16 Lincolnway, # 209", "Valparaiso, IN 46383"], phone: "219-465-3450" },
+  "Posey": { address: ["300 Main Street, Room 115", "Mount Vernon, IN 47620"], phone: "812-838-1306" },
+  "Pulaski": { address: ["117 East Main Street", "Winamac, IN 46996"], phone: "574-946-3313" },
+  "Putnam": { address: ["One Courthouse Square", "Greencastle, IN 46135"], phone: "765-653-2648" },
+  "Randolph": { address: ["100 S. Main Street, Room 201", "Winchester, IN 47394"], phone: "765-584-4214" },
+  "Ripley": { address: ["PO Box 177 mailing address)", "Versailles, IN 47042"], phone: "812-689-6115" },
+  "Rush": { address: ["101 E. 2nd Street, Room 209", "Rushville, IN 46173"], phone: "765-932-2086" },
+  "St. Joseph": { address: ["101 South Main Street", "South Bend, IN 46601"], phone: "574-235-9635" },
+  "Scott": { address: ["One East McClain Avenue", "Scottsburg, IN 47170"], phone: "812-752-8420" },
+  "Shelby": { address: ["407 South Harrison Street", "Shelbyville, IN 46176"], phone: "317-392-6320" },
+  "Spencer": { address: ["200 Main Street", "Rockport, IN 47635"], phone: "812-649-6029" },
+  "Starke": { address: ["53 East Washington Street", "Knox, IN 46534"], phone: "574-772-9128" },
+  "Steuben": { address: ["305 South Martha Street", "Steuben County Judicial Center, 1st Floor", "Angola, IN 46703"], phone: "260-668-1000" },
+  "Sullivan": { address: ["P.O. Box 370", "100 Courthouse Square", "Sullivan, IN 47882"], phone: "812-268-4657" },
+  "Switzerland": { address: ["212 West Main Street", "Vevay, IN 47043"], phone: "812-427-4415" },
+  "Tippecanoe": { address: ["PO BOX 1665 (mailing address)", "Lafayette, IN 47901"], phone: "765-423-9326" },
+  "Tipton": { address: ["101 East Jefferson Street", "Tipton, IN 46072"], phone: "765-675-2795" },
+  "Union": { address: ["26 West Union Street", "Liberty, IN 47353"], phone: "765-458-6121" },
+  "Vanderburgh": { address: ["PO BOX 3356 (mailing address)", "Evansville, IN 47732-3356"], phone: "812-435-5160" },
+  "Vermillion": { address: ["PO BOX 10", "255 South Main", "Newport, IN 47966"], phone: "765-492-3500" },
+  "Vigo": { address: ["33 South Third Street", "Courthouse, 1st Floor", "Terre Haute, IN 47807"], phone: "812-462-3211" },
+  "Wabash": { address: ["69 West Hill Street", "Wabash, IN 46992"], phone: "260-563-0661" },
+  "Warren": { address: ["125 North Monroe Street, # 11", "Williamsport, IN 47993"], phone: "765-762-3510" },
+  "Warrick": { address: ["One County Square, # 200", "Boonville, IN 47601"], phone: "812-897-6160" },
+  "Washington": { address: ["801 S. Jackson Street, Suite 102", "Salem, IN 47167"], phone: "812-883-5748" },
+  "Wayne": { address: ["301 East Main Street", "Richmond, IN 47374-4200"], phone: "765-973-9220" },
+  "Wells": { address: ["102 Market Street, #201", "Bluffton, IN 46714"], phone: "260-824-6482" },
+  "White": { address: ["PO BOX 350", "110 North Main Street", "Monticello, IN 47960"], phone: "574-583-7032" },
+  "Whitley": { address: ["101 West Van Buren Street", "Columbia City, IN 46725"], phone: "260-248-3102" },
+};
+
 const SOURCES = {
   answerInstructions: { href: LINKS.answerInstructions, text: "Indiana Legal Help: Answer instructions" },
   respond: { href: "https://indianalegalhelp.org/respond-after-a-case-is-filed/", text: "Indiana Legal Help: Respond After a Case is Filed" },
@@ -1168,6 +1269,8 @@ const SOURCES = {
   efile: { href: LINKS.efile, text: "Indiana Legal Help: How to Electronically File Forms with the Court" },
   efileGuide: { href: "https://www.in.gov/courts/files/efiling-user-guide.pdf", text: "Indiana E-Filing User Guide" },
   waiverAccount: { href: "https://www.in.gov/courts/tutorials/efile-creating-waiver-account/", text: "How to create a waiver account" },
+  efileSite: { href: "https://efile.incourts.gov/", text: "efile.incourts.gov (the state's e-filing provider)" },
+  tr86: { href: "https://rules.incourts.gov/Content/trial/rule86/current.htm", text: "Trial Rule 86" },
   feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
   smallClaims: { href: "https://www.in.gov/courts/files/small-claims-manual.pdf", text: "Indiana Small Claims Manual" },
   newDate: { href: LINKS.continuance, text: "Indiana Legal Help: How to Ask for a New Court Date" },
@@ -1182,51 +1285,87 @@ function nextSteps(key, a) {
   const { packet, docs } = SITUATIONS[key].official;
   const pages = new Set(docs.flatMap(d => OFFICIAL[packet].docs[d].pages));
   const signLines = OFFICIAL[packet].signatures.filter(s => pages.has(s.page)).length;
-  const docNames = docs.map(d => OFFICIAL[packet].docs[d].name);
-  const list = docNames.length > 1 ? `${docNames.slice(0, -1).join(", ")} and ${docNames[docNames.length - 1]}` : docNames[0];
   const lines = signLines === 1 ? "the signature line" : signLines === 2 ? "both signature lines" : `all ${signLines} signature lines`;
+  const hasOrder = docs.includes("order");
+  const clerk = CLERKS[a.county];
   const out = [];
 
+  // 1. Deadlines and what the court date means for this situation.
   if (key === "respond") out.push({
     title: "Check your deadline",
     body: "Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says that if you don't file an Answer when you should, the court might decide the case without you.",
     links: [SOURCES.answerInstructions, SOURCES.respond] });
 
   if (key === "continuance") out.push({
-    title: "Your court date doesn't change until the judge signs",
-    body: "Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance.",
-    links: [SOURCES.newDate, SOURCES.contInstructions] });
+    title: "Your court date stays the same until the judge signs an order",
+    body: `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
+    links: [SOURCES.newDate, SOURCES.contInstructions, SOURCES.mycase] });
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
-    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The E-Filing User Guide says that when you e-file, you submit the fee waiver request with your initial filing. The judge decides: the Order form lets the judge waive the whole fee, or require part of it to be paid within 20 days.",
-    links: [SOURCES.feeFaq, SOURCES.efileGuide] });
-
-  out.push(efile
-    ? { title: "Your signature", body: `Your forms are signed with "/s/ ${a.name || "your name"}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`, links: [SOURCES.efileGuide] }
-    : { title: "Sign by hand", body: `Print the forms and sign ${lines}. Indiana Legal Help says forms must be signed before they are filed.`, links: [SOURCES.inPerson] });
-
-  out.push(efile
-    ? { title: "File online", body: `${docNames.length > 1 ? `Upload each form on its own (${list}). The E-Filing User Guide says each document is filed under its own filing code, and explains` : `Upload your ${list} through an e-filing provider. The E-Filing User Guide explains`} how to choose an e-filing provider and set up a free account.${key === "feewaiver" ? " To file without paying, the guide says to set up a waiver account with your provider and choose it as the payment account." : ""}`,
-        links: [SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount] : [])] }
-    : { title: "File at the courthouse", body: "Bring the printed forms to the court where they need to be filed. Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, so you may want to contact the court first.",
-        links: [SOURCES.inPerson, SOURCES.directory] });
-
-  if (key !== "feewaiver") out.push({
-    title: "Filing fee",
-    body: "Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. Ask the clerk if you're not sure.",
+    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The judge decides whether to grant your request. If the judge grants it, the Order form lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
     links: [SOURCES.feeFaq] });
 
-  out.push(key === "feewaiver"
-    ? { title: "Serving the other side", body: "The fee waiver forms say there is no other party to serve.", links: [] }
-    : { title: "Send a copy to the other side", body: "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. Send each copy the way and on the date you listed in the Certificate of Service.", links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions] });
+  // 2. Signing.
+  out.push(efile
+    ? { title: "Your signature",
+        body: empty(a.name)
+          ? "Your name is blank, so there's no signature on the form yet. Add your name, and the form will be signed with \"/s/\" and your name, which the E-Filing User Guide allows for e-filed documents."
+          : `Your forms are signed with "/s/ ${a.name}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`,
+        links: [SOURCES.efileGuide] }
+    : { title: "Sign by hand", body: `Print the forms and sign ${lines}. Indiana Legal Help says forms must be signed before they are filed.`, links: [SOURCES.inPerson] });
 
+  // 3. How to file: the e-filing site, or the county clerk's office.
+  if (efile) {
+    const parts = [
+      "The E-Filing User Guide says you can always e-file at no cost, other than filing or service fees, using the state's e-filing provider at efile.incourts.gov. Other e-filing providers are also allowed.",
+      docs.length > 1 ? "The guide says all the documents in a filing should match the filing code you give it: for example, appearance documents go under the Appearance filing code, and other documents go under a separate filing code. That's why you can download each form on its own." : "",
+      hasOrder ? "It also says a proposed order filed with a motion must be submitted under the separate \"Proposed Order\" filing code." : "",
+      key === "feewaiver" ? "To ask for a fee waiver when e-filing, the guide says you submit the request with your first filing and choose a waiver account, set up with your e-filing provider, as the payment account. It also says the court must approve a fee waiver for you to file a case with one, though some waivers are automatic by law." : "",
+      "Indiana Legal Help says the guide shows how to choose an e-filing provider and set up a free account.",
+    ];
+    out.push({ title: "File online", body: parts.filter(Boolean).join(" "),
+      links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount] : [])] });
+  } else {
+    out.push({ title: "File at the courthouse",
+      body: `${clerk ? `The Indiana court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}. ` : "Bring the printed forms to the court where they need to be filed. "}Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, so you may want to call first.`,
+      links: [SOURCES.inPerson, SOURCES.directory] });
+  }
+
+  // 4. Fees and the fee waiver option.
+  if (key !== "feewaiver") out.push({
+    title: "Filing fee",
+    body: "Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it.",
+    links: [SOURCES.feeFaq, SOURCES.inPerson] });
+
+  // 5. Serving the other side.
+  if (key === "feewaiver") out.push({
+    title: "Serving the other side",
+    body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's instructions say that when a court case begins, both sides need to receive official forms, which is called service of process.${efile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2) when serving a filing that starts a case." : ""}`,
+    links: [SOURCES.answerInstructions, ...(efile ? [SOURCES.efileGuide, SOURCES.tr86] : [])] });
+  else out.push({
+    title: "Send a copy to the other side",
+    body: `Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. They list three ways: First Class U.S. mail (which they describe as paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. The Certificate of Service on your form lists who you're sending a copy to, how and when.${efile ? " The E-Filing User Guide says that when you e-file, you must serve electronically any party or attorney who has a service contact listed in the case or on the Public Service List, and that self-represented litigants who haven't attached themselves as a service contact must be served conventionally." : ""}`,
+    links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions, ...(efile ? [SOURCES.efileGuide] : [])] });
+
+  // 6. Court dates and what missing one can mean.
+  // What missing a court date can mean, in the Small Claims Manual's own terms.
+  const defaultFact = "If you miss a court date, you can lose the case: in small claims court, the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.";
+  const dismissFact = "In small claims court, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.";
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: "Check your papers for your court date. You can also look up your case at mycase.in.gov. In small claims court, the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment. If you need a new date, Indiana Legal Help says asking doesn't change it: only an order signed by the judge can change a court date or time.",
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}${defaultFact} If you need a new date, Indiana Legal Help says only an order signed by the judge can change a court date or time.`,
     links: [SOURCES.mycase, SOURCES.smallClaims, SOURCES.newDate] });
+  if (key === "continuance") out.push({
+    title: "If you don't go to court",
+    body: a.role === "me" ? dismissFact : defaultFact,
+    links: [SOURCES.smallClaims] });
+  if (key === "feewaiver") out.push({
+    title: "Go to every court date",
+    body: `If the court sets a hearing in your case, go to it. ${dismissFact}`,
+    links: [SOURCES.smallClaims] });
 
-  out.push({ title: "Get free help", body: "Indiana Legal Help can connect you with free and low-cost legal help near you.", links: [SOURCES.getHelp, SOURCES.directory] });
+  out.push({ title: "Get free help", body: "Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county.", links: [SOURCES.getHelp] });
   return out;
 }
 
@@ -1260,7 +1399,7 @@ const TRIAGE_STEPS = [
 
 const SMALL_CLAIMS_FACTS = [
   "Your case is in small claims court. Indiana's Small Claims Manual says a Notice of Claim is a written statement of a claim against the defendant that serves as notice that the lawsuit has been filed and that the party is ordered to appear in court.",
-  "You don't have to file a written answer. Small Claims Rule 4 says all defenses are \"deemed at issue\" without one, which means your defenses count even without a written answer. Indiana Legal Help also says Answers are not usually filed in small claims court.",
+  "A written answer usually isn't filed. Indiana Legal Help says Answers are not usually filed in small claims court, and Small Claims Rule 4 says all defenses are \"deemed at issue without responsive pleadings,\" adding that this does not change the burden of proof.",
   "Indiana Legal Help says that when you respond to a case someone else started, you file an Appearance to tell the court who you are and how the court and others can contact you. Small Claims Rule 4 says the court may ask you to enter an appearance before trial, and that not entering one is not grounds for a default judgment.",
   "Go to court at the time on your Notice of Claim. The Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment.",
 ];
