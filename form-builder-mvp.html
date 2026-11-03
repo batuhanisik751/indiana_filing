@@ -141,7 +141,7 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
   <header class="top">
     <span class="brand">Indiana Court Form Helper</span>
     <span class="topright">
-      <a class="helplink" href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Get free legal help</a>
+      <a class="helplink" href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find legal help</a>
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
       <button class="link cleardata" id="clearData" type="button">Clear my data</button>
     </span>
@@ -150,6 +150,7 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
   <footer>
     <strong>More free help</strong>
     <ul>
+      <li><a href="https://indianalegalhelp.org/when-is-the-legal-help-desk-available-and-what-issues-does-it-cover/" target="_blank" rel="noopener">Indiana Legal Help Desk</a>: weekdays 10am to 2pm ET, call, text, chat or email with housing legal navigators (Indiana Legal Help)</li>
       <li><a href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find free and low-cost legal help near you</a> by ZIP code or county (Indiana Legal Help)</li>
       <li><a href="https://indiana.freelegalanswers.org/" target="_blank" rel="noopener">Ask a legal question online</a>, answered by private attorneys at no cost, if you are eligible (listed on the Indiana courts' Self-Service Legal Center)</li>
       <li><a href="https://www.in.gov/courts/selfservice/unrepresented/help" target="_blank" rel="noopener">What court staff can help with</a> and the <a href="https://www.in.gov/courts/selfservice/" target="_blank" rel="noopener">Indiana courts' Self-Service Legal Center</a></li>
@@ -178,6 +179,8 @@ const LINKS = {
   efile: "https://indianalegalhelp.org/how-to-electronically-file-forms-with-the-court/",
   courtDirectory: "https://www.in.gov/courts/files/court-directory.pdf",
   getHelp: "https://indianalegalhelp.org/get-help/",
+  helpDesk: "https://indianalegalhelp.org/when-is-the-legal-help-desk-available-and-what-issues-does-it-cover/",
+  answerTopic: "https://indianalegalhelp.org/legal-topic/answer/",
 };
 
 // Official PDFs and which of their pages end up in the filled document.
@@ -315,7 +318,7 @@ const youSteps = sec => [
     help: "Use the same name the court has for you on your papers." },
   { id: "acp", sec, type: "choice", label: "Address Confidentiality Program",
     q: "Are you in the Indiana Attorney General's Address Confidentiality Program?",
-    help: "The Attorney General's office says program participants have their mail sent to a secure substitute address, which is also used for government services and legal process. Most people are not in this program.",
+    help: "The Attorney General's office says program participants have their mail sent to a secure substitute address, which is also used for government services and legal process.",
     link: { href: LINKS.acp, text: "About the Address Confidentiality Program" },
     options: [["no", "No"], ["yes", "Yes"]] },
   { id: "address", sec, type: "textarea", short: true, label: "Mailing address",
@@ -325,7 +328,8 @@ const youSteps = sec => [
   { id: "acpAddress", sec, type: "textarea", short: true, label: "Substitute address",
     showIf: a => a.acp === "yes",
     q: "What is your Address Confidentiality Program substitute address?",
-    help: "Don't enter your home address. This address goes on the form and is shared with the court and the other side. The Attorney General's office says to email confidential@atg.in.gov or work with a trained victim advocate if you have questions about court filings." },
+    help: "Don't enter your home address. This address goes on the form and is shared with the court and the other side. The Attorney General's office says to email confidential@atg.in.gov to learn more about the program.",
+    link: { href: LINKS.acp, text: "About the Address Confidentiality Program" } },
   { id: "email", sec, type: "email", label: "Email",
     q: "What is your email address?",
     help: "The official form says an email address is required." },
@@ -334,7 +338,7 @@ const youSteps = sec => [
     help: "The official form asks for a 10-digit phone number, including the area code." },
   { id: "fax", sec, type: "tel", label: "Fax number", optional: true, noWords: true,
     q: "What is your fax number?",
-    help: "Most people don't have one. Leave this blank if you don't." },
+    help: "Leave this blank if you don't have one." },
 ];
 
 const relatedHelp = "Indiana Legal Help's Answer instructions say related cases can be other cases with the same parties. In a debt case, this might be a case about the same debt, like a small claims case, a bankruptcy case, or a divorce case where the debt was assigned to one of the parties. In an eviction case, it might be a separate case about damages owed.";
@@ -362,7 +366,7 @@ const contactSteps = (sec, relHelp = relatedHelp) => [
     help: "Type the information itself. The form says: \"There is additional information required by local rule that is provided below.\" It has one line for this." },
 ];
 
-const paragraphHelp = "Indiana Legal Help's instructions say you must respond to each part (paragraph number) of the Complaint, and if you skip one, the court will take it as true. Each paragraph number should be in one of the next three lists.";
+const paragraphHelp = "Indiana Legal Help's instructions say you must respond to each part (paragraph number) of the Complaint, and if you skip one, the court will take it as true. Each paragraph number should be in this list or one of the next two.";
 const answerSteps = sec => [
   { id: "admitted", sec, type: "textarea", short: true, label: "Paragraphs you admit", optional: true,
     need: "Leave this blank only if no paragraphs belong here.",
@@ -389,7 +393,8 @@ const recipientCount = a => { let n = 1; while (n < MAX_RECIPIENTS && a[`svcMore
 // The official names for how a copy is sent, from the "Certificate of Service"
 // definition in Indiana Legal Help's form instructions.
 const SERVICE_METHODS = [["First Class U.S. mail", "First Class U.S. mail"], ["Hand Delivery", "Hand Delivery"], ["Indiana E-Filing System", "Indiana's E-Filing System"]];
-const serviceSteps = (sec, firstHelp = "The form's Certificate of Service says you sent a copy to the attorney for the plaintiff, or to the plaintiff if they don't have an attorney. Their name and address are usually on the papers you received.") => {
+const ANSWER_SERVICE_LINK = { href: LINKS.answerInstructions, text: "Read the full definitions (page 4 of the Answer instructions)" };
+const serviceSteps = (sec, firstHelp = "The form's Certificate of Service says you sent a copy to the attorney for the plaintiff, or to the plaintiff if they don't have an attorney. Their name and address are usually on the papers you received.", methodLink = ANSWER_SERVICE_LINK) => {
   const out = [];
   for (let i = 1; i <= MAX_RECIPIENTS; i++) {
     const show = i === 1 ? undefined : a => recipientCount(a) >= i;
@@ -403,7 +408,7 @@ const serviceSteps = (sec, firstHelp = "The form's Certificate of Service says y
       { id: `svc${i}Method`, sec, type: "choice", label: `Type of service (person ${i})`, service: true, showIf: show,
         q: "How will you send them a copy?",
         help: "Indiana Legal Help's instructions list three ways: First Class U.S. mail, Hand Delivery (paying a sheriff or private company to deliver the papers), and Indiana's E-Filing System. Ask the clerk how each one works.",
-        link: { href: LINKS.answerInstructions, text: "Read the full definitions (page 4 of the Answer instructions)" },
+        link: methodLink,
         options: SERVICE_METHODS },
       { id: `svc${i}Date`, sec, type: "date", label: `Date of service (person ${i})`, service: true, showIf: show,
         q: "On what date will you send it?",
@@ -432,7 +437,7 @@ const signSteps = (sec, help) => [
 const fwCaseSteps = sec => [
   { id: "county", sec, type: "select", label: "County", options: COUNTIES,
     q: "Which county will you file your case in?",
-    help: "This is the county of the court where you'll start your case. This fee waiver form is not for family law cases like divorce, custody or paternity: Indiana Legal Help says to use its Family Filing Fee Waiver form for those.",
+    help: "This is the county of the court where you'll start your case. This fee waiver form is not for family law cases: Indiana Legal Help says to use its Family Filing Fee Waiver instructions and form for those.",
     link: { href: LINKS.fileInPerson, text: "Find the Family Filing Fee Waiver form" } },
   { id: "fwCourtType", sec, type: "choice", label: "Court type",
     q: "What kind of court will you file in?",
@@ -465,7 +470,7 @@ const fwYouSteps = sec => {
       q: "Will you accept court papers at this email address?",
       help: "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.",
       options: [["no", "No"], ["yes", "Yes"]] },
-    { ...base.phone, showIf: contact, help: "The form asks for your phone number, including the area code." },
+    { ...base.phone, showIf: contact, help: "The form asks for your phone number." },
     { ...base.fax, showIf: contact, noWords: true },
     { id: "related", sec, type: "choice", label: "Related cases",
       q: "Are there other court cases related to this one?",
@@ -545,13 +550,13 @@ const fwExpenseSteps = sec => [
 
 // Continuance packet (to ask the court to move a hearing).
 const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties. For example, in an eviction case there might be a separate case about damages owed.";
-const CONT_COURT_NOTE = " Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, but the top of the form says to match your other court forms, so fill it in if you know it.";
+const CONT_COURT_NOTE = " Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, while the top of the form says to fill out that section to match the other court forms filed in your case. This question is optional.";
 const contCaseSteps = sec => [
   ...caseSteps(sec).filter(s => s.id !== "plaintiff" && s.id !== "courtDate")
     .map(s => ["courtType", "courtTypeOther", "caseNumber", "caseTypeLetters"].includes(s.id) ? { ...s, optional: true, help: s.help + CONT_COURT_NOTE } : s),
   { id: "role", sec, type: "choice", label: "Who started the case",
     q: "Who started this case?",
-    help: "The top of the form lists the two sides: the person who started the case first, then the other side.",
+    help: "The top of the form names both sides of the case. The tool puts the names in the right places based on your answer.",
     options: [["other", "The other side started it"], ["me", "I started it"]] },
   { id: "otherParty", sec, type: "text", label: "Other party's name",
     q: "What is the other party's name?",
@@ -720,7 +725,7 @@ const SITUATIONS = {
     blurb: "Fills the official Appearance and Verified Motion for Continuance, plus the Order the judge signs if the request is granted.",
     title: "Continuance",
     sections: ["Your case", "About you", "How the court reaches you", "Your request", "Sending a copy", "Signing"],
-    steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp), ...signSteps(5, SIGN_HELP.court)],
+    steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp, { href: LINKS.continuanceInstructions, text: "Read the full definitions (page 3 of the continuance instructions)" }), ...signSteps(5, SIGN_HELP.court)],
     official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"] },
     formNumbers: { [FORM.appearance]: "CCA-GF-1219-3000" },
     fields: a => [...contCaptionFields(a), ...contAppearanceFields(a), ...contMotionFields(a), ...contServiceFields(a), ...contOrderFields(a), ...signatureFields(a, "continuance")],
@@ -1318,7 +1323,7 @@ function pdfSectionHtml(sit) {
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
       ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
     </div>
-    ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says each document is filed under its own filing code.</p>` : ""}
+    ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code, and a proposed order under the "Proposed Order" filing code.</p>` : ""}
     <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>
     <div class="preview" id="preview"></div>`;
 }
@@ -1355,7 +1360,7 @@ function wirePdfSection(sit) {
 const CLERKS = {
   "Adams": { address: ["112 S. 2nd Street, Room A", "Decatur, IN 46733-1618"], phone: "260-724-5309" },
   "Allen": { address: ["715 South Calhoun Street, # 201", "Fort Wayne, IN 46802"], phone: "260-449-7245" },
-  "Bartholomew": { address: ["P.O. Box 924", "Columbus, IN 47202-0924"], phone: "812-379-1600", mailing: true },
+  "Bartholomew": { address: ["P.O. Box 924", "Columbus, IN 47202-0924"], phone: "812-379-1600", mailing: true, court: "the Bartholomew Circuit Court at 234 Washington Street, Columbus, IN 47201" },
   "Benton": { address: ["706 E. 5th Street", "Fowler, IN 47944"], phone: "765-884-0930" },
   "Blackford": { address: ["110 W. Washington", "Hartford City, IN 47348"], phone: "765-348-1130" },
   "Boone": { address: ["212 Courthouse Square", "Lebanon, IN 46052"], phone: "765-482-3510" },
@@ -1380,7 +1385,7 @@ const CLERKS = {
   "Fulton": { address: ["815 Main Street", "Rochester, IN 46975"], phone: "574-223-4824" },
   "Gibson": { address: ["101 N. Main Street", "Princeton, IN 47670-1562"], phone: "812-386-6474" },
   "Grant": { address: ["101 E. 4th Street", "Marion, IN 46952"], phone: "765-668-8121" },
-  "Greene": { address: ["PO BOX 229", "Bloomfield, IN 47424"], phone: "812-384-8532", mailing: true },
+  "Greene": { address: ["PO BOX 229", "Bloomfield, IN 47424"], phone: "812-384-8532", mailing: true, court: null },
   "Hamilton": { address: ["One Hamilton Square, # 106", "Noblesville, IN 46060"], phone: "317-776-9629" },
   "Hancock": { address: ["9 East Main Street, Rm. 213", "Greenfield, IN 46140"], phone: "317-477-1109, 1143" },
   "Harrison": { address: ["300 N. Capitol Ave.", "Corydon, IN 47112"], phone: "812-738-4289" },
@@ -1410,7 +1415,7 @@ const CLERKS = {
   "Morgan": { address: ["Morgan County Justice Campus", "180 S. Main St.", "Martinsville, IN 46151"], phone: "765-205-1548" },
   "Newton": { address: ["PO BOX 49", "Kentland, IN 47951"], phone: "219-474-6081", mailing: true, note: "The Clerk’s Office is in the Newton County Courthouse." },
   "Noble": { address: ["101 North Orange Street", "Albion, IN 46701"], phone: "260-636-2736" },
-  "Ohio": { address: ["PO BOX 185", "Rising Sun, IN 47040"], phone: "812-438-2610", mailing: true },
+  "Ohio": { address: ["PO BOX 185", "Rising Sun, IN 47040"], phone: "812-438-2610", mailing: true, court: "the Ohio Circuit Court #1 at 413 Main Street, Rising Sun, IN 47040" },
   "Orange": { address: ["1 Court Street", "Paoli, IN 47454"], phone: "812-723-2649" },
   "Owen": { address: ["PO BOX 146", "Spencer, IN 47460"], phone: "812-829-5015", mailing: true, note: "The Clerk’s Office is in the Owen County Courthouse." },
   "Parke": { address: ["116 West High Street, Room 204", "Rockville, IN 47872"], phone: "765-569-5132" },
@@ -1431,7 +1436,7 @@ const CLERKS = {
   "Steuben": { address: ["305 South Martha Street", "Steuben County Judicial Center, 1st Floor", "Angola, IN 46703"], phone: "260-668-1000" },
   "Sullivan": { address: ["P.O. Box 370", "100 Courthouse Square", "Sullivan, IN 47882"], phone: "812-268-4657" },
   "Switzerland": { address: ["212 West Main Street", "Vevay, IN 47043"], phone: "812-427-4415" },
-  "Tippecanoe": { address: ["PO BOX 1665", "Lafayette, IN 47901"], phone: "765-423-9326", mailing: true },
+  "Tippecanoe": { address: ["PO BOX 1665", "Lafayette, IN 47901"], phone: "765-423-9326", mailing: true, court: "the Tippecanoe Circuit Court at 301 Main Street, Lafayette, IN 47901" },
   "Tipton": { address: ["101 East Jefferson Street", "Tipton, IN 46072"], phone: "765-675-2795" },
   "Union": { address: ["26 West Union Street", "Liberty, IN 47353"], phone: "765-458-6121" },
   "Vanderburgh": { address: ["PO BOX 3356", "Evansville, IN 47732-3356"], phone: "812-435-5160", mailing: true, note: "The Clerk’s Office is in the new Vanderburgh County Courthouse." },
@@ -1476,10 +1481,17 @@ const SOURCES = {
   mycase: { href: "https://mycase.in.gov/", text: "mycase.in.gov" },
   directory: { href: LINKS.courtDirectory, text: "Indiana court directory" },
   getHelp: { href: LINKS.getHelp, text: "Find free legal help" },
+  helpDesk: { href: LINKS.helpDesk, text: "Indiana Legal Help Desk" },
+  answerTopic: { href: LINKS.answerTopic, text: "Indiana Legal Help: Answer" },
+  efileSchedule: { href: "https://www.in.gov/courts/efiling/schedule/", text: "Which case types can be e-filed" },
 };
+// Indiana Legal Help's own description of its Help Desk.
+const HELP_DESK = "Indiana Legal Help says the Indiana Legal Help Desk is open weekdays from 10am to 2pm ET, with options to call, text, chat or email with housing legal navigators, and that it currently focuses on housing legal issues like eviction. You reach it through the chat bubble on any page of IndianaLegalHelp.org.";
 
 function nextSteps(key, a) {
-  const efile = a.fileMethod === "efile";
+  // The filing method may not be chosen yet; then both ways are shown.
+  const efile = a.fileMethod === "efile", paper = a.fileMethod === "paper";
+  const mayEfile = !paper, mayPaper = !efile;
   const { packet, docs } = SITUATIONS[key].official;
   const pages = new Set(docs.flatMap(d => OFFICIAL[packet].docs[d].pages));
   const signLines = OFFICIAL[packet].signatures.filter(s => pages.has(s.page)).length;
@@ -1491,8 +1503,10 @@ function nextSteps(key, a) {
   // 1. Deadlines and what the court date means for this situation.
   if (key === "respond") out.push({
     title: "Check your deadline",
-    body: "Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says that if you don't file an Answer when you should, the court might decide the case without you.",
-    links: [SOURCES.answerInstructions, SOURCES.respond] });
+    body: `Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says the court might decide the case without you if you don't file an Answer when you're required to.${
+      caseLetters(a) === "SC" ? " Your case type is SC (small claims). Indiana Legal Help says Answers are not usually filed in small claims court."
+      : caseLetters(a) === "EV" ? " Your case type is EV (eviction). If your case is in small claims court, Indiana Legal Help says Answers are not usually filed there." : ""}`,
+    links: [SOURCES.answerInstructions, SOURCES.answerTopic] });
 
   if (key === "continuance") out.push({
     title: "Your court date stays the same until the judge signs an order",
@@ -1501,11 +1515,15 @@ function nextSteps(key, a) {
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
-    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order form is completed by the judge. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
+    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order is the judge's decision on your request: its instructions have you fill in only the top section and your name and address. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
     links: [SOURCES.feeFaq] });
 
   // 2. Signing.
-  out.push(efile
+  if (!efile && !paper) out.push({
+    title: "Signing",
+    body: `You haven't chosen how you'll file yet. If you e-file, the E-Filing User Guide allows e-filed documents to be signed with "/s/" and your name, and this tool adds that when you choose e-filing. If you file at the courthouse, print the forms and sign ${lines}: Indiana Legal Help says forms must be signed before they are filed.`,
+    links: [SOURCES.efileGuide, SOURCES.inPerson] });
+  else out.push(efile
     ? { title: "Your signature",
         body: empty(a.name)
           ? "Your name is blank, so there's no signature on the form yet. Add your name, and the form will be signed with \"/s/\" and your name, which the E-Filing User Guide allows for e-filed documents."
@@ -1514,25 +1532,28 @@ function nextSteps(key, a) {
     : { title: "Sign by hand", body: `Print the forms and sign ${lines}. Indiana Legal Help says forms must be signed before they are filed.`, links: [SOURCES.inPerson] });
 
   // 3. How to file: the e-filing site, or the county clerk's office.
-  if (efile) {
+  if (mayEfile) {
     const parts = [
       "The E-Filing User Guide says you can always e-file at no cost, other than filing or service fees, using the state's e-filing provider at efile.incourts.gov. Other e-filing providers are also allowed.",
       docs.length > 1 ? "The guide says all the documents in a filing should match the filing code you give it: for example, appearance documents go under the Appearance filing code, and other documents go under a separate filing code. That's why you can download each form on its own." : "",
       hasOrder ? "It also says a proposed order filed with a motion must be submitted under the separate \"Proposed Order\" filing code." : "",
       key === "feewaiver" ? "To ask for a fee waiver when e-filing, the guide says you submit the request with your first filing and choose a waiver account, set up with your e-filing provider, as the payment account. It also says the court must approve a fee waiver for you to file a case with one, though some waivers are automatic by law." : "",
+      key === "feewaiver" ? "The guide also says that for some case types, e-filing in a trial court is not currently available, and some case types can only be e-filed after the case is open. It points to a current list." : "",
       "Indiana Legal Help says the guide shows how to choose an e-filing provider and set up a free account.",
     ];
-    out.push({ title: "File online", body: parts.filter(Boolean).join(" "),
-      links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount] : [])] });
-  } else {
-    out.push({ title: "File at the courthouse",
+    out.push({ title: efile ? "File online" : "If you file online", body: parts.filter(Boolean).join(" "),
+      links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount, SOURCES.efileSchedule] : [])] });
+  }
+  if (mayPaper) {
+    out.push({ title: paper ? "File at the courthouse" : "If you file at the courthouse",
       body: [
         "Indiana Legal Help says to bring the forms to the court where they need to be filed.",
         !clerk ? "" : clerk.mailing
-          ? `The Indiana court directory gives a mailing address for the ${a.county} County Clerk's Office: ${clerk.address.join(", ")}.${clerk.note ? ` It also says: "${clerk.note}"` : ""} Phone: ${clerk.phone}.`
+          ? `The Indiana court directory gives a mailing address for the ${a.county} County Clerk's Office: ${clerk.address.join(", ")}.${clerk.note ? ` It also says: "${clerk.note}"` : ""} Phone: ${clerk.phone}.${
+              clerk.court ? ` It lists ${clerk.court}.` : clerk.court === null ? ` It lists only P.O. boxes for ${a.county} County's courts, so you may want to call the clerk's office to ask where to bring your forms.` : ""}`
           : `The Indiana court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}.`,
         a.county === "Marion" ? `The directory also lists Marion County's nine township small claims courts: ${MARION_SMALL_CLAIMS.map(([n, ad, ph]) => `${n}, ${ad} (${ph})`).join("; ")}.` : "",
-        "Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, and some prefer you not bring any, so you may want to contact the court first.",
+        "Indiana Legal Help says courts differ on copies: some courts require you to bring one, two or three copies of each document, and some prefer you not bring any, so you may want to contact the court first.",
       ].filter(Boolean).join(" "),
       links: [SOURCES.inPerson, SOURCES.directory] });
   }
@@ -1540,38 +1561,38 @@ function nextSteps(key, a) {
   // 4. Fees and the fee waiver option.
   if (key !== "feewaiver") out.push({
     title: "Filing fee",
-    body: `Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it, and its filing fee page points to the fee waiver instructions and form on its "How to File Forms with the Court in Person" page (family law cases have their own form).${efile ? " If you e-file, the E-Filing User Guide says to set up a waiver payment account with your e-filing provider, which helps make sure fees aren't charged when they aren't due." : ""}`,
-    links: [SOURCES.feeFaq, SOURCES.inPerson, ...(efile ? [SOURCES.waiverAccount] : [])] });
+    body: `Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it, and its filing fee page points to the fee waiver instructions and form on its "How to File Forms with the Court in Person" page (family law cases have their own form).${mayEfile ? " If you e-file, the E-Filing User Guide says to set up a waiver payment account with your e-filing provider, which helps make sure fees aren't charged when they aren't due." : ""}`,
+    links: [SOURCES.feeFaq, SOURCES.inPerson, ...(mayEfile ? [SOURCES.efileGuide, SOURCES.waiverAccount] : [])] });
 
   // 5. Serving the other side.
   if (key === "feewaiver") out.push({
     title: "Serving the other side",
-    body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's instructions say that when a court case begins, it's important for both sides to know about it and receive official forms, which is called service of process. They describe three ways: First Class U.S. mail (paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. Indiana Legal Help says the fee to start a case with sheriff service is $185.${efile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2), which says that when you file the papers that start a case, you also file completed summonses designating the manner of service, and that you are responsible for service of process." : ""}`,
-    links: [SOURCES.answerInstructions, ...(efile ? [SOURCES.efileGuide, SOURCES.tr86] : [])] });
+    body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's instructions say that when a court case begins, it's important for both sides to know about it and receive official forms, which is called service of process. They describe three ways: First Class U.S. mail (paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. Indiana Legal Help says the fee to start a case with sheriff service is $185.${mayEfile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2) when serving a filing that starts a case. That rule says you also file completed summonses designating the manner of service, and that you are responsible for service of process, except that when fees and court costs are waived and the clerk has received the required notice that you are entitled to the waiver, the clerk serves the complaint and summonses." : ""}`,
+    links: [SOURCES.answerInstructions, SOURCES.feeFaq, ...(mayEfile ? [SOURCES.efileGuide, SOURCES.tr86] : [])] });
   else out.push({
     title: "Send a copy to the other side",
-    body: `Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. They list three ways: First Class U.S. mail (which they describe as paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. The Certificate of Service on your form lists who you're sending a copy to, how and when.${efile ? " The E-Filing User Guide says that when you e-file, you must serve electronically any party or attorney who has a service contact listed in the case or on the Public Service List, and that self-represented litigants who haven't attached themselves as a service contact must be served conventionally." : ""}`,
-    links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions, ...(efile ? [SOURCES.efileGuide] : [])] });
+    body: `Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. They list three ways: First Class U.S. mail (which they describe as paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. The Certificate of Service on your form lists who you're sending a copy to, how and when.${mayEfile ? " If you e-file, the E-Filing User Guide says that when you e-file, you must serve electronically any party or attorney who has a service contact listed in the case or on the Public Service List, and that self-represented litigants who haven't attached themselves as a service contact must be served conventionally." : ""}`,
+    links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions, ...(mayEfile ? [SOURCES.efileGuide] : [])] });
 
   // 6. Court dates and what missing one can mean.
   // What missing a court date can mean, in the Small Claims Manual's own terms.
   const marionNote = a.county === "Marion" ? ` ${SCM_NOT_MARION}` : "";
-  const defaultFact = `In small claims court, missing a court date can mean losing the case: the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
-  const dismissFact = `In small claims court, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
+  const defaultFact = `If your case is in small claims court, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
+  const dismissFact = `If your case is in small claims court, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}${defaultFact}${key === "respond" ? " In superior or circuit court, Indiana Legal Help says that if you don't file an Answer when you should, the court might decide the case without you." : ""} If you need a new date, Indiana Legal Help says only an order signed by the judge can change a court date or time.`,
-    links: [SOURCES.mycase, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.respond] : []), SOURCES.newDate] });
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${defaultFact}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
+    links: [SOURCES.mycase, SOURCES.newDate, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.answerTopic] : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     body: a.role === "me" ? dismissFact : defaultFact,
     links: [SOURCES.smallClaims] });
   if (key === "feewaiver") out.push({
-    title: "Go to every court date",
-    body: `If the court sets a hearing in your case: ${dismissFact}`,
+    title: "If the court sets a hearing",
+    body: dismissFact,
     links: [SOURCES.smallClaims] });
 
-  out.push({ title: "Get free help", body: "Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county.", links: [SOURCES.getHelp] });
+  out.push({ title: "Get free help", body: `Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. ${HELP_DESK}`, links: [SOURCES.getHelp, SOURCES.helpDesk] });
   return out;
 }
 
@@ -1605,9 +1626,9 @@ const TRIAGE_STEPS = [
 
 const SMALL_CLAIMS_FACTS = [
   "Your case is in small claims court. Indiana's Small Claims Manual says a Notice of Claim is a written statement of a claim against the defendant that serves as notice that the lawsuit has been filed and that the party is ordered to appear in court.",
-  "A written answer usually isn't filed. Indiana Legal Help says Answers are not usually filed in small claims court, and Small Claims Rule 4 says all defenses are \"deemed at issue without responsive pleadings,\" adding that this does not change the burden of proof.",
+  "A written answer usually isn't filed. Indiana Legal Help says Answers are not usually filed in small claims court or family court, and Small Claims Rule 4 says all defenses are \"deemed at issue without responsive pleadings,\" adding that this does not change the burden of proof.",
   "Indiana Legal Help says that when you respond to a case someone else started, you file an Appearance to tell the court who you are and how the court and others can contact you. Small Claims Rule 4 says the court may ask you to enter an appearance before trial, and that not entering one is not grounds for a default judgment.",
-  "Go to court at the time on your Notice of Claim. The Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment.",
+  "The Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.",
   "The Small Claims Manual says it does not address the specific jurisdiction or procedures of Marion County Small Claims Court. If your case is in Marion County, the court directory lists its township small claims courts.",
 ];
 
@@ -1617,7 +1638,7 @@ function triageResult(t) {
     facts: t.canGo === "unsure" ? [...SMALL_CLAIMS_FACTS,
       "Not sure about your court date? It is printed on your Notice of Claim. You can also look up your case at mycase.in.gov, and Indiana's court staff page says staff can give you information from your case file, including when your next court hearing is."]
       : SMALL_CLAIMS_FACTS,
-    sources: [SOURCES.smallClaims, { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" }, SOURCES.respond,
+    sources: [SOURCES.smallClaims, { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" }, SOURCES.answerTopic, SOURCES.respond, SOURCES.directory,
       ...(t.canGo === "unsure" ? [SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }] : [])],
     choices: t.canGo === "no"
       ? [["continuance", "Ask the court to move my court date", "Fills the official Appearance and Verified Motion for Continuance."],
@@ -1628,21 +1649,21 @@ function triageResult(t) {
   if (t.paper === "complaint") return {
     title: "Eviction complaint: what fits",
     facts: [
-      "Indiana Legal Help says a Complaint is the official legal document filed by the plaintiff to start a civil lawsuit against you.",
-      "Indiana Legal Help says you usually need to file an Answer if the case is filed in superior or circuit court, and that if you don't write an Answer when you should, the court might decide the case without you.",
+      "Indiana Legal Help's Answer instructions define a Complaint as the official legal document filed by the plaintiff to start a civil lawsuit against you.",
+      "Indiana Legal Help says its Answer form is for people being sued in superior or circuit court, that Answers are not usually filed in small claims court or family court, and that the court might decide the case without you if you don't file an Answer when you're required to.",
       "Its Answer instructions say you generally have twenty days to file your Answer once you've received the complaint.",
     ],
-    sources: [SOURCES.respond, SOURCES.answerInstructions],
+    sources: [SOURCES.answerTopic, SOURCES.answerInstructions],
     choices: [["respond", "Fill out the Appearance and Answer", "The official forms for responding to a complaint."],
               ["continuance", "I need to ask the court to move a court date", "Fills the official Appearance and Verified Motion for Continuance."]],
   };
   return {
     title: "Let's find out what kind of case it is",
     facts: [
-      "Check the title at the top of your papers. The Small Claims Manual says a small claims case is started with a Notice of Claim, and Indiana Legal Help says a civil lawsuit is started with a Complaint.",
+      "Check the title at the top of your papers. The Small Claims Manual says a small claims case is started with a Notice of Claim, and Indiana Legal Help's Answer instructions define a Complaint as the document a plaintiff files to start a civil lawsuit.",
       "You can look up your case at mycase.in.gov. Indiana's court staff page says staff can give you information from your case file, including when your next court hearing is.",
     ],
-    sources: [SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }, SOURCES.directory, SOURCES.getHelp],
+    sources: [SOURCES.smallClaims, SOURCES.answerInstructions, SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }, SOURCES.directory, SOURCES.getHelp, SOURCES.helpDesk],
     choices: [],
     papers: [["notice", "My paper says \"Notice of Claim\""], ["complaint", "My paper says \"Complaint\""]],
   };
@@ -1708,7 +1729,7 @@ function renderTriage() {
     ${r.papers ? `<h2 class="sub">Found the title?</h2>
       ${r.papers.map(([k, label]) => `<button class="pick" data-paper="${k}"><strong>${esc(label)}</strong></button>`).join("")}
       <button class="pick" id="allChoices"><strong>See all the choices</strong><span>Go back to the first screen.</span></button>` : ""}
-    <div class="note">This tool shows what official sources say about your kind of papers. It can't tell you what to do in your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>
+    <div class="note">This tool shows what official sources say about your kind of papers. It can't tell you what to do in your case. ${esc(HELP_DESK)} <a href="${LINKS.helpDesk}" target="_blank" rel="noopener">About the Indiana Legal Help Desk</a> · <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Find free legal help near you</a></div>
     <div class="nav"><button class="ghost" id="back">Back</button></div>`;
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
@@ -1823,6 +1844,17 @@ function shown(step) {
 }
 
 /* ---------- checks: run only at the end ---------- */
+// "Until 11/20", "Nov 24", "the 3rd of December", "until March": dates, which the
+// continuance form says not to write. "1/2 month" and "maybe 3 weeks" are not.
+const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const DATE_RES = [
+  /\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b(?!\s*(?:months?|weeks?|days?))/i,
+  new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\b`, "i"),
+  new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?${MONTH}\\b`, "i"),
+  new RegExp(`\\b(?:until|on|by|after|before|in)\\s+(?:early\\s+|mid-?\\s*|late\\s+)?${MONTH}\\b`, "i"),
+];
+const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
+
 function runChecks() {
   const a = visibleAnswers();
   const vis = visible();
@@ -1876,7 +1908,7 @@ function runChecks() {
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
 
   if (sitKey === "continuance") {
-    if (has("timeNeeded") && /\d{1,2}\/\d{1,2}|january|february|march|april|may|june|july|august|september|october|november|december/i.test(a.timeNeeded || ""))
+    if (has("timeNeeded") && looksLikeDate(a.timeNeeded))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
     if (has("spokeDate") && empty(a.spokeDate))
       flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate", blank: true });
@@ -1972,6 +2004,7 @@ function renderNotSure() {
     ${NOT_SURE.map(([k, text]) => `<button class="pick" data-go="${k}"><strong>${esc(text)}</strong><span>${esc(SITUATIONS[k].pick)}</span></button>`).join("")}
     <h2 class="sub">None of these, or still not sure?</h2>
     <ul class="facts">
+      <li>${esc(HELP_DESK)} <a href="${LINKS.helpDesk}" target="_blank" rel="noopener">About the Indiana Legal Help Desk</a></li>
       <li>Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Find free legal help</a></li>
       <li>Indiana's court staff page says staff can explain and answer questions about how the court works, and give you information from your case file, but cannot give legal advice. <a href="https://www.in.gov/courts/selfservice/unrepresented/help" target="_blank" rel="noopener">How court staff can help</a> · <a href="${LINKS.courtDirectory}" target="_blank" rel="noopener">Indiana court directory</a></li>
       <li>You can look up your case at <a href="https://mycase.in.gov/" target="_blank" rel="noopener">mycase.in.gov</a>.</li>
