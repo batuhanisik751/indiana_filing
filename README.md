@@ -34,7 +34,7 @@ Then go to http://localhost:5190/. If that port is busy, pass another one, for e
 
 ## Privacy
 
-Nothing anyone types is saved or sent anywhere. Answers stay in the open browser tab, and the PDF is filled in the browser.
+Nothing anyone types is sent anywhere, and the PDF is filled in the browser. Answers are saved only in the person's own browser, so a refresh or a closed tab doesn't erase them, and the first screen offers to continue where they left off. A checkbox on the first screen turns saving off (recommended on shared or public computers, like library or courthouse kiosks), "Delete saved answers" and "Start over" erase the saved copy, and saved answers are deleted after 30 days.
 
 ## How the PDF is made
 

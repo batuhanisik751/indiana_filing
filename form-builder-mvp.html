@@ -109,6 +109,12 @@ dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: an
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }
+.resume { background: var(--surface); border: 2px solid var(--accent); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1.5rem; }
+.resume strong { display: block; font-size: 1.1rem; }
+.resume span { color: var(--muted); font-size: .95rem; }
+.resume .nav { margin-top: .75rem; }
+.savepref { margin-top: 1rem; font-size: .95rem; }
+.savepref small { display: block; color: var(--muted); font-size: .85rem; }
 ol.steps { padding-left: 1.4rem; margin: 0 0 1rem; }
 ul.facts { padding-left: 1.2rem; margin: 0 0 .75rem; }
 ul.facts li { margin: 0 0 .6rem; }
@@ -128,7 +134,7 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
 <div class="wrap">
   <header class="top">
     <span class="brand">Indiana Court Form Helper</span>
-    <span class="privacy">Nothing you type is saved or sent.</span>
+    <span class="privacy" id="privacy">Saved only on this device. Nothing is sent.</span>
   </header>
   <main id="app"></main>
   <footer>Fills official Indiana court forms approved by the Coalition for Court Access, published on <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">IndianaLegalHelp.org</a>. This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</footer>
@@ -1606,7 +1612,7 @@ let triage = {}, fromTriage = false;
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
 function startSituation(key) {
-  sitKey = key; steps = SITUATIONS[key].steps(); answers = {}; cur = 0; mode = "step"; returnToSummary = false; render();
+  sitKey = key; steps = SITUATIONS[key].steps(); answers = {}; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 
 function renderTriage() {
@@ -1650,10 +1656,51 @@ function renderTriage() {
 }
 
 /* =====================================================================
+   SAVED PROGRESS
+   Answers are kept in this browser only (localStorage), so a refresh or a
+   closed tab doesn't erase them. Nothing is sent anywhere. People on a
+   shared or public computer, like a library or courthouse kiosk, can turn
+   saving off, and anyone can delete what's saved. Saved answers are
+   deleted after 30 days.
+   ===================================================================== */
+const STORE_KEY = "icfh-progress-v1", PREF_KEY = "icfh-save-pref";
+const MAX_AGE_DAYS = 30;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch { /* storage blocked */ } },
+};
+const savingOn = () => store.get(PREF_KEY) !== "off";
+function readSaved() {
+  try {
+    const d = JSON.parse(store.get(STORE_KEY) || "null");
+    if (!d || d.v !== 1 || !d.sitKey || !SITUATIONS[d.sitKey]) return null;
+    if (Date.now() - d.savedAt > MAX_AGE_DAYS * 864e5) { store.del(STORE_KEY); return null; }
+    return d;
+  } catch { return null; }
+}
+function saveProgress() {
+  if (!savingOn() || !sitKey || SITUATIONS[sitKey].triage || mode === "pick" || mode === "notsure") return;
+  store.set(STORE_KEY, JSON.stringify({ v: 1, savedAt: Date.now(), sitKey, answers, unsure, cur, mode: mode === "summary" ? "summary" : "step", triage, fromTriage }));
+}
+function clearSaved() { store.del(STORE_KEY); }
+function restoreSaved(d) {
+  sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = d.answers || {}; unsure = d.unsure || {};
+  triage = d.triage || {}; fromTriage = !!d.fromTriage; cur = Math.max(0, d.cur || 0); returnToSummary = false;
+  mode = d.mode === "summary" ? "summary" : "step";
+  render();
+}
+function updatePrivacyNote() {
+  const el = document.getElementById("privacy");
+  if (el) el.textContent = savingOn() ? "Saved only on this device. Nothing is sent." : "Not saved. Nothing is sent.";
+}
+
+/* =====================================================================
    APP STATE
    ===================================================================== */
 let sitKey = null, steps = [], answers = {};
 let mode = "pick", cur = 0, returnToSummary = false, lastEdited = null;
+let unsure = {}; // questions the person marked "I'm not sure"
 const app = document.getElementById("app");
 
 const visible = () => steps.filter(s => !s.showIf || s.showIf(answers));
@@ -1753,11 +1800,28 @@ function runChecks() {
 
 /* ---------- screens ---------- */
 function renderPick() {
+  const saved = readSaved();
   app.innerHTML = `
+    ${saved ? `<div class="resume">
+      <strong>Continue where you left off?</strong>
+      <span>${esc(SITUATIONS[saved.sitKey].title)}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
+      <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
+    </div>` : ""}
     <h1>What do you need to do?</h1>
     <p class="help">Pick the one that fits. We'll ask one question at a time and fill in the official court form for you.</p>
     ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
-    <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>`;
+    <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
+    <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
+      <span>Save my answers on this device so I can come back later. <small>On a shared or public computer, like a library or courthouse kiosk, uncheck this. Saved answers are deleted after ${MAX_AGE_DAYS} days.</small></span></label>`;
+  document.getElementById("savePref").onchange = e => {
+    store.set(PREF_KEY, e.target.checked ? "on" : "off");
+    if (!e.target.checked) clearSaved();
+    updatePrivacyNote();
+  };
+  if (saved) {
+    document.getElementById("resume").onclick = () => restoreSaved(saved);
+    document.getElementById("discard").onclick = () => { clearSaved(); render(); };
+  }
   app.querySelectorAll(".pick").forEach(b => b.onclick = () => {
     if (SITUATIONS[b.dataset.k].triage) { triage = {}; mode = "triage"; return render(); }
     fromTriage = false;
@@ -1908,8 +1972,9 @@ function renderSummary(rerender = false) {
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => goFix(b.dataset.fix));
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
-    if (!confirm("Start over? This clears every answer you have entered.")) return;
-    sitKey = null; answers = {}; triage = {}; fromTriage = false; mode = "pick"; render();
+    if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
+    clearSaved();
+    sitKey = null; answers = {}; unsure = {}; triage = {}; fromTriage = false; mode = "pick"; render();
   };
   wirePdfSection(sit);
   if (rerender) return;
@@ -1919,7 +1984,11 @@ function renderSummary(rerender = false) {
   lastEdited = null;
 }
 
-function render() { ({ pick: renderPick, triage: renderTriage, step: renderStep, summary: renderSummary })[mode](); }
+function render() {
+  ({ pick: renderPick, triage: renderTriage, step: renderStep, summary: renderSummary })[mode]();
+  saveProgress();
+  updatePrivacyNote();
+}
 render();
 </script>
 </body>
