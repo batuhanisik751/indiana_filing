@@ -130,6 +130,7 @@ ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }
 .downloads { display: grid; gap: .6rem; margin: .5rem 0 1rem; }
 .downloads button { width: 100%; }
+.nowrap { white-space: nowrap; }
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }
@@ -266,7 +267,7 @@ const cleanNum = v => String(v ?? "").replace(/[$,\s]/g, "");
 const validNum = (step, v) => (step.type === "money" ? AMOUNT_RE : HOURS_RE).test(cleanNum(v));
 const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
 const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
-const NO_WORDS = /^(no|none|n\/a|na|nope|not applicable)\.?$/i;
+const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
@@ -300,7 +301,7 @@ const caseSteps = sec => [
   { id: "caseNumber", sec, type: "text", label: "Case number", upper: true,
     q: "What is your case number?",
     help: "Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers." },
-  { id: "caseTypeLetters", sec, type: "text", label: "Case type letters", upper: true,
+  { id: "caseTypeLetters", sec, type: "text", label: "Case type letters", upper: true, noWords: true,
     showIf: a => !caseMatch(a.caseNumber),
     q: "What two letters show your case type?",
     help: "The official form asks for the two letters in your case number that show the case type, like CC (civil collection) or PL (civil plenary). We fill this in for you when the case number is complete." },
@@ -443,7 +444,7 @@ const fwCaseSteps = sec => [
     q: "What kind of court will you file in?",
     help: "The official instructions say to select the court type if you know it, and leave it blank if you don't. They also say to leave the cause number blank.",
     options: [["CIRCUIT", "Circuit Court"], ["SUPERIOR", "Superior Court"], ["PROBATE", "Probate Court"], ["unknown", "I don't know"]] },
-  { id: "otherPerson", sec, type: "text", label: "Other person in the case", optional: true,
+  { id: "otherPerson", sec, type: "text", label: "Other person in the case", optional: true, noWords: true,
     q: "Who is the other person in your case?",
     help: "This is the person you're filing against, called the respondent. The official instructions say that if there's no other person, like in a name change, leave this blank." },
   { id: "fwCaseType", sec, type: "text", label: "Case type", optional: true, upper: true, noWords: true,
@@ -483,7 +484,7 @@ const fwYouSteps = sec => {
         help: i === 1 ? "The caption is the case name at the top of its papers, like \"Smith v. Jones.\"" : "Leave this blank if there are no more related cases." },
       { id: `rel${i}Number`, sec, type: "text", label: `Related case ${i} number`, optional: i > 1, upper: true,
         showIf: a => a.related === "yes",
-        q: "What is its case number?", help: i === 1 ? "Copy it from that case's papers." : "Leave this blank if there are no more related cases." },
+        q: i === 1 ? "What is its case number?" : `What is the case number of related case ${i}?`, help: i === 1 ? "Copy it from that case's papers." : "Leave this blank if there are no more related cases." },
     ]),
     { id: "localRuleText", sec, type: "textarea", short: true, label: "Information required by local rule", optional: true, noWords: true,
       q: "What additional information does a local rule require you to provide?",
@@ -508,7 +509,7 @@ const INCOME = [
   ["unemployment", "Unemployment compensation", "How much unemployment compensation is received each month?", "MonthlyUnemployment"],
   ["tanf", "AFDC/TANF benefits", "How much is received in AFDC/TANF benefits each month?", "MonthlyAFDC/TANF"],
   ["ssi", "SSI/SSD benefits", "How much is received in SSI/SSD benefits each month?", "MonthlySSI/SSD"],
-  ["childSupportIn", "Child support", "How much child support is received each month?", "MonthlyChildSupportReceived"],
+  ["childSupportIn", "Child support received", "How much child support is received each month?", "MonthlyChildSupportReceived"],
   ["otherIncome", "Other income", "How much other income is received each month?", "OtherIncome"],
 ];
 const fwIncomeSteps = sec => [
@@ -536,12 +537,12 @@ const EXPENSES = [
   ["medical", "Medical bills", "MonthlyMedicalBills"],
   ["transportation", "Transportation", "MonthlyTransportation"],
   ["insurance", "Insurance (car, medical and/or property)", "MonthlyInsurance"],
-  ["childSupportOut", "Child support", "MonthlyChildSupportPaid"],
+  ["childSupportOut", "Child support paid", "MonthlyChildSupportPaid"],
   ["otherCosts", "Other expenses", "OtherCosts"],
 ];
 const fwExpenseSteps = sec => [
   ...EXPENSES.map(([id, label]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true,
-    q: `How much is spent each month on ${label.charAt(0).toLowerCase() + label.slice(1)}?`,
+    q: id === "childSupportOut" ? "How much child support is paid each month?" : `How much is spent each month on ${label.charAt(0).toLowerCase() + label.slice(1)}?`,
     help: id === "childSupportOut" ? "This is child support paid, listed under Monthly Expenses on the form. Leave this blank if none." : "The form lists monthly expenses. Leave this blank if none." })),
   { id: "otherCostsDesc", sec, type: "textarea", short: true, label: "Description of other expenses",
     showIf: a => toNum(a.otherCosts) > 0,
@@ -561,7 +562,7 @@ const contCaseSteps = sec => [
   { id: "otherParty", sec, type: "text", label: "Other party's name",
     q: "What is the other party's name?",
     help: "The form asks for the first and last name of the other party involved in this case. If it's a company, copy its name exactly as it appears on your papers." },
-  { id: "otherPartyAddress", sec, type: "textarea", short: true, label: "Other party's address", optional: true,
+  { id: "otherPartyAddress", sec, type: "textarea", short: true, label: "Other party's address", optional: true, noWords: true,
     q: "What is the other party's mailing address?",
     help: "The Order form has a distribution list with both parties' names and addresses. Leave this blank if you don't know it." },
 ];
@@ -591,9 +592,10 @@ function contCaptionFields(a) {
   const ct = courtTypeText(a);
   const first = a.role === "me" ? a.name : a.otherParty, second = a.role === "me" ? a.otherParty : a.name;
   return [
-    f(FORM.caption, "County", a.county, "county", [{ t: "text", name: "County", value: a.county }]),
+    // Centered, so the county doesn't run into the printed "COUNTY OF" label.
+    f(FORM.caption, "County", a.county, "county", [{ t: "text", name: "County", value: a.county, align: "Center" }]),
     f(FORM.caption, "Court type", !ct ? "" : a.courtType === "other" ? `${ct} Court` : `${ct.charAt(0)}${ct.slice(1).toLowerCase()} Court`,
-      "courtType", [{ t: "text", name: "Court Type", value: ct.toUpperCase() }]),
+      a.courtType === "other" ? "courtTypeOther" : "courtType", [{ t: "text", name: "Court Type", value: ct.toUpperCase(), smallOk: 6 }]),
     f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
     f(FORM.caption, "In re the matter of (who started the case)", first, a.role === "me" ? "name" : "otherParty", [{ t: "text", name: "Petitioner", value: first }]),
     f(FORM.caption, "v. (the other side)", second, a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second }]),
@@ -765,7 +767,7 @@ function captionFields(a) {
   return [
     f(FORM.caption, "County", a.county, "county", [{ t: "text", name: "County", value: a.county }]),
     f(FORM.caption, "Court type", !ct ? "" : a.courtType === "other" ? `${ct} Court` : `${ct.charAt(0)}${ct.slice(1).toLowerCase()} Court`,
-      "courtType", [{ t: "text", name: "Court Type", value: ct.toUpperCase() }]),
+      a.courtType === "other" ? "courtTypeOther" : "courtType", [{ t: "text", name: "Court Type", value: ct.toUpperCase(), smallOk: 6 }]),
     f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
     f(FORM.caption, "Plaintiff", a.plaintiff, "plaintiff", [{ t: "text", name: "Plaintiff", value: a.plaintiff }]),
     f(FORM.caption, "Defendant (you)", a.name, "name", [{ t: "text", name: "Defendant", value: a.name }]),
@@ -823,9 +825,10 @@ function serviceFields(a, withAnswer) {
     const typeFields = i === 4 ? ["Service Type 4", "Servcice Type 4"] : [`Service Type ${i}`];
     const label = n > 1 ? ` (person ${i})` : "";
     out.push(
-      f(FORM.service, `Sent to${label}`, a[`svc${i}Name`], `svc${i}Name`, nameFields.map(name => ({ t: "text", name, value: a[`svc${i}Name`] }))),
+      // The official "Service Name 2" is centered and "Servcice Type 4" is one line, unlike their rows.
+      f(FORM.service, `Sent to${label}`, a[`svc${i}Name`], `svc${i}Name`, nameFields.map(name => ({ t: "text", name, value: a[`svc${i}Name`], align: "Left" }))),
       f(FORM.service, `Address${label}`, a[`svc${i}Address`], `svc${i}Address`, [{ t: "text", name: `Service Address ${i}`, value: a[`svc${i}Address`], maxSize: 10 }]),
-      f(FORM.service, `Type of service used${label}`, a[`svc${i}Method`], `svc${i}Method`, typeFields.map(name => ({ t: "text", name, value: a[`svc${i}Method`], maxSize: 10 }))),
+      f(FORM.service, `Type of service used${label}`, a[`svc${i}Method`], `svc${i}Method`, typeFields.map(name => ({ t: "text", name, value: a[`svc${i}Method`], maxSize: 10, multiline: true }))),
       f(FORM.service, `Date of service${label}`, formDate(a[`svc${i}Date`]), `svc${i}Date`, [{ t: "text", name: `Service Date ${i}`, value: formDate(a[`svc${i}Date`]), maxSize: 10 }]),
     );
     if (i < MAX_RECIPIENTS) out.push(f(FORM.service, "Anyone else to send a copy to", yesNo(a[`svcMore${i}`]), `svcMore${i}`));
@@ -842,9 +845,10 @@ function signatureFields(a, key) {
   const pages = new Set(docs.flatMap(d => OFFICIAL[packet].docs[d].pages));
   const lines = OFFICIAL[packet].signatures.filter(s => pages.has(s.page));
   const efile = a.fileMethod === "efile";
-  return [f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
+  // Characters the font can't print are already flagged on your name, so not again here.
+  return [{ ...f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
     efile ? (empty(a.name) ? "" : `/s/ ${a.name}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
-    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, w: s.w, value: `/s/ ${a.name}` })) : [])];
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "draw", page: s.page, x: s.x, y: s.y, w: s.w, value: `/s/ ${a.name}` })) : []), quietChars: true }];
 }
 
 const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
@@ -853,6 +857,13 @@ const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
 const amountRow = (form, label, k, a, name) =>
   f(form, label, isNum(a[k]) ? `$${moneyOrBlank(a[k])}` : "Left blank", k, [{ t: "text", name, value: moneyOrBlank(a[k]) }]);
 
+// The printed rules under the fee waiver Appearance's three related-case captions:
+// one line on the rule, or two lines (the first just above it) for a long caption.
+const CAPTION_RULES = {
+  1: { page: 0, x0: 180, x1: 358, ys: [98.2], wrapYs: [109.4, 98.2] },
+  2: { page: 1, x0: 181, x1: 359, ys: [693.5], wrapYs: [704.7, 693.5] },
+  3: { page: 1, x0: 180, x1: 358, ys: [665.95], wrapYs: [677.15, 665.95] },
+};
 function feeWaiverFields(a) {
   const ct = a.fwCourtType && a.fwCourtType !== "unknown" ? a.fwCourtType : "";
   const relName = i => i === 1 ? ["Caption", "Case No"] : [`Caption_${i}`, `Case No_${i}`];
@@ -888,8 +899,9 @@ function feeWaiverFields(a) {
       [{ t: "check", name: "Check Box3", on: a.related === "yes" }, { t: "check", name: "Check Box4", on: a.related === "no" }]),
   ];
   if (a.related === "yes") [1, 2, 3].forEach(i => out.push(
+    // Written on the printed rule (the field's box runs below it, so two lines would be struck through).
     f(FORM.fwAppearance, `Related case ${i} caption`, empty(a[`rel${i}Caption`]) ? "Left blank" : a[`rel${i}Caption`], `rel${i}Caption`,
-      [{ t: "text", name: relName(i)[0], value: a[`rel${i}Caption`] }]),
+      [{ t: "lines", ...CAPTION_RULES[i], value: a[`rel${i}Caption`] }]),
     f(FORM.fwAppearance, `Related case ${i} number`, empty(a[`rel${i}Number`]) ? "Left blank" : a[`rel${i}Number`], `rel${i}Number`,
       [{ t: "text", name: relName(i)[1], value: a[`rel${i}Number`] }])));
   out.push(
@@ -924,7 +936,9 @@ function feeWaiverFields(a) {
       [{ t: "text", name: "MonthlyExpenses", value: money(expenseTotal(a)) }]),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
     f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "draw", page: 3, x: 362, y: 224, w: 162, value: a.name }]),
-    f(FORM.fwOrder, "Distribution (copy goes to you)", [a.name, a.agConfidential === "yes" ? "" : myAddress(a)].filter(Boolean).join("\n"), "name"),
+    f(FORM.fwOrder, "Distribution: your name", a.name, "name"),
+    f(FORM.fwOrder, "Distribution: your address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : myAddress(a),
+      a.agConfidential === "yes" ? "agConfidential" : myAddressStep(a)),
   );
   return out;
 }
@@ -1048,6 +1062,16 @@ function wrapLines(text, font, size, op) {
 // For addresses (op.runOn), lines may run together ("street, city") before the
 // text is made smaller, so a 3-line address fits a form that has 2 lines.
 function fitLines(text, font, op) {
+  // A caption line (op.wrapYs): one line down to 9pt, then two lines.
+  if (op.wrapYs) {
+    const one = String(text).replace(/\s*\n+\s*/g, " ");
+    for (const size of SIZES.filter(x => x >= 9)) {
+      const lines = wrapLines(one, font, size, op);
+      if (lines.length === 1) return { size, lines, overflow: false };
+    }
+    const two = fitLines(one, font, { ...op, ys: op.wrapYs, wrapYs: null });
+    return { ...two, ys: op.wrapYs };
+  }
   const variants = op.runOn ? [text, String(text).replace(/\s*\n+\s*/g, ", ")] : [text];
   for (const size of SIZES) {
     for (const t of variants) {
@@ -1065,10 +1089,12 @@ function fitLines(text, font, op) {
 function fitField(text, font, rect, multiline, maxSize) {
   const width = Math.abs(rect.width) - 4, height = Math.abs(rect.height) - 2;
   const sizes = [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6];
-  const fitsLines = size => wrap(text, font, size, width).length * size * 1.15 <= height;
+  // pdf-lib lays out wrapped lines a little narrower than the box, so measure them with room to spare.
+  const wrapped = size => wrap(text, font, size, width - 4);
+  const fitsLines = size => wrapped(size).length * size * 1.15 <= height;
   if (!multiline) {
     for (const size of sizes.filter(s => s >= 7.5)) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
-    for (const size of sizes) if (fitsLines(size)) return { size, overflow: false, wrap: true };
+    for (const size of sizes) if (wrapped(size).length > 1 && fitsLines(size)) return { size, overflow: false, wrap: true };
     for (const size of sizes) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
     return { size: 6, overflow: true };
   }
@@ -1093,10 +1119,12 @@ async function buildPdf(key, a) {
   }
 
   for (const item of sit.fields(a)) {
-    const safe = makeSafe(font, (ch, out) => notes.push({ kind: "chars", step: item.step, label: item.label, ch, out }));
+    const safe = makeSafe(font, item.quietChars ? () => {} : (ch, out) => notes.push({ kind: "chars", step: item.step, label: item.label, ch, out }));
     for (const op of item.pdf) {
       if (op.t === "text") {
         const tf = form.getTextField(op.name);
+        if (op.align) tf.setAlignment(PDFLib.TextAlignment[op.align]);
+        if (op.multiline) tf.enableMultiline();
         const value = safe(op.value);
         tf.setText(value);
         if (!value) continue;
@@ -1109,8 +1137,13 @@ async function buildPdf(key, a) {
         });
         if (fits.some(x => x.wrap)) tf.enableMultiline();
         tf.setFontSize(Math.min(...fits.map(x => x.size)));
+        // pdf-lib's own line breaking leaves out the spaces when it measures, so its lines
+        // can run past the box edge. A field with one box gets our line breaks instead.
+        const widgets = tf.acroField.getWidgets();
+        if (widgets.length === 1 && tf.isMultiline())
+          tf.setText(wrap(value, font, fits[0].size, Math.abs(widgets[0].getRectangle().width) - 8).join("\n"));
         if (fits.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
-        else if (Math.min(...fits.map(x => x.size)) < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...fits.map(x => x.size)) });
+        else if (Math.min(...fits.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...fits.map(x => x.size)) });
       } else if (op.t === "radio") {
         form.getRadioGroup(op.name).select(op.option);
       } else if (op.t === "check") {
@@ -1153,7 +1186,8 @@ async function buildPdf(key, a) {
       (continuations[doc] = continuations[doc] || []).push({ label: op.continues, text: rest });
       notes.push({ kind: "continued", step: item.step, label: item.label, doc: off.docs[doc].name });
     }
-    fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: lineX0(op, i) + 2, y: op.ys[i] + 2.5, size: fit.size, font }));
+    const ys = fit.ys || op.ys;
+    fit.lines.forEach((line, i) => pages[op.page].drawText(line, { x: lineX0(op, i) + 2, y: ys[i] + 2.5, size: fit.size, font }));
     if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
     else if (fit.size < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size: fit.size });
   }
@@ -1183,7 +1217,7 @@ async function buildPdf(key, a) {
     for (const c of conts) { line(`Continued from: ${c.label}`, bold, 10, 15); line(c.text, f, 10, 14); y -= 10; }
     // Number the added pages after the form's own pages.
     const formPages = off.docs[docKey].pages.length;
-    added.forEach((pg, i) => pg.drawText(`Page ${formPages + i + 1} of ${formPages + added.length} (attachment to the ${off.docs[docKey].name})`, { x: 72, y: 40, size: 9, font: f }));
+    added.forEach((pg, i) => pg.drawText(`Page ${formPages + i + 1} (attachment page ${i + 1} of ${added.length} to the ${off.docs[docKey].name})`, { x: 72, y: 40, size: 9, font: f }));
   };
   const safeOut = makeSafe(font, () => {});
   const docs = sit.official.docs.map(k => ({ key: k, ...off.docs[k] }));
@@ -1321,7 +1355,7 @@ function pdfSectionHtml(sit) {
   return `
     <div class="downloads">
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
-      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
+      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` <span class="nowrap">(${esc(d.number)})</span>` : ""}</button>`).join("")}
     </div>
     ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code, and a proposed order under the "Proposed Order" filing code.</p>` : ""}
     <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>
@@ -1890,6 +1924,9 @@ function runChecks() {
   // Answers like "no" or "none" in fill-in boxes would print on the form.
   vis.filter(s => s.noWords && NO_WORDS.test(String(a[s.id] ?? "").trim())).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
+  // The case type is two letters, like CC or SC.
+  if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z]{2}$/i.test(a.caseTypeLetters.trim()))
+    flags.push({ level: "check", title: "Case type letters", why: "The form asks for the two letters that show the case type, like CC or SC. Check this against your case number.", fix: "caseTypeLetters" });
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
     handled.add(s.id);
@@ -1915,6 +1952,13 @@ function runChecks() {
   }
 
   if (sitKey === "feewaiver") {
+    if (a.agConfidential === "yes" && a.related !== "yes")
+      flags.push({ level: "check", title: "Attorney General confidential address", why: "The form says you may check this box if, in a related case, you have used the Attorney General confidential address, but you answered that there are no related cases. With this box checked, your Appearance has no address, email, phone or fax.", fix: "agConfidential" });
+    // E19: a related case number with no caption.
+    [1, 2, 3].forEach(i => {
+      if (a.related === "yes" && empty(a[`rel${i}Caption`]) && !empty(a[`rel${i}Number`]))
+        flags.push({ level: "check", title: `Related case ${i} caption`, why: `You gave a case number for related case ${i} but no caption (case name), so the number prints next to a blank line.`, fix: `rel${i}Caption` });
+    });
     if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k])))
       flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
     [["adults", "People over 18 who live with you"], ["children", "People under 18 who live with you"], ["supported", "People you financially support"]].forEach(([k, label]) => {
