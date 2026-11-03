@@ -2183,13 +2183,14 @@ const sortingKey = t => JSON.stringify(Object.entries(cleanTriage(t)).sort());
 const sortingInCopy = () => { try { const d = JSON.parse(store.get(STORE_KEY) || "null"); return !!d?.triageOnly && sortingKey(d.triage) === sortingKey(triage); } catch { return false; } };
 const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
-function clearEverywhere() { clearSaved(); store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); }
+// (The signal goes first, so other tabs reset before they hear the copy went, and say so once.)
+function clearEverywhere() { store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); clearSaved(); }
 // Deleting one form's answers also clears that form (and only that form) in other open tabs.
 function clearFormEverywhere(form) {
   // This form's copy, or sorting answers. If another tab saved a different form, that copy isn't this one to delete.
   let d = null; try { d = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
-  if (!d || d.triageOnly || d.sitKey === form) clearSaved();
   store.set(CLEAR_KEY, JSON.stringify({ at: Date.now(), form })); store.del(CLEAR_KEY);
+  if (!d || d.triageOnly || d.sitKey === form) clearSaved();
 }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
