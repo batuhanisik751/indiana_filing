@@ -2119,11 +2119,13 @@ function saveProgress() {
     try { prev = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
     // This page's copy of a form whose answers were all erased: an erased answer mustn't stay on the device.
     if (sitKey && prev && prev.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) { clearSaved(); prev = null; }
-    const picked = triageAnswered(triage);
+    // During a change from the summary the copy keeps the old answers until the person accepts the new ones.
+    const held = triageBeforeEdit || triage;
+    const picked = triageAnswered(held);
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
       // Reopening these answers isn't a change, so it doesn't restart the 30 days.
-      const same = prev && Number.isFinite(prev.savedAt) && JSON.stringify(cleanTriage(prev.triage)) === JSON.stringify(cleanTriage(triage));
-      saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
+      const same = prev && Number.isFinite(prev.savedAt) && sortingKey(prev.triage) === sortingKey(held);
+      saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage: held, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
       if (saveOk) savedHere = true;
     }
     return;
@@ -2137,6 +2139,9 @@ function saveProgress() {
       clearSaved();
       // The sorting answers that led to this form are still good.
       if (fromTriage && triageAnswered(triage)) saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
+    } else if (old && old.triageOnly && store.get(STORE_KEY) === lastWritten && fromTriage && triageAnswered(triage) && sortingKey(old.triage) !== sortingKey(triage)) {
+      // New sorting answers were accepted for a form with nothing in it yet.
+      saveOk = writeCopy(JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
     }
     return;
   }
