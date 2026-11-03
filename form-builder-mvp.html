@@ -2377,6 +2377,7 @@ const MONEY_IDS = new Set(["hourlyRate", "monthlyHours", "otherIncomeDesc", "oth
 function unsureAdvice(step) {
   const id = step.id;
   if (PROGRAM_IDS.test(id)) return "The Attorney General's office says to email confidential@atg.in.gov to learn more about the Address Confidentiality Program.";
+  if (id === "name" && sitKey !== "feewaiver") return "Use the same name the court has for you on your papers. Check your court papers, or get free legal help.";
   if (YOU_IDS.test(id)) return "This is about you, so there's nothing to look up.";
   if (id === "bank") return "Check your bank statements, or get free legal help.";
   if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
