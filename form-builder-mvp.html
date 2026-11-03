@@ -850,7 +850,8 @@ function feeWaiverFields(a) {
     f(FORM.caption, "Petitioner (you)", a.name, "name", [{ t: "text", name: "Name", value: a.name }, { t: "text", name: "Petitioner", value: a.name }]),
     f(FORM.caption, "Respondent", empty(a.otherPerson) ? "Left blank" : a.otherPerson, "otherPerson", [{ t: "text", name: "Respondent", value: a.otherPerson }]),
     f(FORM.fwAppearance, "1. My name is", a.name, "name"),
-    f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : myAddress(a), myAddressStep(a),
+    f(FORM.fwAppearance, "2. Address", a.agConfidential === "yes" ? "Left blank (Attorney General confidential address checked)" : myAddress(a),
+      a.agConfidential === "yes" ? "agConfidential" : myAddressStep(a),
       a.agConfidential === "yes" ? [] : [
         // Written on the four printed address lines (the field's box doesn't line up with them).
         { t: "lines", page: 0, x0: 180, x1: 396, ys: [403.3, 389.5, 375.7, 361.9], runOn: true, value: myAddress(a) },
@@ -1224,8 +1225,25 @@ function ensurePdf() {
     catch (e) { error = true; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
-    if (mode === "summary") { const y = window.scrollY; renderSummary(true); window.scrollTo(0, y); }
+    if (mode === "summary") { const y = window.scrollY; keepFocus(() => renderSummary(true)); window.scrollTo(0, y); }
   })();
+}
+
+// Re-drawing the summary replaces its buttons; put focus back on the same one.
+function keepFocus(redraw) {
+  const el = document.activeElement;
+  let find = null;
+  if (el && el !== document.body && app.contains(el)) {
+    const attr = el.id ? "id" : ["data-fix", "data-dl"].find(n => el.hasAttribute(n));
+    if (attr) {
+      const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
+      const i = [...app.querySelectorAll(sel)].indexOf(el);
+      find = () => app.querySelectorAll(sel)[i];
+    } else if (el.matches("h1, .status")) find = () => app.querySelector(el.matches("h1") ? "h1" : ".status");
+  }
+  redraw();
+  const target = find && find();
+  if (target) target.focus({ preventScroll: true });
 }
 
 // Problems found while putting answers on the PDF (text too long, characters the font can't print).
@@ -1620,9 +1638,11 @@ function triageResult(t) {
 let triage = {}, fromTriage = false;
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
-function startSituation(key) {
+// from: the screen the person chose the form on ("pick", "triage" or "notsure").
+function startSituation(key, from = "pick") {
+  const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
   // Coming back to the same form (for example with Back from its first question) keeps the answers.
-  if (sitKey === key && hasAnswers()) { cur = 0; mode = "step"; returnToSummary = false; return render(); }
+  if (sitKey === key && hasAnswers()) { cameFrom(); cur = 0; mode = "step"; returnToSummary = false; return render(); }
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
   if (prev) {
@@ -1632,6 +1652,7 @@ function startSituation(key) {
     if (!confirm(msg)) return;
     clearSaved();
   }
+  cameFrom();
   sitKey = key; steps = SITUATIONS[key].steps(); answers = {}; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 
@@ -1653,7 +1674,7 @@ function renderTriage() {
     };
     document.getElementById("back").onclick = () => {
       const answered = triageVisible().filter(s => triage[s.id]);
-      if (!answered.length) { mode = "pick"; return render(); }
+      if (!answered.length) { mode = fromNotSure ? "notsure" : "pick"; return render(); }
       delete triage[answered[answered.length - 1].id]; render();
     };
     return;
@@ -1668,7 +1689,7 @@ function renderTriage() {
     <div class="note">This tool shows what official sources say about your kind of papers. It can't tell you what to do in your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>
     <div class="nav"><button class="ghost" id="back">Back</button></div>`;
   app.querySelector("h1").focus();
-  app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => { fromTriage = true; startSituation(b.dataset.start); });
+  app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
   document.getElementById("back").onclick = () => {
     const answered = triageVisible().filter(s => triage[s.id]);
     delete triage[answered[answered.length - 1].id]; render();
@@ -1709,7 +1730,7 @@ function readSaved() {
 // Only the question screens and the summary hold answers worth saving.
 function saveProgress() {
   if (!savingOn() || !sitKey || (mode !== "step" && mode !== "summary")) return;
-  saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, savedAt: Date.now(), sitKey, answers, unsure, cur, mode, triage, fromTriage,
+  saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, savedAt: Date.now(), sitKey, answers, unsure, cur, mode, triage, fromTriage, fromNotSure,
     draft: mode === "step" ? draft : null }));
 }
 function clearSaved() { store.del(STORE_KEY); }
@@ -1718,7 +1739,7 @@ function restoreSaved(d) {
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
   if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) answers[d.draft.id] = d.draft.value;
-  triage = strings(d.triage); fromTriage = d.fromTriage === true;
+  triage = strings(d.triage); fromTriage = d.fromTriage === true; fromNotSure = d.fromNotSure === true;
   cur = Number.isInteger(d.cur) && d.cur > 0 ? d.cur : 0; returnToSummary = false;
   mode = d.mode === "summary" ? "summary" : "step";
   render();
@@ -1745,12 +1766,15 @@ window.addEventListener("storage", e => {
 let sitKey = null, steps = [], answers = {};
 let mode = "pick", cur = 0, returnToSummary = false, lastEdited = null;
 let unsure = {}; // questions the person marked "I'm not sure"
+let fromNotSure = false; // came here from "Which one fits?"
+let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
+let fixFrom = null;      // where on the summary the person tapped Fix or Edit ("flags" or "vals")
 const app = document.getElementById("app");
 
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
-  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; fromTriage = false;
-  cur = 0; returnToSummary = false; lastEdited = null; draft = null;
+  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; fromTriage = false; fromNotSure = false;
+  cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null;
   pdfState = { key: null, result: null, error: false, busy: false };
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
@@ -1901,9 +1925,8 @@ function renderPick() {
   }
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => {
-    if (SITUATIONS[b.dataset.k].triage) { triage = {}; mode = "triage"; return render(); }
-    fromTriage = false;
-    startSituation(b.dataset.k);
+    if (SITUATIONS[b.dataset.k].triage) { triage = {}; fromNotSure = false; mode = "triage"; return render(); }
+    startSituation(b.dataset.k, "pick");
   });
   app.querySelector("h1").focus?.();
 }
@@ -1932,8 +1955,8 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (SITUATIONS[k].triage) { triage = {}; mode = "triage"; return render(); }
-    fromTriage = false; startSituation(k);
+    if (SITUATIONS[k].triage) { triage = {}; fromNotSure = true; mode = "triage"; return render(); }
+    startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
 }
@@ -1978,9 +2001,10 @@ function renderStep() {
     <p class="need" id="unsureHelp">${unsure[step.id] ? "You marked this \"I'm not sure.\" Answer it any time; until then it is flagged at the end." : "Not sure? Skip it for now. It will be flagged at the end so you can check your papers or get help."}</p>`;
   const el = app.querySelector("#ans, input[name=ans]:checked, input[name=ans]"); if (el) el.focus();
   document.getElementById("back").onclick = () => {
-    if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
     readInput(step); // keep what was typed
-    if (cur === 0) { mode = fromTriage ? "triage" : "pick"; return render(); }
+    if (!empty(answers[step.id])) delete unsure[step.id];
+    if (returnToSummary) { followUps = []; returnToSummary = false; mode = "summary"; return render(); }
+    if (cur === 0) { mode = fromTriage ? "triage" : fromNotSure ? "notsure" : "pick"; return render(); }
     cur--; render();
   };
   document.getElementById("next").onclick = () => save(step);
@@ -2002,6 +2026,14 @@ function readInput(step) {
 }
 
 // "I'm not sure": leave the answer blank, remember it, and move on.
+// After an edit, go to the next question that edit opened, if any is still unanswered.
+function nextFollowUp() {
+  const vis = visible();
+  const next = vis.find(s => followUps.includes(s.id) && empty(answers[s.id]) && !unsure[s.id]);
+  if (!next) { followUps = []; return false; }
+  cur = vis.indexOf(next); render(); return true;
+}
+
 function markUnsure(step) {
   readInput(step);
   if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
@@ -2009,11 +2041,16 @@ function markUnsure(step) {
   unsure[step.id] = true;
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
-  if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
+  if (returnToSummary) {
+    followUps = followUps.filter(id => id !== step.id);
+    if (nextFollowUp()) return;
+    returnToSummary = false; mode = "summary"; return render();
+  }
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
 }
 
 function save(step) {
+  const before = new Set(visible().map(s => s.id));
   readInput(step);
   if (!empty(answers[step.id])) delete unsure[step.id];
   const v = answers[step.id];
@@ -2028,18 +2065,19 @@ function save(step) {
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {
     // A changed answer can open follow-up questions (for example "Yes, there
-    // are related cases"). Ask those before going back to the summary.
-    const next = vis.slice(idx + 1).find(s => s.showIf && s.showIf(answers) && empty(answers[s.id]) && !s.optional);
-    if (next) { cur = vis.indexOf(next); return render(); }
+    // are related cases"). Ask those, and only those, before going back to the summary.
+    followUps = followUps.filter(id => id !== step.id);
+    vis.forEach(s => { if (!before.has(s.id) && !s.optional && empty(answers[s.id])) followUps.push(s.id); });
+    if (nextFollowUp()) return;
     returnToSummary = false; mode = "summary"; return render();
   }
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
 }
 
-function goFix(id) {
+function goFix(id, from = "vals") {
   const idx = visible().findIndex(s => s.id === id);
   if (idx < 0) return;
-  lastEdited = id;
+  lastEdited = id; fixFrom = from; followUps = [];
   cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
 }
 
@@ -2064,7 +2102,7 @@ function renderSummary(rerender = false) {
     <div class="bar"><span style="width:100%"></span></div>
     <div class="barlabel"><span>Summary</span><span>Done</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
-    <div class="status ${ready ? "ready" : "notready"}">
+    <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
       <strong>${ready ? "Nothing to review." : `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing`}</strong>
       ${ready ? "Read it over once more before you file it yourself." : `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.`}
     </div>
@@ -2096,7 +2134,7 @@ function renderSummary(rerender = false) {
     </div>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
-  app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => goFix(b.dataset.fix));
+  app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => goFix(b.dataset.fix, b.closest("ul.flags") ? "flags" : "vals"));
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
     if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
@@ -2104,10 +2142,13 @@ function renderSummary(rerender = false) {
   };
   wirePdfSection(sit);
   if (rerender) return;
-  // After an edit, bring the user back to the row they changed.
-  const back = lastEdited && app.querySelector(`dl.vals [data-fix="${lastEdited}"]`);
+  // After an edit, bring the user back where they were: the flag they fixed
+  // (or the review count, if that flag is gone), or the row they changed.
+  const back = lastEdited && (fixFrom === "flags"
+    ? app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
+    : app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
-  lastEdited = null;
+  lastEdited = null; fixFrom = null;
 }
 
 function render() {
