@@ -2021,6 +2021,8 @@ function renderTriage() {
 // Back in the sorting questions goes to the previous screen, with its answer selected.
 function triageBack() {
   if (triageHist.length) { triagePrev = { ...triagePrev, ...triage }; triage = triageHist.pop(); return render(); }
+  // A card answered the kind of case during a change: Back returns to where the card was, not to the same question.
+  if (triageFromSummary && triage.kind && !triageAnswered(triage)) { triage = {}; mode = fromNotSure ? "notsure" : "pick"; return render(); }
   const answered = triageVisible().filter(s => triage[s.id]);
   if (triageFromSummary && triageBeforeEdit && !answered.length) {
     // C11: changing the answers from the summary, then going back: return to the summary unchanged.
