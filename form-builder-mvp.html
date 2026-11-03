@@ -109,6 +109,10 @@ dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: an
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }
+ol.steps { padding-left: 1.4rem; margin: 0 0 1rem; }
+ol.steps li { margin: 0 0 1rem; }
+ol.steps p { margin: .25rem 0 0; }
+ol.steps .srcs { font-size: .85rem; }
 .downloads { display: grid; gap: .6rem; margin: .5rem 0 1rem; }
 .downloads button { width: 100%; }
 .preview figure { margin: 0 0 1rem; }
@@ -948,6 +952,85 @@ function wirePdfSection(sit) {
 }
 
 /* =====================================================================
+   NEXT STEPS
+   What to do after downloading. Every statement comes from an official
+   Indiana source, named in the text and linked.
+   ===================================================================== */
+const SOURCES = {
+  answerInstructions: { href: LINKS.answerInstructions, text: "Indiana Legal Help: Answer instructions" },
+  respond: { href: "https://indianalegalhelp.org/respond-after-a-case-is-filed/", text: "Indiana Legal Help: Respond After a Case is Filed" },
+  inPerson: { href: LINKS.fileInPerson, text: "Indiana Legal Help: How to File Forms with the Court in Person" },
+  efile: { href: LINKS.efile, text: "Indiana Legal Help: How to Electronically File Forms with the Court" },
+  efileGuide: { href: "https://www.in.gov/courts/files/efiling-user-guide.pdf", text: "Indiana E-Filing User Guide" },
+  waiverAccount: { href: "https://www.in.gov/courts/tutorials/efile-creating-waiver-account/", text: "How to create a waiver account" },
+  feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
+  smallClaims: { href: "https://www.in.gov/courts/files/small-claims-manual.pdf", text: "Indiana Small Claims Manual" },
+  newDate: { href: LINKS.continuance, text: "Indiana Legal Help: How to Ask for a New Court Date" },
+  mycase: { href: "https://mycase.in.gov/", text: "mycase.in.gov" },
+  directory: { href: LINKS.courtDirectory, text: "Indiana court directory" },
+  getHelp: { href: LINKS.getHelp, text: "Find free legal help" },
+};
+
+function nextSteps(key, a) {
+  const efile = a.fileMethod === "efile";
+  const { packet, docs } = SITUATIONS[key].official;
+  const pages = new Set(docs.flatMap(d => OFFICIAL[packet].docs[d].pages));
+  const signLines = OFFICIAL[packet].signatures.filter(s => pages.has(s.page)).length;
+  const docNames = docs.map(d => OFFICIAL[packet].docs[d].name);
+  const list = docNames.length > 1 ? `${docNames.slice(0, -1).join(", ")} and ${docNames[docNames.length - 1]}` : docNames[0];
+  const lines = signLines === 1 ? "the signature line" : signLines === 2 ? "both signature lines" : `all ${signLines} signature lines`;
+  const out = [];
+
+  if (key === "respond") out.push({
+    title: "Check your deadline",
+    body: "Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says that if you don't file an Answer when you should, the court might decide the case without you.",
+    links: [SOURCES.answerInstructions, SOURCES.respond] });
+
+  if (key === "feewaiver") out.push({
+    title: "File these with the forms that start your case",
+    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The E-Filing User Guide says that when you e-file, you submit the fee waiver request with your initial filing. The judge decides: the Order form lets the judge waive the whole fee, or require part of it to be paid within 20 days.",
+    links: [SOURCES.feeFaq, SOURCES.efileGuide] });
+
+  out.push(efile
+    ? { title: "Your signature", body: `Your forms are signed with "/s/ ${a.name || "your name"}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`, links: [SOURCES.efileGuide] }
+    : { title: "Sign by hand", body: `Print the forms and sign ${lines}. Indiana Legal Help says forms must be signed before they are filed.`, links: [SOURCES.inPerson] });
+
+  out.push(efile
+    ? { title: "File online", body: `${docNames.length > 1 ? `Upload each form on its own (${list}). The E-Filing User Guide says each document is filed under its own filing code, and explains` : `Upload your ${list} through an e-filing provider. The E-Filing User Guide explains`} how to choose an e-filing provider and set up a free account.${key === "feewaiver" ? " To file without paying, the guide says to set up a waiver account with your provider and choose it as the payment account." : ""}`,
+        links: [SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount] : [])] }
+    : { title: "File at the courthouse", body: "Bring the printed forms to the court where they need to be filed. Indiana Legal Help says courts differ on copies: some ask for one, two or three copies of each document, so you may want to contact the court first.",
+        links: [SOURCES.inPerson, SOURCES.directory] });
+
+  if (key !== "feewaiver") out.push({
+    title: "Filing fee",
+    body: "Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. Ask the clerk if you're not sure.",
+    links: [SOURCES.feeFaq] });
+
+  out.push(key === "feewaiver"
+    ? { title: "Serving the other side", body: "The fee waiver forms say there is no other party to serve.", links: [] }
+    : { title: "Send a copy to the other side", body: "Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. Send each copy the way and on the date you listed in the Certificate of Service.", links: [SOURCES.answerInstructions] });
+
+  if (key !== "feewaiver") out.push({
+    title: "Go to every court date",
+    body: "Check your papers for your court date. You can also look up your case at mycase.in.gov. In small claims court, the Small Claims Manual says that if the defendant does not appear, the plaintiff can ask for a default judgment. If you need a new date, Indiana Legal Help says asking doesn't change it: only an order signed by the judge can change a court date or time.",
+    links: [SOURCES.mycase, SOURCES.smallClaims, SOURCES.newDate] });
+
+  out.push({ title: "Get free help", body: "Indiana Legal Help can connect you with free and low-cost legal help near you.", links: [SOURCES.getHelp, SOURCES.directory] });
+  return out;
+}
+
+function nextStepsHtml(key, a) {
+  return `
+    <h2 class="sub">What to do next</h2>
+    <ol class="steps">${nextSteps(key, a).map(s => `
+      <li><strong>${esc(s.title)}</strong>
+        <p>${esc(s.body)}</p>
+        ${s.links.length ? `<p class="srcs">${s.links.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}</p>` : ""}
+      </li>`).join("")}
+    </ol>`;
+}
+
+/* =====================================================================
    APP STATE
    ===================================================================== */
 let sitKey = null, steps = [], answers = {};
@@ -1188,6 +1271,7 @@ function renderSummary(rerender = false) {
 
     <h2 class="sub">Your filled form</h2>
     ${pdfSectionHtml(sit)}
+    ${nextStepsHtml(sitKey, a)}
 
     <h2 class="sub">What goes on your official forms</h2>
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank.</p>
