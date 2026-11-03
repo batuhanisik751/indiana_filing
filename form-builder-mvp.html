@@ -116,6 +116,7 @@ dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .resume span { color: var(--muted); font-size: .95rem; }
 .resume .nav { margin-top: .75rem; }
 .savepref { margin-top: 1rem; font-size: .95rem; }
+button.unsure { width: 100%; margin-top: .6rem; font-weight: 400; }
 .savepref small { display: block; color: var(--muted); font-size: .85rem; }
 ol.steps { padding-left: 1.4rem; margin: 0 0 1rem; }
 ul.facts { padding-left: 1.2rem; margin: 0 0 .75rem; }
@@ -1790,9 +1791,15 @@ function runChecks() {
   }
 
   // Certificate of service: name, address, method and date for each person.
-  vis.filter(s => s.service).forEach(s => {
+  vis.filter(s => s.service && !(unsure[s.id] && empty(a[s.id]))).forEach(s => {
     handled.add(s.id);
     if (empty(a[s.id])) flags.push({ level: "missing", title: "Certificate of Service", why: `"${s.label}" is blank.`, fix: s.id });
+  });
+
+  // Questions the person marked "I'm not sure" and hasn't answered since.
+  vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
+    handled.add(s.id);
+    flags.push({ level: "check", title: s.label, why: "You marked this \"I'm not sure.\" Check your court papers, look up your case at mycase.in.gov, or get free help, then come back and answer it.", fix: s.id, unsure: true });
   });
 
   // Everything else that is required but blank.
@@ -1800,7 +1807,8 @@ function runChecks() {
     if (handled.has(s.id) || s.optional) return;
     if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, why: "This is blank.", fix: s.id });
   });
-  return flags;
+  const unsureIds = new Set(flags.filter(f => f.unsure).map(f => f.fix));
+  return flags.filter(f => f.unsure || !(f.level === "missing" && unsureIds.has(f.fix)));
 }
 
 /* ---------- screens ---------- */
@@ -1815,6 +1823,7 @@ function renderPick() {
     <h1>What do you need to do?</h1>
     <p class="help">Pick the one that fits. We'll ask one question at a time and fill in the official court form for you.</p>
     ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
+    <button class="pick" id="notSure"><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>On a shared or public computer, like a library or courthouse kiosk, uncheck this. Saved answers are deleted after ${MAX_AGE_DAYS} days.</small></span></label>`;
@@ -1827,12 +1836,43 @@ function renderPick() {
     document.getElementById("resume").onclick = () => restoreSaved(saved);
     document.getElementById("discard").onclick = () => { clearSaved(); render(); };
   }
-  app.querySelectorAll(".pick").forEach(b => b.onclick = () => {
+  document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
+  app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => {
     if (SITUATIONS[b.dataset.k].triage) { triage = {}; mode = "triage"; return render(); }
     fromTriage = false;
     startSituation(b.dataset.k);
   });
   app.querySelector("h1").focus?.();
+}
+
+// "I'm not sure which one fits": match the choices to what the person has
+// in hand (facts, not advice), or point them to help.
+const NOT_SURE = [
+  ["eviction", "You got eviction papers, for example a \"Notice of Claim\" from a landlord"],
+  ["respond", "You got a \"Complaint\" (it may come with a \"Summons\") and need to respond to it"],
+  ["appearance", "You're being sued and only want to give the court your contact information"],
+  ["continuance", "You have a court date you can't make"],
+  ["feewaiver", "You want to start a case but can't afford the filing fee"],
+];
+function renderNotSure() {
+  app.innerHTML = `
+    <h1 tabindex="-1">Which one fits?</h1>
+    <p class="help">Look at the papers you have. Pick the description that matches.</p>
+    ${NOT_SURE.map(([k, text]) => `<button class="pick" data-go="${k}"><strong>${esc(text)}</strong><span>${esc(SITUATIONS[k].pick)}</span></button>`).join("")}
+    <h2 class="sub">None of these, or still not sure?</h2>
+    <ul class="facts">
+      <li>Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Find free legal help</a></li>
+      <li>Indiana's court staff page says staff can explain and answer questions about how the court works, and give you information from your case file, but cannot give legal advice. <a href="https://www.in.gov/courts/selfservice/unrepresented/help" target="_blank" rel="noopener">How court staff can help</a> · <a href="${LINKS.courtDirectory}" target="_blank" rel="noopener">Indiana court directory</a></li>
+      <li>You can look up your case at <a href="https://mycase.in.gov/" target="_blank" rel="noopener">mycase.in.gov</a>.</li>
+    </ul>
+    <div class="nav"><button class="ghost" id="back">Back</button></div>`;
+  app.querySelector("h1").focus();
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+    const k = b.dataset.go;
+    if (SITUATIONS[k].triage) { triage = {}; mode = "triage"; return render(); }
+    fromTriage = false; startSituation(k);
+  });
+  document.getElementById("back").onclick = () => { mode = "pick"; render(); };
 }
 
 function renderStep() {
@@ -1870,7 +1910,9 @@ function renderStep() {
     <div class="nav">
       <button class="ghost" id="back">${returnToSummary ? "Back to summary" : "Back"}</button>
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
-    </div>`;
+    </div>
+    <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
+    <p class="need" id="unsureHelp">${unsure[step.id] ? "You marked this \"I'm not sure.\" Answer it any time; until then it is flagged at the end." : "Not sure? Skip it for now. It will be flagged at the end so you can check your papers or get help."}</p>`;
   const el = app.querySelector("#ans, input[name=ans]:checked, input[name=ans]"); if (el) el.focus();
   document.getElementById("back").onclick = () => {
     if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
@@ -1879,6 +1921,7 @@ function renderStep() {
     cur--; render();
   };
   document.getElementById("next").onclick = () => save(step);
+  document.getElementById("unsure").onclick = () => markUnsure(step);
   app.querySelectorAll("input, select").forEach(i => i.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.repeat || e.isComposing) return;
     e.preventDefault(); save(step);
@@ -1892,8 +1935,19 @@ function readInput(step) {
   answers[step.id] = val;
 }
 
+// "I'm not sure": leave the answer blank, remember it, and move on.
+function markUnsure(step) {
+  answers[step.id] = "";
+  unsure[step.id] = true;
+  const vis = visible();
+  const idx = vis.findIndex(s => s.id === step.id);
+  if (returnToSummary) { returnToSummary = false; mode = "summary"; return render(); }
+  if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
+}
+
 function save(step) {
   readInput(step);
+  if (!empty(answers[step.id])) delete unsure[step.id];
   const v = answers[step.id];
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v)) {
     document.getElementById("err").textContent = step.type === "money"
@@ -1990,7 +2044,7 @@ function renderSummary(rerender = false) {
 }
 
 function render() {
-  ({ pick: renderPick, triage: renderTriage, step: renderStep, summary: renderSummary })[mode]();
+  ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
   saveProgress();
   updatePrivacyNote();
 }

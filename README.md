@@ -4,6 +4,8 @@
 
 The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
 
+Every question also has an "I'm not sure" button: the question is left blank, remembered, and flagged on the summary until it's answered.
+
 At the end, people can preview the filled official form and download it as a PDF: all forms together to print, or each form on its own to e-file (Indiana's E-Filing User Guide says each document is filed under its own filing code). People who e-file can sign with "/s/" and their name, which the guide allows; people who file on paper get blank signature lines to sign by hand.
 
 Below the download, "What to do next" lists the steps for that situation and filing method: deadline, signing, filing online or at the courthouse, fees, sending copies, court dates and free help. Every statement names and links its official Indiana source (Indiana Legal Help, the Indiana E-Filing User Guide, the Small Claims Manual).
@@ -14,6 +16,7 @@ MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built
 
 | Situation | Official forms it fills |
 |---|---|
+| I'm not sure which one fits | Matches each choice to the papers the person has, and points to free legal help, court staff and mycase.in.gov |
 | I got eviction papers | Asks what the main paper is called (Notice of Claim or Complaint) and whether the person can make their court date, explains what official sources say about that kind of case, and lets the person choose: the Appearance, the Appearance and Answer, or the continuance forms |
 | I'm being sued and need to respond to the complaint | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) and Answer (CCA-GF-0626-6008) |
 | I'm being sued and want to tell the court I'm representing myself | Appearance by Self-Represented Person in Civil Case (CCA-GF-1225-6003) |
