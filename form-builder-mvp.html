@@ -2239,13 +2239,15 @@ window.addEventListener("storage", e => {
     try { const v = JSON.parse(e.newValue); if (v && typeof v === "object" && typeof v.form === "string") form = v.form; } catch { /* a plain time */ }
     if (form && form.startsWith("sorting:")) {
       // Saved sorting answers were deleted: a tab still holding them clears too, or its next click saves them again.
-      if (!sitKey && (triageAnswered(triage) || (mode === "triage" && triageTouched)) && sortingTag(triage) === form) {
-        const title = kindOf(triage).pick;
-        resetAnswers(); mode = "pick"; render();
+      const held = triageBeforeEdit || triage;
+      if (!hasAnswers() && (triageAnswered(held) || (mode === "triage" && triageTouched)) && sortingTag(held) === form) {
+        const title = kindOf(held).pick;
+        if (sitKey && (mode === "step" || mode === "summary")) {
+          // On a form with nothing in it yet: it stays open, without those answers.
+          triage = {}; triagePrev = {}; triageHist = []; fromTriage = false; triageBeforeEdit = null; triageFromSummary = false;
+          if (mode === "summary") render();
+        } else { resetAnswers(); mode = "pick"; render(); }
         announce(`Your answers for "${title}" were deleted in another tab.`);
-      } else if (sitKey && fromTriage && !hasAnswers() && sortingTag(triage) === form) {
-        // On a form with nothing in it yet, reached from those answers: the next save mustn't bring them back.
-        triage = {}; triagePrev = {}; triageHist = []; fromTriage = false;
       } else if (mode === "pick") renderPick(true);
       return;
     }
