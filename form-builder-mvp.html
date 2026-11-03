@@ -43,7 +43,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Atkins
 header.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
 .brand { font-weight: 700; font-size: 1rem; }
 .topright { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; text-align: right; }
-.helplink { font-weight: 700; font-size: .95rem; }
+.helplink { font-weight: 700; font-size: .95rem; display: inline-block; padding: .5rem 0; }
+footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
+footer li { margin: 0 0 .35rem; }
 .privacy { font-size: .85rem; color: var(--muted); text-align: right; }
 button.cleardata { font-size: .85rem; font-weight: 700; padding: .5rem 0; }
 h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }
@@ -145,7 +147,14 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
     </span>
   </header>
   <main id="app"></main>
-  <footer>Fills official Indiana court forms approved by the Coalition for Court Access, published on <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">IndianaLegalHelp.org</a>. This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</footer>
+  <footer>
+    <strong>More free help</strong>
+    <ul>
+      <li><a href="https://indianalegalhelp.org/get-help/" target="_blank" rel="noopener">Find free and low-cost legal help near you</a> by ZIP code or county (Indiana Legal Help)</li>
+      <li><a href="https://indiana.freelegalanswers.org/" target="_blank" rel="noopener">Ask a legal question online</a>, answered by private attorneys at no cost, if you are eligible (listed on the Indiana courts' Self-Service Legal Center)</li>
+      <li><a href="https://www.in.gov/courts/selfservice/unrepresented/help" target="_blank" rel="noopener">What court staff can help with</a> and the <a href="https://www.in.gov/courts/selfservice/" target="_blank" rel="noopener">Indiana courts' Self-Service Legal Center</a></li>
+    </ul>
+    Fills official Indiana court forms approved by the Coalition for Court Access, published on <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">IndianaLegalHelp.org</a>. This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</footer>
 </div>
 
 <script>
@@ -1585,13 +1594,13 @@ function nextStepsHtml(key, a) {
    Every statement names its official source.
    ===================================================================== */
 const TRIAGE_STEPS = [
-  { id: "paper", q: "What is the main paper you got called?",
+  { id: "paper", label: "Main paper you got", q: "What is the main paper you got called?",
     help: "Look at the title near the top of the first page.",
     options: [["notice", "Notice of Claim"], ["complaint", "Complaint (it may come with a Summons)"], ["unsure", "Something else, or I'm not sure"]] },
-  { id: "canGo", showIf: t => t.paper === "notice",
+  { id: "canGo", label: "Can you go to court on that date", showIf: t => t.paper === "notice",
     q: "Can you go to court at the date and time on your Notice of Claim?",
     help: "The date and time are printed on the Notice of Claim.",
-    options: [["yes", "Yes"], ["no", "No, I need to ask for a new date"]] },
+    options: [["yes", "Yes"], ["no", "No, I need to ask for a new date"], ["unsure", "I'm not sure"]] },
 ];
 
 const SMALL_CLAIMS_FACTS = [
@@ -1605,8 +1614,11 @@ const SMALL_CLAIMS_FACTS = [
 function triageResult(t) {
   if (t.paper === "notice") return {
     title: "Small claims eviction: what fits",
-    facts: SMALL_CLAIMS_FACTS,
-    sources: [SOURCES.smallClaims, { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" }, SOURCES.respond],
+    facts: t.canGo === "unsure" ? [...SMALL_CLAIMS_FACTS,
+      "Not sure about your court date? It is printed on your Notice of Claim. You can also look up your case at mycase.in.gov, and Indiana's court staff page says staff can give you information from your case file, including when your next court hearing is."]
+      : SMALL_CLAIMS_FACTS,
+    sources: [SOURCES.smallClaims, { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" }, SOURCES.respond,
+      ...(t.canGo === "unsure" ? [SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }] : [])],
     choices: t.canGo === "no"
       ? [["continuance", "Ask the court to move my court date", "Fills the official Appearance and Verified Motion for Continuance."],
          ["appearance", "Fill out the Appearance only", "Gives the court your contact information."]]
@@ -1632,17 +1644,24 @@ function triageResult(t) {
     ],
     sources: [SOURCES.mycase, { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" }, SOURCES.directory, SOURCES.getHelp],
     choices: [],
+    papers: [["notice", "My paper says \"Notice of Claim\""], ["complaint", "My paper says \"Complaint\""]],
   };
 }
 
 let triage = {}, fromTriage = false;
+let triagePrev = {};            // earlier sorting answers, pre-selected when changing them
+let triageFromSummary = false;  // the person is changing their sorting answers from the summary
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
 // from: the screen the person chose the form on ("pick", "triage" or "notsure").
 function startSituation(key, from = "pick") {
   const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
   // Coming back to the same form (for example with Back from its first question) keeps the answers.
-  if (sitKey === key && hasAnswers()) { cameFrom(); cur = 0; mode = "step"; returnToSummary = false; return render(); }
+  if (sitKey === key && hasAnswers()) {
+    cameFrom(); cur = 0; returnToSummary = false;
+    mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false; return render();
+  }
+  triageFromSummary = false;
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
   if (prev) {
@@ -1663,10 +1682,10 @@ function renderTriage() {
       <h2 class="q" id="q" tabindex="-1">${esc(step.q)}</h2>
       <p class="help">${esc(step.help)}</p>
       <div class="choices" role="radiogroup" aria-labelledby="q">${step.options.map(([val, lab]) =>
-        `<label class="choice"><input type="radio" name="ans" value="${esc(val)}"><span>${esc(lab)}</span></label>`).join("")}</div>
+        `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${triagePrev[step.id] === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>
       <p class="err" id="err" role="alert"></p>
       <div class="nav"><button class="ghost" id="back">Back</button><button class="primary" id="next">Continue</button></div>`;
-    app.querySelector("#q").focus();
+    (app.querySelector("input[name=ans]:checked") || app.querySelector("#q")).focus();
     document.getElementById("next").onclick = () => {
       const c = app.querySelector("input[name=ans]:checked");
       if (!c) { document.getElementById("err").textContent = "Pick one to continue."; return; }
@@ -1686,10 +1705,16 @@ function renderTriage() {
     <p class="srcs">${r.sources.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}</p>
     ${r.choices.length ? `<h2 class="sub">Choose what you want to do</h2>
       ${r.choices.map(([k, label, blurb]) => `<button class="pick" data-start="${k}"><strong>${esc(label)}</strong><span>${esc(blurb)}</span></button>`).join("")}` : ""}
+    ${r.papers ? `<h2 class="sub">Found the title?</h2>
+      ${r.papers.map(([k, label]) => `<button class="pick" data-paper="${k}"><strong>${esc(label)}</strong></button>`).join("")}
+      <button class="pick" id="allChoices"><strong>See all the choices</strong><span>Go back to the first screen.</span></button>` : ""}
     <div class="note">This tool shows what official sources say about your kind of papers. It can't tell you what to do in your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>
     <div class="nav"><button class="ghost" id="back">Back</button></div>`;
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startSituation(b.dataset.start, "triage"));
+  app.querySelectorAll("[data-paper]").forEach(b => b.onclick = () => { triage.paper = b.dataset.paper; render(); });
+  const all = document.getElementById("allChoices");
+  if (all) all.onclick = () => { mode = "pick"; render(); };
   document.getElementById("back").onclick = () => {
     const answered = triageVisible().filter(s => triage[s.id]);
     delete triage[answered[answered.length - 1].id]; render();
@@ -1773,7 +1798,7 @@ const app = document.getElementById("app");
 
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
-  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; fromTriage = false; fromNotSure = false;
+  sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageFromSummary = false; fromTriage = false; fromNotSure = false;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null;
   pdfState = { key: null, result: null, error: false, busy: false };
 }
@@ -1925,7 +1950,7 @@ function renderPick() {
   }
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => {
-    if (SITUATIONS[b.dataset.k].triage) { triage = {}; fromNotSure = false; mode = "triage"; return render(); }
+    if (SITUATIONS[b.dataset.k].triage) { triage = {}; triagePrev = {}; fromNotSure = false; mode = "triage"; return render(); }
     startSituation(b.dataset.k, "pick");
   });
   app.querySelector("h1").focus?.();
@@ -1955,7 +1980,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (SITUATIONS[k].triage) { triage = {}; fromNotSure = true; mode = "triage"; return render(); }
+    if (SITUATIONS[k].triage) { triage = {}; triagePrev = {}; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
@@ -2111,6 +2136,9 @@ function renderSummary(rerender = false) {
       <span class="flagtext">${esc(x.title)}<small>${esc(x.why)}</small></span>
       ${x.fix ? `<button class="ghost small" data-fix="${x.fix}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
+    ${fromTriage && triage.paper ? `<div class="note">You started from "I got eviction papers." ${triageVisible().filter(s => triage[s.id]).map(s =>
+      `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
+      <button class="link" id="editTriage">Change these answers</button></div>` : ""}
 
     <h2 class="sub">Your filled form</h2>
     ${pdfSectionHtml(sit)}
@@ -2140,6 +2168,8 @@ function renderSummary(rerender = false) {
     if (!confirm("Start over? This clears every answer you have entered, including any saved on this device.")) return;
     clearSaved(); resetAnswers(); mode = "pick"; render();
   };
+  const et = document.getElementById("editTriage");
+  if (et) et.onclick = () => { triagePrev = { ...triage }; triage = {}; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
   if (rerender) return;
   // After an edit, bring the user back where they were: the flag they fixed
