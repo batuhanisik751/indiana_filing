@@ -1653,6 +1653,7 @@ const SOURCES = {
   getHelp: { href: LINKS.getHelp, text: "Find free legal help" },
   helpDesk: { href: LINKS.helpDesk, text: "Indiana Legal Help Desk" },
   answerTopic: { href: LINKS.answerTopic, text: "Indiana Legal Help: Answer" },
+  courtStaff: { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" },
   evictionFaq: { href: "https://indianalegalhelp.org/eviction-frequently-asked-questions/", text: "Indiana Legal Help: Eviction Frequently Asked Questions" },
   proSup: { href: "https://www.indianalegalservices.org/debt-collection-pro-sup/", text: "Indiana Legal Services: Guide to Proceedings Supplemental" },
   efileSchedule: { href: "https://www.in.gov/courts/efiling/schedule/", text: "Which case types can be e-filed" },
@@ -1761,16 +1762,22 @@ function nextSteps(key, a) {
     : fromTriage && triage.kind !== "smallclaims" ? kindOf(triage) === CASE_KINDS.eviction : null;
   const missFact = eviction === false ? ""
     : `${eviction ? "" : "In an eviction case, "}Indiana Legal Help's Eviction FAQ says that if you don't show up to your hearing, the court can rule against you without hearing your side of the story (a default judgment).`;
-  const missLinks = missFact ? [SOURCES.evictionFaq] : [];
+  // Superior and circuit court cases that aren't evictions: no official source this tool uses says what
+  // missing a hearing can mean, so the tool says that and points to who can answer, instead of guessing.
+  const notSmallClaims = letters ? !["SC", "EV"].includes(letters) : fromTriage && paperOf(triage) === "complaint";
+  const noSourceFact = eviction === true || smallClaims ? ""
+    : `${notSmallClaims && eviction === false ? "The official sources this tool uses don't say what can happen if you miss a hearing in this kind of case."
+      : "In other kinds of cases, the official sources this tool uses don't say what can happen if you miss a hearing."} Indiana's court staff page says staff can explain and answer questions about how the court works, but cannot give legal advice. You can ask free legal help what it could mean for your case.`;
+  const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.courtStaff, SOURCES.getHelp] : [])];
   const defaultFact = `${ifSC}, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
   const dismissFact = `${ifSC}, the Small Claims Manual says that if the plaintiff fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact].filter(Boolean).join(" ")}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
+    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}${key === "respond" ? " If your case is in superior or circuit court, Indiana Legal Help says the court might decide the case without you if you don't file an Answer when you're required to." : ""}`,
     links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, SOURCES.smallClaims, ...(key === "respond" ? [SOURCES.answerTopic] : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
-    body: a.role === "me" ? dismissFact : [missFact, defaultFact].filter(Boolean).join(" "),
+    body: a.role === "me" ? dismissFact : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
     links: a.role === "me" ? [SOURCES.smallClaims] : [...missLinks, SOURCES.smallClaims] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
