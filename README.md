@@ -27,6 +27,18 @@ MVP prototype, Team 5, AI for Impact (Northeastern University, Fall 2026), built
 
 All forms are approved by the Coalition for Court Access and published on [IndianaLegalHelp.org](https://indianalegalhelp.org). See [forms/README.md](forms/README.md) for sources and form numbers.
 
+## Blank official forms
+
+The blank forms the tool fills are in [`forms/`](forms/), unchanged from Indiana Legal Help's copies, with their instructions:
+
+| Packet | Forms inside | Download | Official source |
+|---|---|---|---|
+| Answer | Appearance (CCA-GF-1225-6003), Answer (CCA-GF-0626-6008) | [PDF](https://github.com/batuhanisik751/indiana_filing/raw/main/forms/answer-packet-CCA-GF-1225-6003-CCA-GF-0626-6008.pdf) | [Indiana Legal Help: Answer](https://indianalegalhelp.org/legal-topic/answer/) |
+| Fee waiver | Appearance (CCA-GF-0420-3012), Verified Motion for Fee Waiver (CCA-GF-0420-3006), Order on Fee Waiver (CCA-GF-0420-3007) | [PDF](https://github.com/batuhanisik751/indiana_filing/raw/main/forms/fee-waiver-packet-CCA-GF-0420-3012-3006-3007.pdf) | [Indiana Legal Help: How to File Forms with the Court in Person](https://indianalegalhelp.org/how-to-file-forms-with-the-court-in-person/) |
+| Continuance | Appearance (CCA-GF-1219-3000), Verified Motion for Continuance (CCA-GF-1219-3002), Order on Verified Motion for Continuance | [PDF](https://github.com/batuhanisik751/indiana_filing/raw/main/forms/continuance-packet-CCA-GF-1219-3000-3002.pdf) | [Indiana Legal Help: How to Ask for a New Court Date](https://indianalegalhelp.org/how-to-ask-for-a-new-court-date/) |
+
+These copies were downloaded on November 2, 2026. Indiana Legal Help may post newer versions, so check the official source before filing.
+
 ## Try it
 
 Open `form-builder-mvp.html` in a browser, or run a local server:
