@@ -2415,6 +2415,8 @@ function unsureAdvice(step) {
 }
 // What to do next, after the advice.
 function unsureNext(step, where) {
+  // What the tool does with this answer, not which one to pick.
+  if (step.id === "fwCourtType") return where === "summary" ? "To leave it blank on the form, choose Fix, then \"I don't know.\"" : "To leave it blank on the form, choose \"I don't know.\"";
   if (step.id === "localRuleText" && sitKey !== "feewaiver") return ""; // the advice already says
   if (where === "summary") return step.optional ? "To leave it blank, choose Fix, then Save and review." : "Then come back and answer it.";
   return returnToSummary && step.optional ? "To leave it blank, choose Save and review." : "Answer it any time; until then it is flagged at the end.";
