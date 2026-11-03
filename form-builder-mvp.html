@@ -2269,12 +2269,18 @@ window.addEventListener("storage", e => {
     if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
     savedHere = false; savedHereWhy = "deleted"; // deleted in another tab
   } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
-  // Another tab saved a different form over this page's answers.
-  if (e.newValue !== null && sitKey && hasAnswers()) {
-    let other = null; try { other = JSON.parse(e.newValue).sitKey; } catch { /* unreadable */ }
-    if (other && other !== sitKey) {
-      if (savedHere) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
-      savedHere = false; savedHereWhy = "replaced";
+  // Another tab saved over this page's answers: a different form, or this form without something this page has.
+  if (e.newValue !== null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
+    let saver = null; try { saver = JSON.parse(e.newValue); } catch { /* unreadable */ }
+    if (saver && saver.sitKey) {
+      // A blank is the same as no answer, and it's fine for the other tab to have more.
+      const theirs = saver.draft ? { ...saver.answers, [saver.draft.id]: saver.draft.value } : saver.answers || {};
+      const mine = draft ? { ...visibleAnswers(), [draft.id]: draft.value } : visibleAnswers();
+      const lost = saver.sitKey !== sitKey || Object.entries(mine).some(([k, v]) => !empty(v) && theirs[k] !== v);
+      if (lost) {
+        if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
+        savedHere = false; savedHereWhy = "replaced";
+      }
     }
   }
   if (mode === "pick") { renderPick(true); updatePrivacyNote(); return; } // keep the "Continue" card up to date
@@ -2283,10 +2289,6 @@ window.addEventListener("storage", e => {
   // Another tab saved this same form. A different form has its own message above.
   let saver = null; try { saver = JSON.parse(e.newValue); } catch { /* unreadable */ }
   if (!saver || saver.sitKey !== sitKey) return;
-  // The saved copy now holds that tab's answers. If one of this page's answers isn't in it, closing here would lose it.
-  // A blank is the same as no answer, and it's fine for the other tab to have more.
-  const theirs = saver.draft ? { ...saver.answers, [saver.draft.id]: saver.draft.value } : saver.answers || {};
-  if (Object.entries(visibleAnswers()).some(([k, v]) => !empty(v) && theirs[k] !== v)) { savedHere = false; savedHereWhy = "replaced"; }
   if (!otherTab) announce("This form is also open in another tab. Use one tab so your answers don't replace each other.");
   otherTab = true;
   // A tab can't tell when another one closes, so the message ends after a quiet while.
