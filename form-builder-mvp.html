@@ -2152,7 +2152,7 @@ function saveProgress() {
     Object.keys(d.unsure || {}).sort()]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
   const json = JSON.stringify({ ...data, savedAt });
-  if (json === store.get(STORE_KEY)) { savedHere = true; lastWritten = json; return; }
+  if (json === store.get(STORE_KEY)) { savedHere = true; saveOk = true; lastWritten = json; return; }
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
 }
