@@ -2154,7 +2154,7 @@ function saveProgress() {
   // answer is the same as no answer, so reopening a copy or stepping past a question changes nothing.
   const content = d => JSON.stringify([d.sitKey,
     Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1)),
-    Object.keys(d.unsure || {}).sort()]);
+    Object.keys(d.unsure || {}).sort(), sortingKey(d.triage)]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
   const json = JSON.stringify({ ...data, savedAt });
   if (json === store.get(STORE_KEY)) { savedHere = true; saveOk = true; lastWritten = json; return; }
