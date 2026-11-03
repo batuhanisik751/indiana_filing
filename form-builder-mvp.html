@@ -2088,7 +2088,9 @@ function saveProgress() {
     try { prev = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
     const picked = triageAnswered(triage);
     if (mode === "triage" && picked && (!prev || prev.triageOnly)) {
-      saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: Date.now() }));
+      // Reopening these answers isn't a change, so it doesn't restart the 30 days.
+      const same = prev && Number.isFinite(prev.savedAt) && JSON.stringify(cleanTriage(prev.triage)) === JSON.stringify(cleanTriage(triage));
+      saveOk = store.set(STORE_KEY, JSON.stringify({ v: 1, triageOnly: true, triage, fromNotSure, mode: "triage", savedAt: same ? prev.savedAt : Date.now() }));
       if (saveOk) savedHere = true;
     }
     return;
@@ -2113,8 +2115,11 @@ function saveProgress() {
     cur, mode: fromSummary ? "summary" : "step", triage: editingTriage && triageBeforeEdit ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: editOriginal } : null };
-  // Only a change to the answers restarts the 30 days; just looking at them doesn't.
-  const content = d => JSON.stringify([d.sitKey, d.answers, d.unsure, d.draft ? d.draft.value : null]);
+  // Only a change to the answers restarts the 30 days. Typed text counts wherever it's kept, and a blank
+  // answer is the same as no answer, so reopening a copy or stepping past a question changes nothing.
+  const content = d => JSON.stringify([d.sitKey,
+    Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1)),
+    Object.keys(d.unsure || {}).sort()]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
   const json = JSON.stringify({ ...data, savedAt });
   if (json === store.get(STORE_KEY)) { savedHere = true; return; }
