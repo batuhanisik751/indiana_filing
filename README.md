@@ -37,7 +37,7 @@ Then go to http://localhost:5190/. If that port is busy, pass another one, for e
 
 ## Privacy
 
-Nothing anyone types is sent anywhere, and the PDF is filled in the browser. Answers are saved only in the person's own browser, so a refresh or a closed tab doesn't erase them, and the first screen offers to continue where they left off. A checkbox on the first screen turns saving off (recommended on shared or public computers, like library or courthouse kiosks), "Delete saved answers" and "Start over" erase the saved copy, and saved answers are deleted after 30 days.
+Nothing anyone types is sent anywhere, and the PDF is filled in the browser. Answers are saved only in the person's own browser, so a refresh or a closed tab doesn't erase them, and the first screen offers to continue where they left off. A checkbox on the first screen turns saving off (recommended on shared or public computers, like library or courthouse kiosks). "Clear my data," at the top of every screen, erases every answer on the page and the saved copy; "Delete saved answers" and "Start over" do the same. Saved answers are deleted 30 days after the last change. The top of the page says whether answers are being saved, including when the browser blocks saving or the form is open in two tabs.
 
 ## How the PDF is made
 
