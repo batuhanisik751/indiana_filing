@@ -2148,7 +2148,7 @@ function saveProgress() {
   const editingTriage = triageFromSummary && mode !== "step" && mode !== "summary";
   const fromSummary = mode === "summary" || editingTriage;
   const data = { v: 1, sitKey, answers: Object.fromEntries(shownNow.map(s => [s.id, answers[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => visIds.has(k))),
-    cur, mode: fromSummary ? "summary" : "step", triage: editingTriage && triageBeforeEdit ? triageBeforeEdit : triage,
+    cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: editOriginal } : null };
   // Only a change to the answers restarts the 30 days. Typed text counts wherever it's kept, and a blank
@@ -2683,14 +2683,15 @@ function renderPick(quiet = false) {
     };
   }
   if (live) document.getElementById("backToWork").onclick = () => {
-    if (triageFromSummary && triageBeforeEdit) { triage = triageBeforeEdit; triageBeforeEdit = null; triageFromSummary = false; mode = "summary"; }
-    else mode = "step";
+    if (triageBeforeEdit) { triage = triageBeforeEdit; triageBeforeEdit = null; triageHist = []; }
+    mode = triageFromSummary ? "summary" : "step"; triageFromSummary = false;
     render();
   };
   const more = document.getElementById("moreChoices"), toggle = document.getElementById("moreToggle");
   toggle.onclick = () => { pickMore = !pickMore; toggle.setAttribute("aria-expanded", String(pickMore)); more.hidden = !pickMore; };
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-kind]").forEach(b => b.onclick = () => {
+    if (sitKey && hasAnswers() && !triageBeforeEdit) triageBeforeEdit = { ...triage }; // the form's stay until a form is chosen
     triage = { kind: b.dataset.kind }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = false; mode = "triage"; render();
   });
   app.querySelectorAll(".pick[data-k]").forEach(b => b.onclick = () => startSituation(b.dataset.k, "pick"));
@@ -2728,7 +2729,7 @@ function renderNotSure() {
   app.querySelector("h1").focus();
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
     const k = b.dataset.go;
-    if (Object.hasOwn(CASE_KINDS, k)) { triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
+    if (Object.hasOwn(CASE_KINDS, k)) { if (sitKey && hasAnswers() && !triageBeforeEdit) triageBeforeEdit = { ...triage }; triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
   document.getElementById("back").onclick = () => { mode = "pick"; render(); };
