@@ -2301,6 +2301,7 @@ function setSaving(on) {
 let sitKey = null, steps = [], answers = {};
 let mode = "pick", cur = 0, returnToSummary = false, lastEdited = null;
 let unsure = {}; // questions the person marked "I'm not sure"
+let justMarked = false; // the last question was just marked: say so on the next screen
 let fromNotSure = false; // came here from "Which one fits?"
 let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
 let fixFrom = null;      // where on the summary the person tapped Fix or Edit ("flags" or "vals")
@@ -2711,6 +2712,7 @@ function renderStep() {
   const need = step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end.");
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+    ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
     <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
     <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
@@ -2777,6 +2779,8 @@ function markUnsure(step) {
   if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
   answers[step.id] = "";
   unsure[step.id] = true;
+  justMarked = true;
+  announce("Marked \"I'm not sure.\" It will be flagged at the end.");
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {
@@ -2914,6 +2918,7 @@ function render() {
   draft = null; // a new screen: what was typed has been saved or left
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
+  justMarked = false;
   markNewTabLinks();
   saveProgress();
   updatePrivacyNote();
