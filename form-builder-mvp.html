@@ -300,8 +300,9 @@ const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximum
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
 const formDate = v => { if (empty(v)) return ""; const [y, m, d] = v.split("-"); return `${m}/${d}/${y}`; };
+// A date input turns 11/30/26 into the year 0026, so a real date here has a 20xx year.
 // The person's other dates can't be later than the hearing or court date they gave.
-const isDay = v => /^\d{4}-\d{2}-\d{2}$/.test(v ?? "");
+const isDay = v => /^20\d{2}-\d{2}-\d{2}$/.test(v ?? "");
 const dateLimit = (step, a) => {
   if (step.type !== "date") return null;
   const [id, name] = isDay(a.hearingDate) ? ["hearingDate", "hearing date"] : ["courtDate", "court date"];
@@ -2623,7 +2624,9 @@ function runChecks() {
   // The question refuses a date past the hearing, but the hearing date can change afterward.
   vis.forEach(s => {
     const limit = dateLimit(s, a);
-    if (pastLimit(a[s.id], limit)) flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label,
+    const title = s.service ? `Certificate of Service: ${s.label}` : s.label;
+    if (s.type === "date" && !empty(a[s.id]) && !isDay(a[s.id])) flags.push({ level: "check", title, why: "This date doesn't look right. Check the year.", fix: s.id });
+    else if (pastLimit(a[s.id], limit)) flags.push({ level: "check", title,
       why: `${formDate(a[s.id])} is after your ${limit.name} (${formDate(limit.date)}). Change whichever one is wrong.`, fix: s.id });
   });
 
@@ -2903,6 +2906,7 @@ function save(step) {
   };
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
+  if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);
   const limit = dateLimit(step, visibleAnswers());
   if (pastLimit(v, limit))
     return refuse(`This is after your ${limit.name} (${formDate(limit.date)}). Choose that date or an earlier one. If your ${limit.name} changed, ${returnToSummary ? "press Cancel and edit it on the summary" : "go back and change it first"}.`);
