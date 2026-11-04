@@ -2896,8 +2896,6 @@ function save(step) {
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   readInput(step);
-  // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
-  if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   const v = answers[step.id];
   const refuse = msg => {
     document.getElementById("err").textContent = msg;
@@ -2910,6 +2908,8 @@ function save(step) {
   const limit = dateLimit(step, visibleAnswers());
   if (pastLimit(v, limit))
     return refuse(`This is after your ${limit.name} (${formDate(limit.date)}). Choose that date or an earlier one. If your ${limit.name} changed, ${returnToSummary ? "press Cancel and edit it on the summary" : "go back and change it first"}.`);
+  // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
+  if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
