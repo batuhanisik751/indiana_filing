@@ -300,6 +300,14 @@ const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximum
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
 const formDate = v => { if (empty(v)) return ""; const [y, m, d] = v.split("-"); return `${m}/${d}/${y}`; };
+// The person's other dates can't be later than the hearing or court date they gave.
+const isDay = v => /^\d{4}-\d{2}-\d{2}$/.test(v ?? "");
+const dateLimit = (step, a) => {
+  if (step.type !== "date") return null;
+  const [id, name] = isDay(a.hearingDate) ? ["hearingDate", "hearing date"] : ["courtDate", "court date"];
+  return step.id !== id && isDay(a[id]) ? { date: a[id], name } : null;
+};
+const pastLimit = (v, limit) => !!limit && isDay(v) && v > limit.date;
 
 // Indiana case numbers look like 49D01-2610-CC-001234: county number, court,
 // year+month, two-letter case type, sequence number.
@@ -2612,6 +2620,13 @@ function runChecks() {
     if (empty(a[s.id])) flags.push({ level: "missing", title: `Certificate of Service: ${s.label}`, why: "This is blank.", fix: s.id, blank: true });
   });
 
+  // The question refuses a date past the hearing, but the hearing date can change afterward.
+  vis.forEach(s => {
+    const limit = dateLimit(s, a);
+    if (pastLimit(a[s.id], limit)) flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label,
+      why: `${formDate(a[s.id])} is after your ${limit.name} (${formDate(limit.date)}). Change whichever one is wrong.`, fix: s.id });
+  });
+
   // Questions the person marked "I'm not sure" and hasn't answered since.
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
@@ -2764,6 +2779,7 @@ function renderStep() {
   if (lastProgress.sit === sitKey && cur > lastProgress.cur) pct = Math.max(pct, lastProgress.pct);
   lastProgress = { sit: sitKey, cur, pct };
   const v = answers[step.id] ?? "";
+  const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
   if (returnToSummary && (!editOriginal || editOriginal.id !== step.id))
     editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id) };
@@ -2782,9 +2798,10 @@ function renderStep() {
     input = `<input id="ans" type="text" inputmode="decimal" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="off">`;
   } else {
     const ac = { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
-    input = `<input id="ans" type="${step.type}" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}">`;
+    input = `<input id="ans" type="${step.type}" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
   }
-  const need = step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end.");
+  const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
+    + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "");
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
@@ -2879,14 +2896,16 @@ function save(step) {
   // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
   if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   const v = answers[step.id];
-  if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v)) {
-    document.getElementById("err").textContent = step.type === "money"
-      ? "Use numbers only, like 1200 or 12.50."
-      : "Use a number only, like 80.";
+  const refuse = msg => {
+    document.getElementById("err").textContent = msg;
     const box = document.getElementById("ans");
     box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "err qhelp qneed"); box.focus();
-    return;
-  }
+  };
+  if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
+    return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
+  const limit = dateLimit(step, visibleAnswers());
+  if (pastLimit(v, limit))
+    return refuse(`This is after your ${limit.name} (${formDate(limit.date)}). Choose that date or an earlier one. If your ${limit.name} changed, ${returnToSummary ? "press Cancel and edit it on the summary" : "go back and change it first"}.`);
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
