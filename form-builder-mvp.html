@@ -1703,7 +1703,7 @@ const MARION_SMALL_CLAIMS = [
   ["Washington Township", "5302 N. Keystone Ave., Suite E, Indianapolis, IN 46220", "317-327-8184"],
   ["Wayne Township", "5401 W. Washington St., Indianapolis, IN 46241", "317-241-9573"],
 ];
-const SCM_NOT_MARION = "The Small Claims Manual also says it does not address the specific jurisdiction or procedures of Marion County Small Claims Court.";
+const SCM_NOT_MARION = "The Small Claims Manual says it does not address the specific jurisdiction or procedures of Marion County Small Claims Court, but Small Claims Rule 1(A) says these rules apply there too.";
 
 const SOURCES = {
   answerInstructions: { href: LINKS.answerInstructions, text: "Indiana Legal Help: Answer instructions" },
@@ -1716,6 +1716,8 @@ const SOURCES = {
   tr86: { href: "https://rules.incourts.gov/Content/trial/rule86/current.htm", text: "Trial Rule 86" },
   tr55: { href: "https://rules.incourts.gov/Content/trial/rule55/current.htm", text: "Trial Rule 55" },
   sc4: { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" },
+  sc10: { href: "https://rules.incourts.gov/Content/small-claims/rule10/current.htm", text: "Small Claims Rule 10" },
+  sc1: { href: "https://rules.incourts.gov/Content/small-claims/rule1/current.htm", text: "Small Claims Rule 1" },
   feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
   feeWaiverInstructions: { href: LINKS.feeWaiverInstructions, text: "Indiana Legal Help: Fee waiver instructions" },
   serviceFaq: { href: "https://indianalegalhelp.org/service-frequently-asked-questions/", text: "Indiana Legal Help: Service Frequently Asked Questions" },
@@ -1859,19 +1861,20 @@ function nextSteps(key, a) {
   // Someone who started the case: the eviction sentence is about the other side, so only the court matters.
   const noSourceStarter = smallClaims ? "" : notSmallClaims ? noSourceHere
     : `If your case isn't in small claims court, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`;
+  const scLinks = [SOURCES.smallClaims, SOURCES.sc10, ...(a.county === "Marion" ? [SOURCES.sc1] : [])];
   const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] : [])];
-  const defaultFact = notSmallClaims ? "" : `${ifSC}, the Small Claims Manual says that if the plaintiff shows up and the defendant does not appear at the time on the Notice of Claim (or a continued date), the plaintiff can ask for a default judgment, which it defines as a decision for the plaintiff when the defendant fails to appear in court.${marionNote}`;
+  const defaultFact = notSmallClaims ? "" : `${ifSC}, Small Claims Rule 10(B) says that if the defendant (the person being sued) fails to appear at the time and place on the notice of claim, or on a continued date, "the court may enter a default judgment against him." The Small Claims Manual defines that as a decision for the plaintiff when the defendant fails to appear in court. So if that's you, missing court can mean losing without the court hearing your side.${marionNote}`;
   const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
   const dismissFact = notSmallClaims ? "" : dismissText;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
     body: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. Check your papers for your next court date, or look it up at mycase.in.gov. ` : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
-    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? [SOURCES.smallClaims] : [])] });
+    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? scLinks : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     // The person who started the case: the eviction sentence is about the other side, so it never applies here.
     body: a.role === "me" ? [dismissFact, noSourceStarter].filter(Boolean).join(" ") : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
-    links: [...(a.role === "me" ? (noSourceStarter ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? [SOURCES.smallClaims] : [])] });
+    links: [...(a.role === "me" ? (noSourceStarter ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? scLinks : [])] });
   // Small Claims Rule 4(C): someone being sued can ask for a jury, with a short deadline.
   if ((key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) && !notSmallClaims) out.push({
     title: "If you want a jury trial",
