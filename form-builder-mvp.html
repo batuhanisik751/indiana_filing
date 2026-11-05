@@ -1508,7 +1508,10 @@ async function renderPreview(bytes, el) {
     const fig = document.createElement("figure");
     fig.innerHTML = `<figcaption>Page ${i} of ${pdf.numPages}</figcaption>`;
     fig.prepend(canvas);
+    // Browsers without scroll anchoring would push what's on screen down as each page appears.
+    const above = getComputedStyle(el).overflowAnchor !== "auto" && el.getBoundingClientRect().bottom <= 0, before = el.offsetHeight;
     el.appendChild(fig);
+    if (above) window.scrollBy(0, el.offsetHeight - before);
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
   }
 }
