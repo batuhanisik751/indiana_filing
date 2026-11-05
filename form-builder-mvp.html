@@ -535,13 +535,13 @@ const fwYouSteps = sec => {
 const fwHouseholdSteps = sec => [
   { id: "adults", sec, type: "text", label: "People over 18 who live with you", optional: true,
     q: "Who do you live with who is over eighteen (18)?",
-    help: "The form says: \"I live with the following persons who are over eighteen (18) years of age.\" List their names." },
+    help: "The form says: \"I live with the following persons who are over eighteen (18) years of age.\" List their names, or type None if there's no one." },
   { id: "children", sec, type: "text", label: "People under 18 who live with you", optional: true,
     q: "Who do you live with who is under eighteen (18)?",
-    help: "The form says: \"I live with the following persons who are under eighteen (18) years of age.\" List their names." },
+    help: "The form says: \"I live with the following persons who are under eighteen (18) years of age.\" List their names, or type None if there's no one." },
   { id: "supported", sec, type: "text", label: "People you financially support", optional: true,
     q: "Who do you financially support who lives in your household?",
-    help: "The form says: \"I am responsible for the financial support of the following people who live in my household.\" List their names." },
+    help: "The form says: \"I am responsible for the financial support of the following people who live in my household.\" List their names, or type None if there's no one." },
 ];
 
 const incomeHelp = "The form asks for the combined monthly income, before taxes, of all the people you are responsible for supporting. Leave this blank if none.";
@@ -557,7 +557,7 @@ const fwIncomeSteps = sec => [
     q: "If wages are earned, how much is paid per hour?",
     help: `The form lists wages as dollars per hour times hours per month. ${incomeHelp}` },
   { id: "monthlyHours", sec, type: "number", label: "Hours worked per month",
-    showIf: a => isNum(a.hourlyRate),
+    showIf: a => toNum(a.hourlyRate) > 0,
     q: "About how many hours are worked per month?",
     help: "We multiply this by the hourly wage to fill in the monthly wages on the form." },
   ...INCOME.map(([id, label, q]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true, q, help: incomeHelp })),
@@ -981,9 +981,9 @@ function feeWaiverFields(a) {
     f(FORM.fwMotion, "4. Under 18 and live with me", empty(a.children) ? "Left blank" : a.children, "children", [{ t: "text", name: "ChildrenInHome", value: a.children }]),
     f(FORM.fwMotion, "5. I financially support", empty(a.supported) ? "Left blank" : a.supported, "supported", [{ t: "text", name: "FinancialSupport", value: a.supported }]),
   );
-  const hasWages = isNum(a.hourlyRate);
+  const hasWages = toNum(a.hourlyRate) > 0;
   out.push(
-    f(FORM.fwMotion, "Wages per hour", hasWages ? `$${moneyOrBlank(a.hourlyRate)}` : "Left blank", "hourlyRate",
+    f(FORM.fwMotion, "Wages per hour", isNum(a.hourlyRate) ? `$${moneyOrBlank(a.hourlyRate)}` : "Left blank", "hourlyRate",
       [{ t: "text", name: "HourlyRate", value: moneyOrBlank(a.hourlyRate) }]),
     ...(hasWages ? [f(FORM.fwMotion, "Hours per month", a.monthlyHours, "monthlyHours",
       [{ t: "text", name: "MonthlyHours", value: isNum(a.monthlyHours) ? String(toNum(a.monthlyHours)) : "" }])] : []),
@@ -994,7 +994,7 @@ function feeWaiverFields(a) {
   if (toNum(a.otherIncome) > 0) out.push(f(FORM.fwMotion, "Other income description", a.otherIncomeDesc, "otherIncomeDesc",
     [{ t: "text", name: "DescriptionOtherIncome", value: a.otherIncomeDesc }]));
   out.push(
-    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"]),
+    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], "Left blank (no income entered)"),
     f(FORM.fwMotion, "7. Money in the bank", isNum(a.bank) ? `$${moneyOrBlank(a.bank)}` : "", "bank", [{ t: "text", name: "BankAccount", value: moneyOrBlank(a.bank) }]),
     ...EXPENSES.map(([k, label, name]) => amountRow(FORM.fwMotion, label, k, a, name)),
   );
@@ -2826,11 +2826,13 @@ function runChecks() {
         flags.push({ level: "check", title: `Related case ${i} caption`, why: `You gave a case number for related case ${i} but no caption (case name), so the number prints next to a blank line.`, fix: `rel${i}Caption` });
     });
     if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k]) && !unsure[k]))
-      flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
+      flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
     if (EXPENSE_IDS.every(k => empty(a[k]) && !unsure[k]))
       flags.push({ level: "check", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, enter 0 for any one of them so the form shows $0.00.", fix: "housing" });
-    [["adults", "People over 18 who live with you"], ["children", "People under 18 who live with you"], ["supported", "People you financially support"]].forEach(([k, label]) => {
-      if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: "This line on the form will be blank. Check that's what you mean.", fix: k, blank: true });
+    [["adults", "People over 18 who live with you", "Item 3 of the Verified Motion for Fee Waiver asks who you live with who is over 18."],
+     ["children", "People under 18 who live with you", "Item 4 of the Verified Motion for Fee Waiver asks who you live with who is under 18."],
+     ["supported", "People you financially support", "Item 5 of the Verified Motion for Fee Waiver asks who you financially support in your household."]].forEach(([k, label, why]) => {
+      if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: `${why} If there's no one, type None.`, fix: k, blank: true });
     });
   }
 
