@@ -2012,7 +2012,7 @@ function startSituation(key, from = "pick") {
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
-  cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; clearTimeout(otherTabTimer);
+  cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; copyChoice = {}; clearTimeout(otherTabTimer);
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
@@ -2118,7 +2118,8 @@ if (!savingOn() && !storageFull) store.del(STORE_KEY);
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
-let savedHereWhy = "deleted"; // or "replaced"
+let savedHereWhy = "deleted"; // or "replaced", "kept", "otherForm"
+let copyChoice = {}; // for another tab's saved copy, by form: "replace" or "keep"
 let otherTab = false;   // has another tab been saving this same form?
 let otherTabTimer = null;
 let lastWritten = null;  // the saved copy as this page last wrote or opened it
@@ -2200,12 +2201,6 @@ function saveProgress() {
     }
     return;
   }
-  // Another tab saved since this page last did. Its answers aren't overwritten without asking.
-  const stored = store.get(STORE_KEY);
-  if (old && old.sitKey && stored !== lastWritten) {
-    if (old.sitKey !== sitKey) { if (!replaceOtherForm(old, stored)) return; }
-    else takeFromOtherTab(old);
-  }
   // The choice on the open question counts right away: choosing the Address Confidentiality Program
   // takes the home address out of the saved copy before Continue is pressed.
   const withDraft = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
@@ -2224,50 +2219,34 @@ function saveProgress() {
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: editOriginal } : null };
-  // Only a change to the answers restarts the 30 days. Typed text counts wherever it's kept, and a blank
-  // answer is the same as no answer, so reopening a copy or stepping past a question changes nothing.
-  const content = d => JSON.stringify([d.sitKey,
-    Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1)),
-    Object.keys(d.unsure || {}).sort(), sortingKey(d.triage)]);
+  // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
+  const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
+  // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
+  // mixed in here either: they could be for another case, or something this page erased.
+  if (old && old.sitKey && store.get(STORE_KEY) !== lastWritten && JSON.stringify([old.sitKey, filled(old)]) !== JSON.stringify([sitKey, filled(data)]) && !mayReplaceCopy(old)) return;
+  // Only a change to the answers restarts the 30 days, so reopening a copy or stepping past a question changes nothing.
+  const content = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort(), sortingKey(d.triage)]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
   const json = JSON.stringify({ ...data, savedAt });
   if (json === store.get(STORE_KEY)) { savedHere = true; saveOk = true; lastWritten = json; return; }
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
 }
-// One copy is kept, so saving here would replace the other form's. Ask once for each copy that other tab saves.
-let declinedCopy = null;
-function replaceOtherForm(old, stored) {
-  if (stored !== declinedCopy && Object.hasOwn(SITUATIONS, old.sitKey)
-    && confirm(`Another tab saved your answers for "${SITUATIONS[old.sitKey].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`)) return true;
-  declinedCopy = stored; savedHere = false; savedHereWhy = "otherForm";
-  return false;
-}
-// The same form: answers this page doesn't have are kept, instead of being replaced by this page's older copy.
-function takeFromOtherTab(old) {
-  const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
-  const open = mode === "step" && draft ? draft.id : null;
-  const onScreen = mode === "step" ? visible()[Math.min(cur, visible().length - 1)]?.id : null;
-  // An address protected in the other tab stays protected here. This page's older answer doesn't undo that.
-  let safety = false;
-  if (theirs.acp === "yes" && answers.acp !== "yes" && open !== "acp") { answers.acp = "yes"; delete answers.address; safety = true; }
-  if (theirs.agConfidential === "yes" && answers.agConfidential !== "yes" && open !== "agConfidential") {
-    answers.agConfidential = "yes"; ["address", "email", "phone", "fax", "acceptEmail"].forEach(k => delete answers[k]); safety = true;
+// One copy is kept, so saving here would replace what another tab saved. Ask once in this tab for each form.
+function mayReplaceCopy(old) {
+  const form = old.sitKey, same = form === sitKey;
+  if (!Object.hasOwn(SITUATIONS, form)) return true; // not a form this page can open
+  if (!copyChoice[form]) {
+    if (document.hidden) { savedHere = false; savedHereWhy = "replaced"; return false; } // this tab isn't in front: ask when it is
+    const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
+    const exposes = (theirs.acp === "yes" && answers.acp !== "yes") || (theirs.agConfidential === "yes" && answers.agConfidential !== "yes");
+    copyChoice[form] = confirm(same
+      ? `Another tab saved different answers for "${SITUATIONS[form].title}" on this device. Only one copy can be saved. Replace them with the answers in this tab?${exposes ? " The other tab chose to keep your address confidential, and this tab's address would be saved instead." : ""} (Cancel keeps what the other tab saved. This tab's answers stay on this page but aren't saved.)`
+      : `Another tab saved your answers for "${SITUATIONS[form].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`) ? "replace" : "keep";
   }
-  let took = safety;
-  steps.forEach(s => { if (s.id !== open && empty(answers[s.id]) && !empty(theirs[s.id])) { answers[s.id] = theirs[s.id]; took = true; } });
-  Object.entries(old.unsure && typeof old.unsure === "object" ? old.unsure : {}).forEach(([k, v]) => { if (v === true && empty(answers[k]) && k !== open) unsure[k] = true; });
-  if (!took) return;
-  if (safety) announce("Another tab chose a protected address, so your home address was removed here too.");
-  if (onScreen) {
-    const i = visible().findIndex(s => s.id === onScreen);
-    if (i >= 0) { cur = i; return; }
-    // The question on screen is gone: go on from where it was.
-    draft = null; followUps = []; editOriginal = null;
-    if (returnToSummary) { returnToSummary = false; mode = "summary"; }
-    else cur = Math.max(0, Math.min(cur, visible().length - 1));
-    setTimeout(render);
-  } else if (mode === "summary") setTimeout(() => { if (mode === "summary") keepFocus(() => renderSummary(true)); });
+  if (copyChoice[form] === "replace") return true;
+  savedHere = false; savedHereWhy = same ? "kept" : "otherForm";
+  return false;
 }
 function clearSaved() { store.del(STORE_KEY); }
 function savingOffForNext() { store.del(PREF_KEY); lastSavingOn = false; }
@@ -2289,7 +2268,7 @@ function clearFormEverywhere(form) {
 }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
-  lastWritten = store.get(STORE_KEY);
+  lastWritten = store.get(STORE_KEY); copyChoice = {};
   if (d.triageOnly) {
     resetAnswers(); triage = cleanTriage(d.triage); triageTouched = true; fromNotSure = d.fromNotSure === true; mode = "triage";
     if (keep) keep();
@@ -2333,8 +2312,10 @@ function updatePrivacyNote() {
     : !savingOn() ? "Not saved on this device. Nothing is sent."
     : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "otherForm"
       ? "Not saved right now: another tab saved a different form on this device. Nothing is sent."
+      : savedHereWhy === "kept"
+      ? "Not saved right now: you kept what another tab saved. To continue with those answers, reload this page. Nothing is sent."
       : savedHereWhy === "replaced"
-      ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
+      ? "Not saved right now: another tab saved different answers over this copy. Your next change here can save yours again. Nothing is sent."
       : "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent.")
     : working && savedIsMine() ? "Saved only on this device. Nothing is sent."
     : "Answers save only on this device. Nothing is sent.";
@@ -2404,8 +2385,8 @@ window.addEventListener("storage", e => {
       const lost = saver.sitKey !== sitKey || shownNow.some(s => !empty(current[s.id]) && theirs[s.id] !== current[s.id])
         || shownNow.some(s => unsure[s.id] && empty(current[s.id]) && !(saver.unsure && saver.unsure[s.id]));
       if (lost) {
-        if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here saves yours again.");
-        savedHere = false; savedHereWhy = "replaced";
+        if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here can save yours again.");
+        savedHere = false; savedHereWhy = copyChoice[saver.sitKey] !== "keep" ? "replaced" : saver.sitKey === sitKey ? "kept" : "otherForm";
       } else savedHere = true; // the other tab's copy holds everything this page has now
     }
   }
@@ -2477,7 +2458,7 @@ const app = document.getElementById("app");
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
-  savedHere = true; saveOk = true;
+  savedHere = true; saveOk = true; copyChoice = {};
   editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
