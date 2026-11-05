@@ -2094,9 +2094,11 @@ const store = {
 // Some browsers (private windows, blocked site data) don't let the page save at all.
 const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), true);
 const savingOn = () => storageWorks && store.get(PREF_KEY) === "on"; // off unless turned on
+// Storage that's only full can still be read. Nothing new can be saved, but what's saved isn't touched.
+const storageFull = !storageWorks && store.get(PREF_KEY) === "on";
 // With saving off, nothing is kept: a copy found when the page opens (for example one saved
 // before saving became opt-in) is deleted.
-if (!savingOn()) store.del(STORE_KEY);
+if (!savingOn() && !storageFull) store.del(STORE_KEY);
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
