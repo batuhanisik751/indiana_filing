@@ -2401,6 +2401,12 @@ window.addEventListener("storage", e => {
     else if (live) announce("Saving was turned off in another tab. Your answers are still on this page, but they aren't saved.");
     updatePrivacyNote(); if (mode === "pick") renderPick(true); return;
   }
+  if (e.key === null) { // something else cleared this site's storage, including the saving setting
+    lastSavingOn = savingOn();
+    if (sitKey && (hasAnswers() || (draft && !empty(draft.value)))) { savedHere = false; savedHereWhy = "deleted"; announce("The saved copy was deleted outside this page. Your answers are still on this page, but they aren't saved."); }
+    if (mode === "pick") renderPick(true);
+    updatePrivacyNote(); return;
+  }
   if (e.key !== STORE_KEY) return;
   if (e.newValue === null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
     if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
@@ -2438,6 +2444,14 @@ window.addEventListener("storage", e => {
   updatePrivacyNote();
 });
 lastSavingOn = savingOn();
+// Cleared in the browser's own settings, nothing tells the page. Check again when the tab comes back to the front.
+window.addEventListener("focus", updatePrivacyNote);
+// Back after leaving can show this page from the browser's memory. With saving off, the answers shouldn't come back with it.
+window.addEventListener("pageshow", e => {
+  if (!e.persisted || savingOn() || (!sitKey && mode === "pick")) return;
+  resetAnswers(); mode = "pick"; render();
+  announce("Your answers were cleared because saving is off.");
+});
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
   const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)));
