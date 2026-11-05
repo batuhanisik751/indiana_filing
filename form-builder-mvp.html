@@ -644,15 +644,16 @@ const courtTypeOps = (ct, rules) => {
 
 function contCaptionFields(a) {
   const ct = courtTypeText(a);
-  const first = a.role === "me" ? a.name : a.otherParty, second = a.role === "me" ? a.otherParty : a.name;
+  // Until the person says who started the case, neither name goes on the form: the sides could be swapped.
+  const first = a.role === "me" ? a.name : a.role === "other" ? a.otherParty : "", second = a.role === "me" ? a.otherParty : a.role === "other" ? a.name : "";
   return [
     // Centered, so the county doesn't run into the printed "COUNTY OF" label.
     f(FORM.caption, "County", a.county, "county", [{ t: "text", name: "County", value: a.county, align: "Center" }]),
     f(FORM.caption, "Court type", !ct ? "" : a.courtType === "other" ? `${ct} Court` : `${ct.charAt(0)}${ct.slice(1).toLowerCase()} Court`,
       a.courtType === "other" ? "courtTypeOther" : "courtType", courtTypeOps(ct, CONT_COURT_RULES)),
     f(FORM.caption, "Case number", a.caseNumber, "caseNumber", [{ t: "text", name: "Case Number", value: a.caseNumber }]),
-    f(FORM.caption, "In re the matter of (who started the case)", first, a.role === "me" ? "name" : "otherParty", [{ t: "text", name: "Petitioner", value: first, growUp: true }]),
-    f(FORM.caption, "v. (the other side)", second, a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second, growUp: "vLine" }]),
+    f(FORM.caption, "In re the matter of (who started the case)", first, !a.role ? "role" : a.role === "me" ? "name" : "otherParty", [{ t: "text", name: "Petitioner", value: first, growUp: true }]),
+    f(FORM.caption, "v. (the other side)", second, !a.role ? "role" : a.role === "me" ? "otherParty" : "name", [{ t: "text", name: "Respondent", value: second, growUp: "vLine" }]),
     f(FORM.caption, "Who started the case", a.role === "me" ? "I did" : a.role === "other" ? "The other side" : "", "role"),
   ];
 }
@@ -705,7 +706,7 @@ function contMotionFields(a) {
 
 function contOrderFields(a) {
   const meFirst = a.role === "me";
-  const petAddr = meFirst ? myAddress(a) : a.otherPartyAddress, resAddr = meFirst ? a.otherPartyAddress : myAddress(a);
+  const petAddr = !a.role ? "" : meFirst ? myAddress(a) : a.otherPartyAddress, resAddr = !a.role ? "" : meFirst ? a.otherPartyAddress : myAddress(a);
   return [
     f(FORM.contOrder, "Distribution: first party's address", empty(petAddr) ? "Left blank" : petAddr, meFirst ? myAddressStep(a) : "otherPartyAddress",
       [{ t: "lines", page: 8, x0: 216, x1: 576, ys: [698.5, 676.6], runOn: true, value: petAddr }]),
@@ -2474,6 +2475,7 @@ function unsureAdvice(step) {
   if (EXPENSES.some(x => x[0] === id) || id === "otherCostsDesc") return "Check your bills or statements, or get free legal help.";
   if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
   if (PARAGRAPH_IDS.test(id)) return "Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't tell you which paragraphs go where; you can get free legal help.";
+  if (id === "role") return "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office. Until you answer, the names at the top of the form stay blank.";
   if (sitKey === "feewaiver" && id === "county") return "Indiana's court directory lists the courts and clerk's offices in each county. It doesn't say which county your case belongs in; you can get free legal help.";
   if (id === "fwCourtType") return "The official instructions say to select the court type if you know it and leave it blank if not.";
   if (id === "fwCaseType") return "The official instructions say to insert the case type or leave it blank.";
@@ -2645,7 +2647,7 @@ const BLANK_WHY = {
   otherIncomeDesc: ["The Verified Motion for Fee Waiver says to describe other income."],
   bank: ["The Verified Motion for Fee Waiver asks how much you have in the bank."],
   otherCostsDesc: ["The Verified Motion for Fee Waiver says to describe other expenses."],
-  role: ["This decides which side of the official form's top section your name prints on."],
+  role: ["This decides which side of the official form's top section your name prints on. Until you answer, the names there stay blank."],
   otherParty: ["Item 5 of the Verified Motion for Continuance asks for the other party's name."],
   hearingDate: ["Item 2 of the Verified Motion for Continuance asks when your hearing is scheduled."],
   reason: ["Item 3 of the Verified Motion for Continuance asks why. Indiana Legal Help's instructions say you need to show a good reason, and the court decides."],
