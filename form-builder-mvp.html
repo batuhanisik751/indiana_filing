@@ -2603,8 +2603,8 @@ const WEEKDAY = "(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)
 const UNIT = "(?:(?:more|additional|extra|full|business|working|calendar|court)\\s+)?(?:weeks?|wks?|days?|months?|mos?|hours?|hrs?)\\b";
 const DATE_RES = [
   // 11/20, 12.15, 11-20-2026 (a real month and day; not "1-1/2 months", "2.5 weeks" or "10-14 days")
-  new RegExp(`(?<![\\d\\/.-])\\b${MM}[\\/.]${DD}(?:[\\/.]\\d{2,4})?\\b(?![\\/\\d]|\\s*${UNIT}|\\s*a\\s+(?:month|week))`, "i"),
-  new RegExp(`(?<![\\d\\/.-])\\b${MM}-${DD}-\\d{2,4}\\b`, "i"),
+  new RegExp(`(?:^|[^\\d\\/.-])\\b${MM}[\\/.]${DD}(?:[\\/.]\\d{2,4})?\\b(?![\\/\\d]|\\s*${UNIT}|\\s*a\\s+(?:month|week))`, "i"),
+  new RegExp(`(?:^|[^\\d\\/.-])\\b${MM}-${DD}-\\d{2,4}\\b`, "i"),
   new RegExp(`\\b(?:until|till|by|on|after|before)\\s+${MM}-${DD}\\b(?!\\s*${UNIT})`, "i"),
   // Nov 24, December 3rd, Jan 2027
   new RegExp(`\\b${MONTH}\\.?\\s+\\d{1,4}(?:st|nd|rd|th)?\\b`, "i"),
