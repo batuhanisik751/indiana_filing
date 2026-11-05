@@ -2897,6 +2897,8 @@ function runChecks() {
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
+  if (a.receiveAt === "Choice1" && a.acp !== "yes" && SAYS_NONE.test(String(a.address ?? "").trim()))
+    flags.push({ level: "check", title: "Where you want court papers", why: `You chose to receive court papers at your street address, but you typed "${String(a.address).trim()}" as your address.`, fix: "receiveAt" });
   if (a.receiveAt === "Choice3" && a.acp !== "yes")
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
 
