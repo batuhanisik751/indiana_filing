@@ -2581,6 +2581,7 @@ const RULES = {
 const T111 = "Trial Rule 11.1 says to provide a \"mailing address, telephone number, and email address, if available.\"";
 const CAPTION_WHY = ["The official form says to fill out its top section to match the other court forms in your case."];
 const RELATED_WHY = ["Trial Rule 3.1 says the Appearance must list the caption and case number of all related cases.", "tr31"];
+const T31_ITEMS = /^(name|address|acpAddress|email|phone|caseTypeLetters|acceptEmail|receiveAt|related|relatedNumbers|rel\dCaption|rel\dNumber|localRule|localRuleText)$/; // what Trial Rule 3.1(A) lists
 const LOCAL_WHY = ["Trial Rule 3.1 says the Appearance must include anything extra that a state or local rule requires.", "tr31"];
 const BLANK_WHY = {
   county: CAPTION_WHY, courtType: CAPTION_WHY, courtTypeOther: CAPTION_WHY, caseNumber: CAPTION_WHY, plaintiff: CAPTION_WHY,
@@ -2603,7 +2604,7 @@ const BLANK_WHY = {
   svcMore: ["Trial Rule 5 says each party generally must be served, and the Certificate of Service lists them.", "tr5"],
   fileMethod: ["This decides whether your signature prints as \"/s/\" or is left for you to sign by hand. Trial Rule 11.1 says you must sign what you file, and a court may strike a filing that doesn't follow the rule.", "tr111"],
   signDate: ["The official form prints this date next to your signature."],
-  fwCourtType: ["The top of the official form names the court where you're filing. The official instructions say to leave it blank if you don't know, so choose \"I don't know.\""],
+  fwCourtType: ["The top of the official form names the court where you're filing. If you don't know, the official instructions say to leave it blank, so choose \"I don't know.\""],
   agConfidential: ["The form treats this address as an alternative to your address, email, phone and fax, so this decides which ones print."],
   acceptEmail: ["Trial Rule 3.1 says the Appearance must state whether you will accept court papers by email.", "tr31"],
   monthlyHours: ["The Verified Motion for Fee Waiver works out wages as dollars per hour times hours per month."],
@@ -3058,7 +3059,7 @@ function renderSummary(rerender = false) {
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
       <span class="flagtext">${esc(x.title)}<small id="why${i}">${esc(x.why)}${x.link ? ` <a href="${x.link.href}" target="_blank" rel="noopener">${esc(x.link.text)}</a>` : ""}</small></span>
       ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}" aria-describedby="why${i}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
-    ${missing ? `<div class="note">If you have to file before you have everything the Appearance asks for, Trial Rule 3.1 says to file with what you have and add the rest when you get it. <a href="${RULES.tr31.href}" target="_blank" rel="noopener">${esc(RULES.tr31.text)}</a></div>` : ""}
+    ${flags.some(x => x.level === "missing" && T31_ITEMS.test(x.fix)) ? `<div class="note">If you have to file before you have all the information Trial Rule 3.1 requires, that rule says to file the Appearance with what you have and add the rest when you get it. <a href="${RULES.tr31.href}" target="_blank" rel="noopener">${esc(RULES.tr31.text)}</a></div>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
     ${fromTriage && triageAnswered(triage) ? `<div class="note">You started from "${esc(kindOf(triage).pick)}." ${triageVisible().filter(s => triage[s.id]).map(s =>
       `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
