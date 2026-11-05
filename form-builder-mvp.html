@@ -2474,6 +2474,7 @@ function unsureAdvice(step) {
   if (INCOME.some(x => x[0] === id) || id === "otherIncomeDesc") return "Check your benefit letters or statements, or get free legal help.";
   if (EXPENSES.some(x => x[0] === id) || id === "otherCostsDesc") return "Check your bills or statements, or get free legal help.";
   if (MONEY_IDS.has(id)) return "Check your records, like pay stubs and bills, or get free legal help.";
+  if (id === "defenses") return "Indiana Legal Help's Answer instructions say that if you do not list your defenses now, you may lose your right to use them later in the case. This tool can't tell you what to write here. You can get free legal help.";
   if (PARAGRAPH_IDS.test(id)) return "Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't tell you which paragraphs go where; you can get free legal help.";
   if (id === "role") return "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office. Until you answer, the names at the top of the form stay blank.";
   if (sitKey === "feewaiver" && id === "county") return "Indiana's court directory lists the courts and clerk's offices in each county. It doesn't say which county your case belongs in; you can get free legal help.";
@@ -2722,6 +2723,10 @@ function runChecks() {
 
   if (sitKey === "respond" && ["admitted", "denied", "notEnough"].every(k => empty(a[k]) && !unsure[k]))
     flags.push({ level: "check", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
+
+  if (sitKey === "respond" && empty(a.defenses) && !unsure.defenses)
+    flags.push({ level: "check", title: "Your defenses", fix: "defenses", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
+      why: "Indiana Legal Help's Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case. This tool can't tell you which ones apply. If you don't have any to list, type None." });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice3" && a.acp !== "yes")
