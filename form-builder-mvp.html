@@ -3048,7 +3048,8 @@ function renderStep() {
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
     <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>`;
   // E2: focus the chosen answer, not just the first option.
-  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) el.focus();
+  // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
+  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
   document.getElementById("back").onclick = () => {
     if (returnToSummary) {
       // C19: Cancel puts the original answer back.
