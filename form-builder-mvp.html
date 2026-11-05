@@ -2579,16 +2579,28 @@ function privateKind(text, isAddress = false) {
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
 const PRIVATE_NOT = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
 
+// Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.
+const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|\?+)[.!]*$/i;
+const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
+function notAnAnswer(s, v) {
+  const t = String(v ?? "").replace(/\u2019/g, "'").trim();
+  if (!t || s.noWords || !(s.type === "text" || s.type === "textarea") || CODE_BOXES.test(s.id)) return false;
+  if (NOT_KNOWN.test(t)) return true;
+  // In a box the form needs, "none" or a single letter isn't an answer either. In an optional one, "None" can be.
+  return !s.optional && (NO_WORDS.test(t) || /^[^\p{L}\p{N}]*\p{L}?[^\p{L}\p{N}]*$/u.test(t));
+}
+
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
 // or for the two below, which can be left blank, as something to check.
 function completeness() {
-  const a = visibleAnswers();
+  const a = visibleAnswers(), vis = visible();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
-  const need = visible().filter(s => !s.optional || s.id === "spokeDate" || badNum(s)); // spokeDate is item 6 on the form
-  let total = need.length, filled = need.filter(s => !empty(a[s.id]) && !badNum(s)).length;
+  const isIn = s => !empty(a[s.id]) && !badNum(s) && !notAnAnswer(s, a[s.id]);
+  const need = vis.filter(s => !s.optional || s.id === "spokeDate" || badNum(s)); // spokeDate is item 6 on the form
+  let total = need.length, filled = need.filter(isIn).length;
   if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
     total++;
-    if (["admitted", "denied", "notEnough"].some(k => !empty(a[k]))) filled++;
+    if (vis.some(s => PARAGRAPH_IDS.test(s.id) && isIn(s))) filled++;
   }
   return { total, filled };
 }
@@ -2694,6 +2706,12 @@ function runChecks() {
   // The case type is two letters, like CC or SC.
   if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z]{2}$/i.test(a.caseTypeLetters.trim()))
     flags.push({ level: "check", title: "Case type letters", why: "The form asks for the two letters that show the case type, like CC or SC. Check this against your case number.", fix: "caseTypeLetters" });
+  // "I'm not sure" typed into a box would print on the form. The button is what flags it instead.
+  vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
+    handled.add(s.id);
+    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+      why: `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
+  });
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
     handled.add(s.id);
