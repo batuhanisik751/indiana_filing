@@ -3267,13 +3267,20 @@ const sampleAnswer = s => (s.type === "date" ? "2031-01-15" : s.type === "money"
 function whereRows(step) {
   const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select").map(s => [s.id, sampleAnswer(s)]));
   Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
-  const tries = step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [empty(answers[step.id]) ? step.options[0] : answers[step.id]] : [empty(answers[step.id]) ? sampleAnswer(step) : answers[step.id]];
+  const given = !empty(answers[step.id]);
+  // A choice not made yet could print any of its options. One that's made prints only that one.
+  const tries = given ? [answers[step.id]] : step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [step.options[0]] : [sampleAnswer(step)];
+  // A blank box isn't a place this answer prints, and neither is a box that stays unticked because of it.
+  const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && step.type !== "choice");
   const rows = new Map();
   for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, [step.id]: value })) {
     // When e-filing, the name also prints as "/s/ name" on the signature lines.
-    if (r.step !== step.id && !(step.id === "name" && r.form === FORM.sign && r.pdf.length)) continue;
+    if (r.step !== step.id && !(step.id === "name" && r.form === FORM.sign)) continue;
+    const pdf = r.pdf.filter(prints);
+    // A row with no place of its own, like "1. My name is", shares a box with another row. A choice doesn't print that way.
+    if (!pdf.length && (r.pdf.length || step.type === "choice" || r.form === FORM.sign)) continue;
     const key = `${r.form}|${r.label}`;
-    if (rows.has(key)) rows.get(key).pdf.push(...r.pdf); else rows.set(key, { form: r.form, label: r.label, pdf: [...r.pdf] });
+    if (rows.has(key)) rows.get(key).pdf.push(...pdf); else rows.set(key, { form: r.form, label: r.label, pdf });
   }
   const all = [...rows.values()];
   return all.some(r => r.pdf.length) ? all : []; // a row with no place on the page, like "Anyone else to send a copy to"
