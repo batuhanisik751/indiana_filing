@@ -3464,7 +3464,9 @@ function whereRows(step) {
   // A blank box isn't a place this answer prints, and neither is a box that stays unticked because of it.
   const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && step.type !== "choice");
   const rows = new Map();
-  for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, [step.id]: value })) {
+  // Who started the case decides which box an answer prints in. Marked "I'm not sure", it could be either.
+  const roles = step.id !== "role" && steps.some(s => s.id === "role") && empty(filled.role) ? [{ role: "other" }, { role: "me" }] : [{}];
+  for (const role of roles) for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, ...role, [step.id]: value })) {
     // Worked out from this answer: a total counts as a place for each answer that goes into it, after the answer's own line.
     const worked = !!r.from && r.from.includes(step.id);
     // When e-filing, the name also prints as "/s/ name" on the signature lines.
