@@ -2730,6 +2730,9 @@ function notAnAnswer(s, v) {
   return NO_WORDS.test(t) || /^[^\p{L}\p{N}]*\p{L}?[^\p{L}\p{N}]*$/u.test(t);
 }
 
+// "None" can be right for one of the Answer's three lists, but not for all of them.
+const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim());
+
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
 // or for the two below, which can be left blank, as something to check.
 function completeness() {
@@ -2740,7 +2743,7 @@ function completeness() {
   let total = need.length, filled = need.filter(isIn).length;
   if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
     total++;
-    if (vis.some(s => PARAGRAPH_IDS.test(s.id) && isIn(s))) filled++;
+    if (vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a))) filled++;
   }
   return { total, filled };
 }
@@ -2880,7 +2883,7 @@ function runChecks() {
   });
 
   // The three lists count once in the score: at least one has to have something.
-  if (sitKey === "respond" && vis.filter(s => PARAGRAPH_IDS.test(s.id)).every(s => empty(a[s.id]) || notAnAnswer(s, a[s.id])))
+  if (sitKey === "respond" && !vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a)))
     flags.push({ level: "missing", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
 
   if (sitKey === "respond") {
