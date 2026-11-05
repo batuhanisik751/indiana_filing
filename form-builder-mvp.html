@@ -2829,8 +2829,9 @@ function runChecks() {
     flags.push({ level: "missing", title: s.label, why: "This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50.", fix: s.id });
   });
 
-  if (sitKey === "respond" && ["admitted", "denied", "notEnough"].every(k => empty(a[k]) && !unsure[k]))
-    flags.push({ level: "check", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
+  // The three lists count once in the score: at least one has to have something.
+  if (sitKey === "respond" && vis.filter(s => PARAGRAPH_IDS.test(s.id)).every(s => empty(a[s.id]) || notAnAnswer(s, a[s.id])))
+    flags.push({ level: "missing", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
 
   if (sitKey === "respond") {
     const lists = ["admitted", "denied", "notEnough"].map(k => [k, paragraphNumbers(a[k])]);
@@ -2857,7 +2858,7 @@ function runChecks() {
     if (has("timeNeeded") && looksLikeDate(a.timeNeeded))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
     if (has("spokeDate") && empty(a.spokeDate))
-      flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate", blank: true });
+      flags.push({ level: "missing", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate", blank: true });
   }
 
   if (sitKey === "feewaiver") {
@@ -2902,7 +2903,7 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
+    flags.push({ level: s.optional && s.id !== "spokeDate" ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
       // A question the form needs keeps the reason it matters, when that reason is a rule.
       why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).link ? `${blankWhy(s).why} ` : ""}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
