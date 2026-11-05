@@ -299,6 +299,7 @@ const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
 const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
 const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
 const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or phone answers. "idk" isn't that.
+const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim());
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
@@ -513,7 +514,7 @@ const fwYouSteps = sec => {
     { ...base.acpAddress, showIf: a => contact(a) && a.acp === "yes" },
     { ...base.email, optional: true, showIf: contact, help: "Leave this blank if you don't have one." },
     { id: "acceptEmail", sec, type: "choice", label: "Accept service by email",
-      showIf: a => contact(a) && !empty(a.email) && !SAYS_NONE.test(a.email.trim()),
+      showIf: a => contact(a) && hasEmail(a),
       q: "Will you accept court papers at this email address?",
       help: "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.",
       options: [["no", "No"], ["yes", "Yes"]] },
@@ -962,8 +963,8 @@ function feeWaiverFields(a) {
       ? [f(FORM.fwAppearance, "Email, phone and fax", "Left blank (Attorney General confidential address checked)", "agConfidential")]
       : [
         f(FORM.fwAppearance, "Email address", empty(a.email) ? "Left blank" : a.email, "email", [{ t: "text", name: "Email address", value: a.email }]),
-        f(FORM.fwAppearance, "I will accept service at the above email address", !empty(a.email) ? yesNo(a.acceptEmail) : "No (no email given)", !empty(a.email) ? "acceptEmail" : "email",
-          [{ t: "check", name: "Check Box1", on: !empty(a.email) && a.acceptEmail === "yes" }]),
+        f(FORM.fwAppearance, "I will accept service at the above email address", hasEmail(a) ? yesNo(a.acceptEmail) : "No (no email given)", hasEmail(a) ? "acceptEmail" : "email",
+          [{ t: "check", name: "Check Box1", on: hasEmail(a) && a.acceptEmail === "yes" }]),
         f(FORM.fwAppearance, "Phone", a.phone, "phone", [{ t: "text", name: "Phone", value: a.phone }]),
         f(FORM.fwAppearance, "Fax", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax", value: a.fax }]),
       ]),
