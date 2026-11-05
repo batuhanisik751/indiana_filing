@@ -1969,6 +1969,7 @@ let notSureBeforeEdit = false;  // what "Which one fits?" was set to when the so
 let triagePrev = {};            // earlier sorting answers, pre-selected when changing them
 let triageTouched = false;      // this page has had sorting answers (answered here, or reopened from a saved copy)
 let triageFromSummary = false;  // the person is changing their sorting answers from the summary
+let notSureFromKind = false;    // "Which one fits?" was opened from the kind of case question
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
 
 // from: the screen the person chose the form on ("pick", "triage" or "notsure").
@@ -1978,7 +1979,7 @@ function setSortingAside() { if (!triageBeforeEdit) { triageBeforeEdit = { ...tr
 // point can't stay in the history, or Back would land on a case with no kind.
 function finishTriageChange() {
   if (triageFromSummary) triageHist = triageHist.filter(h => h.kind);
-  triageFromSummary = false; triageBeforeEdit = null;
+  triageFromSummary = false; triageBeforeEdit = null; notSureFromKind = false;
 }
 function startSituation(key, from = "pick") {
   const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
@@ -1990,7 +1991,7 @@ function startSituation(key, from = "pick") {
   const saved = hasAnswers() ? null : readSaved();
   const prev = hasAnswers() ? sitKey : saved ? saved.sitKey : null;
   const title = SITUATIONS[key].title;
-  let keep = {};
+  let keep = {}, keepMarks = {};
   if (prev === key && saved) {
     // The same form was saved earlier: offer to pick up where the person left off.
     if (confirm(`You have saved answers for "${title}". Continue with them? (Choose Cancel to start over instead.)`)) {
@@ -2010,14 +2011,18 @@ function startSituation(key, from = "pick") {
     const from = hasAnswers() ? visibleAnswers() : { ...strings(saved.answers), ...(saved.draft && typeof saved.draft.value === "string" ? { [saved.draft.id]: saved.draft.value } : {}) };
     const ids = new Set(SITUATIONS[key].steps().map(s => s.id));
     const sameCase = CASE_FORMS.includes(prev) && CASE_FORMS.includes(key);
-    keep = Object.fromEntries(Object.entries(from).filter(([k, v]) => ids.has(k) && !empty(v) && (SHARED_YOU.includes(k) || (sameCase && SHARED_CASE.includes(k)))));
+    const carries = k => ids.has(k) && (SHARED_YOU.includes(k) || (sameCase && SHARED_CASE.includes(k)));
+    keep = Object.fromEntries(Object.entries(from).filter(([k, v]) => carries(k) && !empty(v)));
+    // "I'm not sure" on a question both forms ask stays marked, so the new form flags it too.
+    const marks = hasAnswers() ? unsure : saved.unsure && typeof saved.unsure === "object" ? saved.unsure : {};
+    keepMarks = Object.fromEntries(Object.keys(marks).filter(k => marks[k] === true && carries(k) && !keep[k]).map(k => [k, true]));
     const kept = Object.keys(keep).length
       ? ` Your contact details${sameCase && Object.keys(keep).some(k => SHARED_CASE.includes(k)) ? " and case details" : ""} will be kept.` : "";
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
   cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; copyChoice = {}; clearTimeout(otherTabTimer);
-  sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = {}; cur = 0; mode = "step"; returnToSummary = false; render();
+  sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = keepMarks; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
 const SHARED_YOU = ["name", "acp", "address", "acpAddress", "email", "phone", "fax"];
@@ -2034,9 +2039,12 @@ function renderTriage() {
       <p class="help" id="qhelp">${esc(step.help)}</p>
       <div class="choices" role="radiogroup" aria-labelledby="q" aria-describedby="qhelp">${step.options.map(([val, lab]) =>
         `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${triagePrev[step.id] === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>
+      ${step.id === "kind" ? `<p class="need"><button class="link" id="kindNotSure">I'm not sure which one fits</button></p>` : ""}
       <p class="err" id="err" role="alert"></p>
       <div class="nav"><button class="ghost" id="back">Back</button><button class="primary" id="next">Continue</button></div>`;
     (app.querySelector("input[name=ans]:checked") || app.querySelector("#q")).focus();
+    const unsureKind = document.getElementById("kindNotSure");
+    if (unsureKind) unsureKind.onclick = () => { notSureFromKind = true; mode = "notsure"; render(); };
     const next = () => {
       const c = app.querySelector("input[name=ans]:checked");
       if (!c) { document.getElementById("err").textContent = "Pick one to continue."; return; }
@@ -3042,7 +3050,7 @@ function renderNotSure() {
     if (Object.hasOwn(CASE_KINDS, k)) { if (sitKey && hasAnswers()) setSortingAside(); triage = { kind: k }; triagePrev = {}; triageHist = []; triageTouched = false; fromNotSure = true; mode = "triage"; return render(); }
     startSituation(k, "notsure");
   });
-  document.getElementById("back").onclick = () => { mode = "pick"; render(); };
+  document.getElementById("back").onclick = () => { mode = notSureFromKind ? "triage" : "pick"; notSureFromKind = false; render(); };
 }
 
 function renderStep() {
