@@ -2220,10 +2220,14 @@ function saveProgress() {
   // question (or the summary, when the person was changing the sorting answers from it).
   const editingTriage = triageFromSummary && mode !== "step" && mode !== "summary";
   const fromSummary = mode === "summary" || editingTriage;
-  const data = { v: 1, sitKey, answers: Object.fromEntries(keptNow.map(s => [s.id, answers[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
+  // What's in the open box replaces the old answer right away, so erased text doesn't stay on the device.
+  // During an edit the old answer stays for Cancel, unless the box was emptied.
+  const emptied = mode === "step" && draft && empty(draft.value);
+  const inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
+  const data = { v: 1, sitKey, answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
-    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: editOriginal } : null };
+    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined } : editOriginal } : null };
   // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
   const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
   // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
