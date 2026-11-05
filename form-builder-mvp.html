@@ -844,7 +844,7 @@ function appearanceFields(a) {
       a.related ? [{ t: "radio", name: "Related Cases", option: a.related === "yes" ? "Choice1" : "Choice2" }] : []),
     // Written above the printed rule: these two boxes run below it, so a second line would be struck through.
     ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers",
-      [{ t: "lines", page: 5, x0: 107.6, x1: 539.7, ys: [720], layouts: ABOVE_RULE_LAYOUTS, spacesOnly: true, value: a.relatedNumbers }])] : []),
+      [{ t: "lines", page: 5, x0: 107.6, x1: 539.7, ys: [720], layouts: ABOVE_RULE_LAYOUTS, spacesOnly: "commas", value: a.relatedNumbers }])] : []),
     f(FORM.appearance, "7. Local rule information", a.localRule === "yes" ? "Provided below" : a.localRule === "none" ? "Not aware of any" : "", "localRule",
       a.localRule ? [{ t: "radio", name: "Local Rules", option: a.localRule === "yes" ? "Choice2" : "Choice1" }] : []),
     ...(a.localRule === "yes" ? [f(FORM.appearance, "7. Information required by local rule", a.localRuleText, "localRuleText",
@@ -1076,7 +1076,7 @@ function makeSafe(font, report) {
 
 // Break text into lines no wider than maxWidth, keeping the user's own line breaks.
 // The same line breaking as wrapLines, for a box maxWidth wide.
-// spacesOnly: break only at spaces, as pdf-lib does for a field it wraps itself.
+// spacesOnly: break only at spaces, as pdf-lib does for a field it wraps itself. "commas": at commas and semicolons too.
 function wrap(text, font, size, maxWidth, spacesOnly = false) {
   return wrapLines(text, font, size, { x0: 0, x1: maxWidth + 4, ys: [0], spacesOnly });
 }
@@ -1105,7 +1105,7 @@ function wrapLines(text, font, size, op) {
     const wordRe = /\S+/g; let m;
     while ((m = wordRe.exec(para)) !== null) {
       let off = 0;
-      for (const part of op.spacesOnly ? [m[0]] : m[0].match(/[^-]*-+|[^-]+/g)) {
+      for (const part of op.spacesOnly === "commas" ? m[0].match(/[^,;]*[,;]+|[^,;]+/g) : op.spacesOnly ? [m[0]] : m[0].match(/[^-]*-+|[^-]+/g)) {
         tokens.push({ text: part, start: base + m.index + off, joined: off > 0 }); off += part.length;
       }
     }
@@ -1140,10 +1140,11 @@ function fitLines(text, font, op) {
   if (op.layouts) {
     const one = String(text).replace(/\s*\n+\s*/g, " ");
     const place = (lines, size) => lines.map((_, i) => op.ys[0] + (lines.length - 1 - i) * size * 1.15);
+    const inside = (l, size) => font.widthOfTextAtSize(l, size) <= op.x1 - lineX0(op, 0) - 4;
     for (const { n, sizes } of op.layouts) {
       for (const size of sizes) {
         const lines = wrapLines(one, font, size, op);
-        if (lines.length > n) continue;
+        if (lines.length > n || !lines.every(l => inside(l, size))) continue;
         const ys = place(lines, size);
         if (op.maxTop && lines.length > 1 && ys[0] + 2.5 + size * 0.95 > op.maxTop) continue;
         return { size, lines, overflow: false, ys };
@@ -1159,7 +1160,7 @@ function fitLines(text, font, op) {
       const shown = lines.join(" ").length;
       if (!best || shown > best.shown) best = { size, lines, ys, shown };
     }
-    const lines = best.lines.slice(), width = (op.x1 - lineX0(op, lines.length - 1) - 4);
+    const lines = best.lines.map(l => { while (l && !inside(l, best.size)) l = l.slice(0, -1); return l; }), width = (op.x1 - lineX0(op, lines.length - 1) - 4);
     let lastLine = lines[lines.length - 1];
     while (lastLine && font.widthOfTextAtSize(lastLine + "…", best.size) > width) lastLine = lastLine.slice(0, -1);
     lines[lines.length - 1] = lastLine.replace(/\s+$/, "") + "…";
