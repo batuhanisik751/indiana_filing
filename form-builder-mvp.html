@@ -2567,6 +2567,7 @@ const RULES = {
   tr111: { href: "https://rules.incourts.gov/Content/trial/rule11-1/current.htm", text: "Read Trial Rule 11.1" },
   acr5: { href: "https://rules.incourts.gov/Content/records/rule5/current.htm", text: "Read Access to Court Records Rule 5" },
 };
+const T111 = "Trial Rule 11.1 says to provide a \"mailing address, telephone number, and email address, if available.\"";
 const CAPTION_WHY = ["The official form says to fill out its top section to match the other court forms in your case."];
 const RELATED_WHY = ["Trial Rule 3.1 says the Appearance must list the caption and case number of all related cases.", "tr31"];
 const LOCAL_WHY = ["Trial Rule 3.1 says the Appearance must include anything extra that a state or local rule requires.", "tr31"];
@@ -2574,22 +2575,24 @@ const BLANK_WHY = {
   county: CAPTION_WHY, courtType: CAPTION_WHY, courtTypeOther: CAPTION_WHY, caseNumber: CAPTION_WHY, plaintiff: CAPTION_WHY,
   caseTypeLetters: ["The Appearance asks for the two letters that show your case type, and Trial Rule 3.1 says it must give the case type.", "tr31"],
   name: ["Trial Rule 3.1 says the Appearance must give your name.", "tr31"],
-  acp: ["This decides which address prints on the form. Trial Rule 11.1 says you must give a mailing address unless the rules let it be withheld or replaced.", "tr111"],
-  address: ["Trial Rule 11.1 says anyone filing without a lawyer must give a mailing address, and a court may strike a filing that doesn't follow the rule.", "tr111"],
-  acpAddress: ["Trial Rule 11.1 says you must give a mailing address unless the rules let it be replaced. This address prints instead of your home address.", "tr111"],
+  acp: ["This decides which address prints on the form. Trial Rule 11.1 lets an address be withheld or replaced by a public mailing address when the rules allow it.", "tr111"],
+  address: [T111, "tr111"],
+  acpAddress: ["Trial Rule 11.1 lets a public mailing address replace yours when the rules allow it. This address prints instead of your home address.", "tr111"],
   email: ["The official form says an email address is required, and Trial Rule 11.1 says to give one if available.", "tr111"],
-  phone: ["Trial Rule 11.1 says anyone filing without a lawyer must give a phone number, and a court may strike a filing that doesn't follow the rule.", "tr111"],
+  phone: [`The official form says a phone number is required, and ${T111}`, "tr111"],
   receiveAt: ["The Appearance asks you to choose one, and Trial Rule 3.1 says the clerk uses the Appearance to send you court papers.", "tr31"],
-  related: RELATED_WHY, relatedNumbers: RELATED_WHY, relCaption: RELATED_WHY, relNumber: RELATED_WHY,
+  related: ["Trial Rule 3.1 says the Appearance must list all related cases.", "tr31"],
+  relatedNumbers: ["Trial Rule 3.1 says the Appearance must give the case number of all related cases.", "tr31"],
+  relCaption: RELATED_WHY, relNumber: RELATED_WHY,
   localRule: LOCAL_WHY, localRuleText: LOCAL_WHY,
   svcName: ["Trial Rule 5 says the Certificate of Service must list the parties served.", "tr5"],
   svcAddress: ["The Certificate of Service on the official form has a column for the address."],
   svcMethod: ["Trial Rule 5 says the Certificate of Service must give the means of service.", "tr5"],
   svcDate: ["Trial Rule 5 says the Certificate of Service must give the date of service.", "tr5"],
   svcMore: ["Trial Rule 5 says each party generally must be served, and the Certificate of Service lists them.", "tr5"],
-  fileMethod: ["This decides whether your signature prints as \"/s/\" or is left for you to sign by hand. Trial Rule 11.1 says you must sign what you file.", "tr111"],
+  fileMethod: ["This decides whether your signature prints as \"/s/\" or is left for you to sign by hand. Trial Rule 11.1 says you must sign what you file, and a court may strike a filing that doesn't follow the rule.", "tr111"],
   signDate: ["The official form prints this date next to your signature."],
-  fwCourtType: ["The top of the official form names the court where you're filing."],
+  fwCourtType: ["The top of the official form names the court where you're filing. The official instructions say to leave it blank if you don't know, so choose \"I don't know.\""],
   agConfidential: ["The form treats this address as an alternative to your address, email, phone and fax, so this decides which ones print."],
   acceptEmail: ["Trial Rule 3.1 says the Appearance must state whether you will accept court papers by email.", "tr31"],
   monthlyHours: ["The Verified Motion for Fee Waiver works out wages as dollars per hour times hours per month."],
@@ -2605,6 +2608,7 @@ const BLANK_WHY = {
 };
 function blankWhy(s) {
   if (sitKey === "feewaiver" && s.id === "county") return { why: "The top of the official form names the county where you're filing." };
+  if (sitKey === "feewaiver" && s.id === "phone") return { why: T111, link: RULES.tr111 }; // this form doesn't call it required
   const [why, rule] = BLANK_WHY[s.id.replace(/^(svc|rel)\d/, "$1").replace(/^svcMore\d$/, "svcMore")] || ["This is blank."];
   return rule ? { why, link: RULES[rule] } : { why };
 }
@@ -3043,6 +3047,7 @@ function renderSummary(rerender = false) {
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
       <span class="flagtext">${esc(x.title)}<small id="why${i}">${esc(x.why)}${x.link ? ` <a href="${x.link.href}" target="_blank" rel="noopener">${esc(x.link.text)}</a>` : ""}</small></span>
       ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}" aria-describedby="why${i}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
+    ${missing ? `<div class="note">If you have to file before you have everything the Appearance asks for, Trial Rule 3.1 says to file with what you have and add the rest when you get it. <a href="${RULES.tr31.href}" target="_blank" rel="noopener">${esc(RULES.tr31.text)}</a></div>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
     ${fromTriage && triageAnswered(triage) ? `<div class="note">You started from "${esc(kindOf(triage).pick)}." ${triageVisible().filter(s => triage[s.id]).map(s =>
       `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
