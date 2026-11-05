@@ -513,7 +513,7 @@ const fwYouSteps = sec => {
     { ...base.acpAddress, showIf: a => contact(a) && a.acp === "yes" },
     { ...base.email, optional: true, showIf: contact, help: "Leave this blank if you don't have one." },
     { id: "acceptEmail", sec, type: "choice", label: "Accept service by email",
-      showIf: a => contact(a) && !empty(a.email),
+      showIf: a => contact(a) && !empty(a.email) && !SAYS_NONE.test(a.email.trim()),
       q: "Will you accept court papers at this email address?",
       help: "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.",
       options: [["no", "No"], ["yes", "Yes"]] },
@@ -2857,7 +2857,7 @@ function runChecks() {
 
   // "None" is how someone with no email or phone answers on the forms that require them.
   const says = id => { const s = vis.find(x => x.id === id); return s ? notAnAnswer(s, a[id]) : false; }; // flagged below instead
-  if (has("email") && !empty(a.email) && !says("email") && !(sitKey !== "feewaiver" && SAYS_NONE.test(a.email.trim())) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
+  if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
     flags.push({ level: "check", title: "Email", why: "This email looks incomplete. Check it for typos.", fix: "email" });
   if (has("phone") && !empty(a.phone) && !says("phone") && !SAYS_NONE.test(a.phone.trim())) {
     const d = digits(a.phone);
