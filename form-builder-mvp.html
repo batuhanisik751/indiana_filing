@@ -2689,6 +2689,17 @@ function completeness() {
   return { total, filled };
 }
 
+// The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
+function paragraphNumbers(v) {
+  const out = new Set();
+  for (const m of String(v ?? "").matchAll(/(\d+)(?:\s*(?:-|to|through|thru)\s*(\d+))?/gi)) {
+    const from = +m[1], to = m[2] === undefined ? from : +m[2];
+    if (to >= from && to - from < 1000) for (let i = from; i <= to; i++) out.add(i);
+    else { out.add(from); out.add(to); }
+  }
+  return out;
+}
+
 // Why each required answer matters, from the rule or the official form. [reason, rule to link]
 const RULES = {
   tr31: { href: "https://rules.incourts.gov/Content/trial/rule3-1/current.htm", text: "Read Trial Rule 3.1" },
@@ -2811,6 +2822,13 @@ function runChecks() {
 
   if (sitKey === "respond" && ["admitted", "denied", "notEnough"].every(k => empty(a[k]) && !unsure[k]))
     flags.push({ level: "check", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
+
+  if (sitKey === "respond") {
+    const lists = ["admitted", "denied", "notEnough"].map(k => [k, paragraphNumbers(a[k])]);
+    const twice = [...new Set(lists.flatMap(([, n]) => [...n]))].filter(n => lists.filter(([, l]) => l.has(n)).length > 1).sort((x, y) => x - y);
+    if (twice.length) flags.push({ level: "check", title: "Paragraphs listed in more than one list", fix: lists.find(([, l]) => twice.some(n => l.has(n)))[0],
+      why: `${twice.length > 1 ? `Paragraphs ${twice.slice(0, -1).join(", ")} and ${twice[twice.length - 1]} are` : `Paragraph ${twice[0]} is`} in more than one of your lists. The form warns that you won't be able to challenge the paragraphs you admit later. Check which list each one belongs in.` });
+  }
 
   if (sitKey === "respond" && empty(a.defenses) && !unsure.defenses)
     flags.push({ level: "check", title: "Your defenses", fix: "defenses", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
