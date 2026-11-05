@@ -2912,7 +2912,8 @@ function renderStep() {
     input = `<input id="ans" type="${step.type}" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
   }
   const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
-    + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "");
+    + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "")
+    + (step.id === "address" && (unsure.acp || unsure.agConfidential) ? " If you're in the Address Confidentiality Program, don't enter your home address here." : "");
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
@@ -2981,8 +2982,14 @@ function nextFollowUp() {
 
 function markUnsure(step) {
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
+  const wasYes = answers[step.id] === "yes";
   readInput(step);
   if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
+  // Someone who said their address is protected may still need that: what they typed before doesn't come back by itself.
+  if (wasYes || answers[step.id] === "yes") {
+    if (step.id === "acp") delete answers.address;
+    if (step.id === "agConfidential") ["address", "email", "phone", "fax", "acceptEmail"].forEach(k => delete answers[k]);
+  }
   answers[step.id] = "";
   unsure[step.id] = true;
   justMarked = true;
