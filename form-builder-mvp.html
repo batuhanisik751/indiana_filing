@@ -3271,10 +3271,11 @@ function renderSummary(rerender = false) {
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("changeForm").onclick = chooseOtherForm;
   document.getElementById("restart").onclick = () => {
-    const wasOn = savingOn();
-    if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device${wasOn ? ", and turns saving off" : ""}.`)) return;
-    clearFormEverywhere(sitKey); savingOffForNext(); resetAnswers(); mode = "pick"; render();
-    announce(wasOn ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
+    // Another tab's copy of a different form isn't this form's to delete, and saving stays on to keep it.
+    const copy = readSaved(), turnsOff = savingOn() && !(copy && copy.sitKey && copy.sitKey !== sitKey);
+    if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device${turnsOff ? ", and turns saving off" : ""}.`)) return;
+    clearFormEverywhere(sitKey); if (turnsOff) savingOffForNext(); resetAnswers(); mode = "pick"; render();
+    announce(turnsOff ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
   if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
