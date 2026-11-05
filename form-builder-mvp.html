@@ -311,7 +311,7 @@ const hasPassed = v => isDay(v) && v < todayDay();
 const dateLimit = (step, a) => {
   if (step.type !== "date") return null;
   const [id, name] = isDay(a.hearingDate) ? ["hearingDate", "hearing date"] : ["courtDate", "court date"];
-  return step.id !== id && isDay(a[id]) ? { date: a[id], name } : null;
+  return step.id !== id && isDay(a[id]) && !hasPassed(a[id]) ? { date: a[id], name } : null; // a past one has its own flag
 };
 const pastLimit = (v, limit) => !!limit && isDay(v) && v > limit.date;
 
