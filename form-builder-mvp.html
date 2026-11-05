@@ -628,7 +628,8 @@ const contRequestSteps = sec => [
     need: "The form asks for this date. If it's blank, it will be flagged at the end.",
     q: "On what date did you speak to the other party about filing this continuance?",
     help: "The form asks for the date you spoke to the other party about changing the court date." },
-  { id: "otherAgreed", sec, type: "choice", label: "Did the other party agree",
+  { id: "otherAgreed", sec, type: "choice", label: "Did the other party agree", optional: true,
+    need: "The form asks you to select one. If it's blank, it will be flagged at the end.",
     q: "Did the other party agree to your request?",
     help: "The form asks you to select one.",
     options: [["Choice1", "They agreed to my continuance request"], ["Choice2", "They did not agree to my continuance request"]] },
@@ -2813,7 +2814,6 @@ const BLANK_WHY = {
   hearingDate: ["Item 2 of the Verified Motion for Continuance asks when your hearing is scheduled."],
   reason: ["Item 3 of the Verified Motion for Continuance asks why. Indiana Legal Help's instructions say you need to show a good reason, and the court decides."],
   timeNeeded: ["Item 4 of the Verified Motion for Continuance asks how many days or weeks you need."],
-  otherAgreed: ["The Verified Motion for Continuance asks you to select whether the other party agreed."],
 };
 function blankWhy(s) {
   // Someone in the Address Confidentiality Program: the rule's exception is the part that may apply to them.
@@ -2925,6 +2925,9 @@ function runChecks() {
   if (sitKey === "continuance") {
     if (has("timeNeeded") && looksLikeDate(a.timeNeeded))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
+    // Both options on this sworn form say a conversation happened, so leaving it blank isn't called Missing.
+    if (has("otherAgreed") && empty(a.otherAgreed))
+      flags.push({ level: "check", title: "Did the other party agree", why: "The Verified Motion for Continuance asks you to select whether the other party agreed. It will be blank. If you haven't spoken to them, you can ask free legal help what to do.", fix: "otherAgreed", blank: true, link: { href: LINKS.getHelp, text: "Find free legal help" } });
     if (has("spokeDate") && empty(a.spokeDate))
       flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank. If you haven't spoken to them, you can ask free legal help what to do.", fix: "spokeDate", blank: true, link: { href: LINKS.getHelp, text: "Find free legal help" } });
   }
