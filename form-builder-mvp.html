@@ -3330,7 +3330,13 @@ async function whereSpots(step, doc) {
   const pages = official.docs.flatMap(k => off.docs[k].pages);
   const ops = whereRows(step).flatMap(r => r.pdf);
   const spots = new Map(); // in the order of the rows, so the answer's own line comes first
-  const add = (page, rect) => { if (pages.includes(page)) spots.set(page, [...(spots.get(page) || []), rect]); };
+  // Two ops can fill the same place, and marking it twice would darken the highlight.
+  const within = (a, b) => Math.min(a[0], a[2]) >= Math.min(b[0], b[2]) - .5 && Math.min(a[1], a[3]) >= Math.min(b[1], b[3]) - .5 && Math.max(a[0], a[2]) <= Math.max(b[0], b[2]) + .5 && Math.max(a[1], a[3]) <= Math.max(b[1], b[3]) + .5;
+  const add = (page, rect) => {
+    if (!pages.includes(page)) return;
+    const list = spots.get(page) || [];
+    if (!list.some(r => within(rect, r))) spots.set(page, [...list.filter(r => !within(r, rect)), rect]);
+  };
   for (const o of ops) {
     if (o.name) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (a.fieldName === o.name) add(page, a.rect);
     if (o.t === "draw") add(o.page, [o.x - 1, o.y - 3, o.x + (o.w || 90), o.y + 11]);
