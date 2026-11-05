@@ -303,6 +303,8 @@ const formDate = v => { if (empty(v)) return ""; const [y, m, d] = v.split("-");
 // A date input turns 11/30/26 into the year 0026, so a real date here has a 20xx year.
 // The person's other dates can't be later than the hearing or court date they gave.
 const isDay = v => /^20\d{2}-\d{2}-\d{2}$/.test(v ?? "");
+const todayDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const hasPassed = v => isDay(v) && v < todayDay();
 const dateLimit = (step, a) => {
   if (step.type !== "date") return null;
   const [id, name] = isDay(a.hearingDate) ? ["hearingDate", "hearing date"] : ["courtDate", "court date"];
@@ -1738,7 +1740,7 @@ function nextSteps(key, a) {
 
   if (key === "continuance") out.push({
     title: "Your court date stays the same until the judge signs an order",
-    body: `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
+    body: `${hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed. Check it against your papers. ` : a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
     links: [SOURCES.newDate, SOURCES.contInstructions, SOURCES.mycase] });
 
   if (key === "feewaiver") out.push({
@@ -1831,7 +1833,7 @@ function nextSteps(key, a) {
   const dismissFact = notSmallClaims ? "" : dismissText;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    body: `${a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
+    body: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. Check your papers for your next court date, or look it up at mycase.in.gov. ` : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
     links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? [SOURCES.smallClaims] : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
@@ -2859,6 +2861,10 @@ function runChecks() {
     else if (pastLimit(a[s.id], limit)) flags.push({ level: "check", title,
       why: `${formDate(a[s.id])} is after your ${limit.name} (${formDate(limit.date)}). Change whichever one is wrong.`, fix: s.id });
   });
+
+  // A court date that has passed can't be the next one.
+  vis.filter(s => (s.id === "courtDate" || s.id === "hearingDate") && hasPassed(a[s.id])).forEach(s =>
+    flags.push({ level: "check", title: s.label, why: `${formDate(a[s.id])} has already passed. Check it against your papers, or look it up at mycase.in.gov.`, fix: s.id }));
 
   // Questions the person marked "I'm not sure" and hasn't answered since.
   // A required one is still missing from the form, so it's flagged that way.
