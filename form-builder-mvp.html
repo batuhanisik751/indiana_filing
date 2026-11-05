@@ -2632,6 +2632,9 @@ const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 
 // Access to Court Records Rule 5(C): complete Social Security numbers, account numbers, PINs and
 // passwords are redacted unless the case needs them. A flag never repeats what it found.
+// A bare number right after words like these is that thing's number, not a Social Security or card number.
+const REF_LABEL = /(?:^|[^a-z])(?:tracking|track|order|confirmation|claim|invoice|case|cause|docket|receipt|reference|ref|policy)(?:\s+(?:number|num|nbr|no\.?))?(?:\s+(?:is|was))?[\s:#=-]*$/i;
+const isReference = (s, at) => REF_LABEL.test(s.slice(Math.max(0, at - 30), at));
 function privateKind(text, isAddress = false) {
   const s = String(text ?? "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
   if (/(^|[^\d$-])\d{3}(?:-\d{2}[- ]| \d{2} |\.\d{2}\.|\/\d{2}\/)\d{4}(?![\d-])/.test(s)) return "ssn";
@@ -2644,15 +2647,15 @@ function privateKind(text, isAddress = false) {
       if (!/^[\s:#.=-]*$|(?:\bis|\bwas|\bnumber|\bnum|\bnbr|\bno\.?|:|#|=)[\s:#.=-]*$/i.test(gap)) continue;
       const labeled = /\b(?:number|num|nbr|no)\b|#/i.test(gap);
       if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
-      if (/^(1-)?\d{3}-\d{3}-\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
+      if (/^(1[ -])?\d{3}[ -]\d{3}[ -]\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
       if (/^ ?(dollars|usd)\b/i.test(s.slice(m.index + m[0].length))) continue;
       return "account";
     }
-    if (/(^|[^\d-])\d{9}(?![\d-])/.test(s)) return "ssn";
+    for (const m of s.matchAll(/(^|[^\d-])\d{9}(?![\d-])/g)) if (!isReference(s, m.index + m[1].length)) return "ssn";
   }
   // Whole groups of digits, so a longer tracking number doesn't read as a card number.
-  if ((s.match(/\d+(?:[ .-]\d+)*/g) || []).some(n => n.split(/[ .-]/).some(d => d.length >= 12 && d.length <= 19)
-    || /^\d{4}[ .-]\d{4}[ .-]\d{4}[ .-]\d{1,7}(?:[ .-]\d{1,3})?$|^\d{4}[ .-]\d{6}[ .-]\d{5}$/.test(n))) return "account";
+  if ([...s.matchAll(/\d+(?:[ .-]\d+)*/g)].some(({ 0: n, index }) => !isReference(s, index) && (n.split(/[ .-]/).some(d => d.length >= 12 && d.length <= 19)
+    || /^\d{4}[ .-]\d{4}[ .-]\d{4}[ .-]\d{1,7}(?:[ .-]\d{1,3})?$|^\d{4}[ .-]\d{6}[ .-]\d{5}$/.test(n)))) return "account";
   if (/\b(?:pin|personal identification number)\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,))* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}(?:\b(?:is|was)\b|:)[: ]*\d{4,8}\b/i.test(s)) return "pin";
   if (/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S/i.test(s)
     || /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S/i.test(s)
