@@ -2180,6 +2180,12 @@ function saveProgress() {
     }
     return;
   }
+  // Another tab saved since this page last did. Its answers aren't overwritten without asking.
+  const stored = store.get(STORE_KEY);
+  if (old && old.sitKey && stored !== lastWritten) {
+    if (old.sitKey !== sitKey) { if (!replaceOtherForm(old, stored)) return; }
+    else takeFromOtherTab(old);
+  }
   // The choice on the open question counts right away: choosing the Address Confidentiality Program
   // takes the home address out of the saved copy before Continue is pressed.
   const withDraft = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
@@ -2203,6 +2209,40 @@ function saveProgress() {
   if (json === store.get(STORE_KEY)) { savedHere = true; saveOk = true; lastWritten = json; return; }
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
+}
+// One copy is kept, so saving here would replace the other form's. Ask once for each copy that other tab saves.
+let declinedCopy = null;
+function replaceOtherForm(old, stored) {
+  if (stored !== declinedCopy && Object.hasOwn(SITUATIONS, old.sitKey)
+    && confirm(`Another tab saved your answers for "${SITUATIONS[old.sitKey].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`)) return true;
+  declinedCopy = stored; savedHere = false; savedHereWhy = "otherForm";
+  return false;
+}
+// The same form: answers this page doesn't have are kept, instead of being replaced by this page's older copy.
+function takeFromOtherTab(old) {
+  const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
+  const open = mode === "step" && draft ? draft.id : null;
+  const onScreen = mode === "step" ? visible()[Math.min(cur, visible().length - 1)]?.id : null;
+  // An address protected in the other tab stays protected here. This page's older answer doesn't undo that.
+  let safety = false;
+  if (theirs.acp === "yes" && answers.acp !== "yes" && open !== "acp") { answers.acp = "yes"; delete answers.address; safety = true; }
+  if (theirs.agConfidential === "yes" && answers.agConfidential !== "yes" && open !== "agConfidential") {
+    answers.agConfidential = "yes"; ["address", "email", "phone", "fax", "acceptEmail"].forEach(k => delete answers[k]); safety = true;
+  }
+  let took = safety;
+  steps.forEach(s => { if (s.id !== open && empty(answers[s.id]) && !empty(theirs[s.id])) { answers[s.id] = theirs[s.id]; took = true; } });
+  Object.entries(old.unsure && typeof old.unsure === "object" ? old.unsure : {}).forEach(([k, v]) => { if (v === true && empty(answers[k]) && k !== open) unsure[k] = true; });
+  if (!took) return;
+  if (safety) announce("Another tab chose a protected address, so your home address was removed here too.");
+  if (onScreen) {
+    const i = visible().findIndex(s => s.id === onScreen);
+    if (i >= 0) { cur = i; return; }
+    // The question on screen is gone: go on from where it was.
+    draft = null; followUps = []; editOriginal = null;
+    if (returnToSummary) { returnToSummary = false; mode = "summary"; }
+    else cur = Math.max(0, Math.min(cur, visible().length - 1));
+    setTimeout(render);
+  } else if (mode === "summary") setTimeout(() => { if (mode === "summary") keepFocus(() => renderSummary(true)); });
 }
 function clearSaved() { store.del(STORE_KEY); }
 // Writes the saved copy and remembers it, so this page can tell its own copy from another tab's.
@@ -2265,7 +2305,9 @@ function updatePrivacyNote() {
   el.textContent = otherTab && working && savingOn() && saveOk ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || ((sitKey || mode === "triage") && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
-    : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "replaced"
+    : (live || (draft && !empty(draft.value))) && !savedHere ? (savedHereWhy === "otherForm"
+      ? "Not saved right now: another tab saved a different form on this device. Nothing is sent."
+      : savedHereWhy === "replaced"
       ? "Not saved right now: another tab saved different answers over this copy. Your next change saves yours again. Nothing is sent."
       : "Not saved right now: the saved copy was deleted in another tab. Your next change saves it again. Nothing is sent.")
     : working && savedIsMine() ? "Saved only on this device. Nothing is sent."
