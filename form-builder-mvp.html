@@ -2755,6 +2755,7 @@ function completeness() {
 function paragraphNumbers(v) {
   const out = new Set();
   for (const m of String(v ?? "").matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|to|through|thru)\s*(\d+))?/gi)) {
+    if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to - from < 1000) for (let i = from; i <= to; i++) out.add(i);
     else { out.add(from); out.add(to); }
