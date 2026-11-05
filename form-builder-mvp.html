@@ -906,9 +906,11 @@ const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
 const INCOME_IDS = ["hourlyRate", "monthlyHours", ...INCOME.map(x => x[0])], EXPENSE_IDS = EXPENSES.map(x => x[0]);
 // A sworn total can't be worked out while part of it is marked "I'm not sure", so it stays blank on the form.
 const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k]));
-const totalRow = (form, label, total, ids, a, names) => {
-  const open = anyMarked(a, ids);
-  return f(form, label, open ? "Left blank until you answer the questions marked \"I'm not sure\"" : `$${money(total)}`, null,
+// Nothing entered isn't the same as swearing to $0.00, so that stays blank too (noneText says so). A typed 0 prints.
+const totalRow = (form, label, total, ids, a, names, noneText) => {
+  const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
+  const open = marked || none;
+  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : none ? noneText : `$${money(total)}`, null,
     names.map(name => ({ t: "text", name, value: open ? "" : money(total) })));
 };
 const amountRow = (form, label, k, a, name) =>
@@ -996,7 +998,7 @@ function feeWaiverFields(a) {
   if (toNum(a.otherCosts) > 0) out.push(f(FORM.fwMotion, "Other expenses description", a.otherCostsDesc, "otherCostsDesc",
     [{ t: "text", name: "DescriptionOtherCosts", value: a.otherCostsDesc }]));
   out.push(
-    totalRow(FORM.fwMotion, "8. and Total Expenses (added up for you)", expenseTotal(a), EXPENSE_IDS, a, ["MonthlyExpenses"]),
+    totalRow(FORM.fwMotion, "8. and Total Expenses (added up for you)", expenseTotal(a), EXPENSE_IDS, a, ["MonthlyExpenses"], "Left blank (no expenses entered)"),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
     f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "lines", page: 3, x0: 360, x1: 526, ys: [221.5], layouts: NAME_LAYOUTS, value: a.name }]),
     f(FORM.fwOrder, "Distribution: your name", a.name, "name"),
@@ -2724,6 +2726,8 @@ function runChecks() {
     });
     if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k]) && !unsure[k]))
       flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support. If there is none, that's fine, but check that you didn't skip something.", fix: "hourlyRate" });
+    if (EXPENSE_IDS.every(k => empty(a[k]) && !unsure[k]))
+      flags.push({ level: "check", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, enter 0 for any one of them so the form shows $0.00.", fix: "housing" });
     [["adults", "People over 18 who live with you"], ["children", "People under 18 who live with you"], ["supported", "People you financially support"]].forEach(([k, label]) => {
       if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: "This line on the form will be blank. Check that's what you mean.", fix: k, blank: true });
     });
