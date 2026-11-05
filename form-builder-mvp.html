@@ -3064,6 +3064,10 @@ function runChecks() {
   // Answers like "no" or "none" in fill-in boxes would print on the form.
   vis.filter(s => s.noWords && saysNoAnswer(a[s.id])).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
+  // The continuance instructions leave the court and the case number to staff, but not these letters.
+  if (sitKey === "continuance" && has("caseTypeLetters") && empty(a.caseTypeLetters))
+    flags.push({ level: "check", title: "Case type letters", fix: "caseTypeLetters", blank: true, link: { href: LINKS.continuanceInstructions, text: "Read the continuance instructions" },
+      why: "Item 5 of the Appearance asks for the two letters in your case number that show the case type, and it will print empty. Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, but don't mention this item. The letters are on your court papers or at mycase.in.gov." });
   // The case type is two letters, like CC or SC.
   if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z]{2}$/i.test(a.caseTypeLetters.trim()))
     flags.push({ level: "check", title: "Case type letters", why: "The form asks for the two letters that show the case type, like CC or SC. Check this against your case number.", fix: "caseTypeLetters" });
