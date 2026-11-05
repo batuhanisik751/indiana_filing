@@ -913,10 +913,10 @@ const INCOME_IDS = ["hourlyRate", "monthlyHours", ...INCOME.map(x => x[0])], EXP
 // A sworn total can't be worked out while part of it is marked "I'm not sure", so it stays blank on the form.
 const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k]));
 // Nothing entered isn't the same as swearing to $0.00, so that stays blank too (noneText says so). A typed 0 prints.
-const totalRow = (form, label, total, ids, a, names, noneText) => {
+const totalRow = (form, label, total, ids, a, names, noneText, waiting = "") => {
   const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
-  const open = marked || none;
-  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : none ? noneText : `$${money(total)}`, null,
+  const open = marked || none || !!waiting;
+  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), null,
     names.map(name => ({ t: "text", name, value: open ? "" : money(total) })));
 };
 const amountRow = (form, label, k, a, name) =>
@@ -998,7 +998,8 @@ function feeWaiverFields(a) {
   if (toNum(a.otherIncome) > 0) out.push(f(FORM.fwMotion, "Other income description", a.otherIncomeDesc, "otherIncomeDesc",
     [{ t: "text", name: "DescriptionOtherIncome", value: a.otherIncomeDesc }]));
   out.push(
-    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], "Left blank (no income entered)"),
+    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], "Left blank (no income entered)",
+      toNum(a.hourlyRate) > 0 && empty(a.monthlyHours) ? "Left blank until you enter your hours per month" : ""),
     f(FORM.fwMotion, "7. Money in the bank", isNum(a.bank) ? `$${moneyOrBlank(a.bank)}` : "", "bank", [{ t: "text", name: "BankAccount", value: moneyOrBlank(a.bank) }]),
     ...EXPENSES.map(([k, label, name]) => amountRow(FORM.fwMotion, label, k, a, name)),
   );
