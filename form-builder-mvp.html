@@ -3319,8 +3319,10 @@ function wireWhere(step) {
   };
   if (whereOpen) drawWhere(step);
 }
-const whereDoc = file => (whereDocs[file] ||= pdfjsLib.getDocument({ data: b64ToBytes(window.OFFICIAL_PDFS[file]) }).promise);
-const whereFields = (doc, file, page) => (whereNotes[`${file}:${page}`] ||= doc.getPage(page + 1).then(p => p.getAnnotations()));
+// Remembered unless it fails, so Try again really tries again.
+const remember = (cache, key, make) => (cache[key] ||= make().catch(e => { delete cache[key]; throw e; }));
+const whereDoc = file => remember(whereDocs, file, () => pdfjsLib.getDocument({ data: b64ToBytes(window.OFFICIAL_PDFS[file]) }).promise);
+const whereFields = (doc, file, page) => remember(whereNotes, `${file}:${page}`, () => doc.getPage(page + 1).then(p => p.getAnnotations()));
 // Where on the packet's pages this answer prints: [{ page, rects: [[x1, y1, x2, y2], ...] }], in PDF points.
 async function whereSpots(step, doc) {
   const { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet];
@@ -3341,7 +3343,7 @@ async function whereSpots(step, doc) {
 }
 // One canvas per page, kept and reused.
 function whereCanvas(doc, file, page) {
-  return (whereCanvases[`${file}:${page}`] ||= doc.getPage(page + 1).then(async p => {
+  return remember(whereCanvases, `${file}:${page}`, () => doc.getPage(page + 1).then(async p => {
     const scale = Math.min(800, 460 * (window.devicePixelRatio || 1)) / p.getViewport({ scale: 1 }).width, viewport = p.getViewport({ scale });
     const canvas = document.createElement("canvas");
     canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
@@ -3380,10 +3382,14 @@ async function drawWhere(step, at = 0) {
     move("wherePrev", at - 1, "whereNext"); move("whereNext", at + 1, "wherePrev");
   } catch (e) {
     console.error(e);
-    delete whereDocs[off.file];
+    // The form arrived but couldn't be used, so it may have come through damaged. Try again fetches it fresh.
+    const damaged = !!window.OFFICIAL_PDFS?.[off.file];
     if (stale()) return;
     box.innerHTML = `<p class="draftnote" role="alert">The preview couldn't be shown. The blank form link above still works. <button class="link" id="whereRetry">Try again</button></p>`;
-    document.getElementById("whereRetry").onclick = () => drawWhere(step, at);
+    document.getElementById("whereRetry").onclick = () => {
+      if (damaged) { formDataTry++; Object.keys(whereCanvases).forEach(k => { if (k.startsWith(`${off.file}:`)) delete whereCanvases[k]; }); Object.keys(whereNotes).forEach(k => { if (k.startsWith(`${off.file}:`)) delete whereNotes[k]; }); delete whereDocs[off.file]; }
+      drawWhere(step, at);
+    };
   }
 }
 
