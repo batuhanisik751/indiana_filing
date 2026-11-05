@@ -2746,6 +2746,7 @@ const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumb
 // Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.
 const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|\?+)[.!]*$/i;
 const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
+const saysNoAnswer = v => { const t = String(v ?? "").replace(/\u2019/g, "'").trim(); return NO_WORDS.test(t) || NOT_KNOWN.test(t); };
 const NAME_BOXES = /^(name|plaintiff|otherParty|otherPerson|svc\dName)$/;
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
@@ -2986,7 +2987,8 @@ function runChecks() {
         : "The official form asks for a 10-digit phone number, including the area code.", fix: "phone" });
   }
   // Addresses that look incomplete. Only a flag: this tool can't know every address.
-  vis.filter(s => /^(?:address|acpAddress|otherPartyAddress|svc\dAddress)$/.test(s.id) && !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !(s.noWords && NO_WORDS.test(String(a[s.id]).trim()))).forEach(s => {
+  // (Sent through the e-filing system, a person's address box may hold something else.)
+  vis.filter(s => /^(?:address|acpAddress|otherPartyAddress|svc\dAddress)$/.test(s.id) && !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !(s.noWords && saysNoAnswer(a[s.id])) && a[s.id.replace("Address", "Method")] !== "Indiana E-Filing System").forEach(s => {
     const { missing, note } = addressGaps(a[s.id]);
     if (!missing.length && !note) return;
     const list = missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0];
@@ -2994,7 +2996,7 @@ function runChecks() {
       why: `${missing.length ? `This address may be missing the ${list}. A full address looks like 123 Main St, Indianapolis, IN 46204.` : ""}${missing.length && note ? " " : ""}${note}` });
   });
   // Answers like "no" or "none" in fill-in boxes would print on the form.
-  vis.filter(s => s.noWords && NO_WORDS.test(String(a[s.id] ?? "").trim())).forEach(s =>
+  vis.filter(s => s.noWords && saysNoAnswer(a[s.id])).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
   // The case type is two letters, like CC or SC.
   if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z]{2}$/i.test(a.caseTypeLetters.trim()))
