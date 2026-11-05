@@ -2251,7 +2251,7 @@ function saveProgress() {
   const data = { v: 1, sitKey, answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
-    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined } : editOriginal } : null };
+    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, erased: !empty(editOriginal.value) } : editOriginal } : null };
   // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
   const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
   // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
@@ -2331,7 +2331,7 @@ function restoreSaved(d, keep) {
     fixNth = Number.isInteger(d.edit.fixNth) && d.edit.fixNth > 0 ? d.edit.fixNth : 0;
     const o = d.edit.original;
     editOriginal = o && typeof o === "object" && ids.has(o.id) && (o.value === undefined || typeof o.value === "string")
-      ? { id: o.id, value: o.value, unsure: o.unsure === true, before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
+      ? { id: o.id, value: o.value, unsure: o.unsure === true, erased: o.erased === true, before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
   }
   mode = d.mode === "summary" ? "summary" : "step";
   if (keep) keep();
@@ -3151,7 +3151,9 @@ function renderStep() {
       <button class="ghost" id="back">${returnToSummary ? "Cancel" : "Back"}</button>
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
-    ${returnToSummary ? `<p class="need">${followUps.includes(step.id) && !empty(v)
+    ${returnToSummary ? `<p class="need">${editOriginal?.erased
+      ? "The answer you erased before reloading isn't kept. Cancel goes back to the summary and leaves this blank."
+      : followUps.includes(step.id) && !empty(v)
       ? "Your last change stays. Cancel goes back to the summary and keeps the answer shown here."
       : followUps.includes(step.id)
       ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
