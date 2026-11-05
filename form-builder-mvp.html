@@ -1692,8 +1692,20 @@ function nextSteps(key, a) {
   const hasOrder = docs.includes("order");
   const clerk = CLERKS[a.county];
   const out = [];
+  // A small claims case is known from the case type letters (SC) or a Notice of Claim
+  // in the sorting questions; otherwise the small claims facts say "if".
+  const letters = CASE_CODES.has(caseLetters(a)) ? caseLetters(a) : "";
+  // Case type letters decide when they can: an EV case can be in either court, other letters rule small claims out.
+  const notSmallClaims = letters ? !["SC", "EV"].includes(letters) : fromTriage && paperOf(triage) === "complaint";
+  const smallClaims = letters === "SC" || (!notSmallClaims && fromTriage && paperOf(triage) === "notice");
 
   // 1. Deadlines and what the court date means for this situation.
+  // Someone being sued who isn't filling out the Answer still has to know it may be due.
+  if ((key === "appearance" || (key === "continuance" && a.role !== "me")) && !smallClaims) out.push({
+    title: "Check whether an Answer is due",
+    body: "These forms don't answer the complaint. Indiana Legal Help says an Appearance tells the court who you are and how the court and others can contact you. If you got a Complaint, its Answer instructions say you generally have twenty days to file your Answer once you've received the complaint, and it says the court might decide the case without you if you don't file an Answer when you're required to. It also says Answers are not usually filed in small claims court or family court. This tool can fill out the Answer too: choose \"I'm being sued and need to respond to the complaint.\"",
+    links: [SOURCES.answerInstructions, SOURCES.answerTopic, SOURCES.respond] });
+
   if (key === "respond") out.push({
     title: "Check your deadline",
     body: `Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says the court might decide the case without you if you don't file an Answer when you're required to.${
@@ -1770,12 +1782,6 @@ function nextSteps(key, a) {
   // 6. Court dates and what missing one can mean.
   // What missing a court date can mean, in the Small Claims Manual's own terms.
   const marionNote = a.county === "Marion" ? ` ${SCM_NOT_MARION}` : "";
-  // A small claims case is known from the case type letters (SC) or a Notice of Claim
-  // in the sorting questions; otherwise the small claims facts say "if".
-  const letters = CASE_CODES.has(caseLetters(a)) ? caseLetters(a) : "";
-  // Case type letters decide when they can: an EV case can be in either court, other letters rule small claims out.
-  const notSmallClaims = letters ? !["SC", "EV"].includes(letters) : fromTriage && paperOf(triage) === "complaint";
-  const smallClaims = letters === "SC" || (!notSmallClaims && fromTriage && paperOf(triage) === "notice");
   const ifSC = smallClaims ? "In small claims court" : "If your case is in small claims court";
   // Missing a hearing: Indiana Legal Help says what can happen only in its Eviction FAQ, so this is for
   // evictions. It is said plainly for an eviction, with "In an eviction case" when the kind of case isn't
