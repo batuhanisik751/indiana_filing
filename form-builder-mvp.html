@@ -924,8 +924,8 @@ const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && 
 const totalRow = (form, label, total, ids, a, names, noneText, waiting = "", waitingOn = null) => {
   const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
   const open = marked || none || !!waiting;
-  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), waiting ? waitingOn : ids[0],
-    names.map(name => ({ t: "text", name, value: open ? "" : money(total) })));
+  return { from: ids, ...f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), waiting ? waitingOn : ids[0],
+    names.map(name => ({ t: "text", name, value: open ? "" : money(total) }))) };
 };
 const amountRow = (form, label, k, a, name) =>
   f(form, label, isNum(a[k]) ? `$${moneyOrBlank(a[k])}` : "Left blank", k, [{ t: "text", name, value: moneyOrBlank(a[k]) }]);
@@ -999,8 +999,8 @@ function feeWaiverFields(a) {
       [{ t: "text", name: "HourlyRate", value: moneyOrBlank(a.hourlyRate) }]),
     ...(hasWages ? [f(FORM.fwMotion, "Hours per month", a.monthlyHours, "monthlyHours",
       [{ t: "text", name: "MonthlyHours", value: isNum(a.monthlyHours) ? String(toNum(a.monthlyHours)) : "" }])] : []),
-    f(FORM.fwMotion, "Wages per month (worked out for you)", hasWages && isNum(a.monthlyHours) ? `$${money(wages(a))}` : "Left blank", hasWages ? "monthlyHours" : "hourlyRate",
-      [{ t: "text", name: "MonthlyIncome", value: hasWages && isNum(a.monthlyHours) ? money(wages(a)) : "" }]),
+    { from: ["hourlyRate", "monthlyHours"], ...f(FORM.fwMotion, "Wages per month (worked out for you)", hasWages && isNum(a.monthlyHours) ? `$${money(wages(a))}` : "Left blank", hasWages ? "monthlyHours" : "hourlyRate",
+      [{ t: "text", name: "MonthlyIncome", value: hasWages && isNum(a.monthlyHours) ? money(wages(a)) : "" }]) },
     ...INCOME.map(([k, label, , name]) => amountRow(FORM.fwMotion, label, k, a, name)),
   );
   if (toNum(a.otherIncome) > 0) out.push(f(FORM.fwMotion, "Other income description", a.otherIncomeDesc, "otherIncomeDesc",
@@ -3274,15 +3274,17 @@ function whereRows(step) {
   const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && step.type !== "choice");
   const rows = new Map();
   for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, [step.id]: value })) {
+    // Worked out from this answer: a total counts as a place for each answer that goes into it, after the answer's own line.
+    const worked = !!r.from && r.from.includes(step.id);
     // When e-filing, the name also prints as "/s/ name" on the signature lines.
-    if (r.step !== step.id && !(step.id === "name" && r.form === FORM.sign)) continue;
+    if (!worked && (r.from || r.step !== step.id) && !(step.id === "name" && r.form === FORM.sign)) continue;
     const pdf = r.pdf.filter(prints);
     // A row with no place of its own, like "1. My name is", shares a box with another row. A choice doesn't print that way.
     if (!pdf.length && (r.pdf.length || step.type === "choice" || r.form === FORM.sign)) continue;
     const key = `${r.form}|${r.label}`;
-    if (rows.has(key)) rows.get(key).pdf.push(...pdf); else rows.set(key, { form: r.form, label: r.label, pdf });
+    if (rows.has(key)) rows.get(key).pdf.push(...pdf); else rows.set(key, { form: r.form, label: r.label, pdf, worked });
   }
-  const all = [...rows.values()];
+  const all = [...rows.values()].sort((x, y) => x.worked - y.worked);
   return all.some(r => r.pdf.length) ? all : []; // a row with no place on the page, like "Anyone else to send a copy to"
 }
 function whereHtml(step) {
@@ -3319,11 +3321,11 @@ const whereFields = (doc, file, page) => (whereNotes[`${file}:${page}`] ||= doc.
 async function whereSpots(step, doc) {
   const { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet];
   const pages = official.docs.flatMap(k => off.docs[k].pages);
-  const ops = whereRows(step).flatMap(r => r.pdf), names = new Set(ops.filter(o => o.name).map(o => o.name));
-  const spots = new Map();
+  const ops = whereRows(step).flatMap(r => r.pdf);
+  const spots = new Map(); // in the order of the rows, so the answer's own line comes first
   const add = (page, rect) => { if (pages.includes(page)) spots.set(page, [...(spots.get(page) || []), rect]); };
-  if (names.size) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (names.has(a.fieldName)) add(page, a.rect);
   for (const o of ops) {
+    if (o.name) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (a.fieldName === o.name) add(page, a.rect);
     if (o.t === "draw") add(o.page, [o.x - 1, o.y - 3, o.x + (o.w || 90), o.y + 11]);
     if (o.t === "lines") {
       const left = Math.min(...[o.x0].flat()), low = Math.min(...o.ys);
@@ -3331,7 +3333,7 @@ async function whereSpots(step, doc) {
       add(o.page, [left, low - 1, o.x1, low + tall + 2]);
     }
   }
-  return [...spots].sort(([x], [y]) => x - y).map(([page, rects]) => ({ page, rects }));
+  return [...spots].map(([page, rects]) => ({ page, rects }));
 }
 // One canvas per page, kept and reused.
 function whereCanvas(doc, file, page) {
