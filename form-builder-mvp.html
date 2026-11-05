@@ -2536,6 +2536,22 @@ const DATE_RES = [
 ];
 const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 
+// Access to Court Records Rule 5(C): complete Social Security numbers, account numbers, PINs and
+// passwords are redacted unless the case needs them. A flag never repeats what it found.
+function privateKind(text, isAddress = false) {
+  const s = String(text ?? "");
+  if (/(^|[^\d-])\d{3}[- .]\d{2}[- .]\d{4}(?![\d-])/.test(s)) return "ssn";
+  if (!isAddress && /(^|[^\d-])\d{9}(?![\d-])/.test(s)) return "ssn"; // in an address this could be a ZIP+4
+  if (/(\bssn\b|\bss ?#|\bsocial security\b|\bsoc\.? ?sec\b)[^\d]{0,25}(\d[ -]?){9}(?!\d)/i.test(s)) return "ssn";
+  if (/(^|[^\d-])\d{12,19}(?![\d-])/.test(s) || /(^|[^\d-])\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,7}(?![\d-])/.test(s) || /(^|[^\d-])\d{4}[ -]\d{6}[ -]\d{5}(?![\d-])/.test(s)) return "account";
+  const acct = /\b(account|acct|a\/c|routing|card)\b([^\d]{0,25})(\d(?:[ -]?\d){5,})/i.exec(s);
+  if (acct && !/\b(ends?|ending|last|final)\b/i.test(acct[2]) && !/^\d{4}-\d{2}-\d{2}$|^\d{1,2}-\d{1,2}-\d{2,4}$/.test(acct[3])) return "account";
+  if (/\bpin\b[^\d]{0,12}\d{4,}/i.test(s) || /\bpass(word|code)\b\s*(is|:|=)\s*\S/i.test(s)) return "pin";
+  return null;
+}
+const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
+const PRIVATE_NOT = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
+
 // How many of the answers this form needs are in. What isn't counts as "Missing" on the summary.
 function completeness() {
   const a = visibleAnswers();
@@ -2549,6 +2565,7 @@ const RULES = {
   tr31: { href: "https://rules.incourts.gov/Content/trial/rule3-1/current.htm", text: "Read Trial Rule 3.1" },
   tr5: { href: "https://rules.incourts.gov/Content/trial/rule5/current.htm", text: "Read Trial Rule 5" },
   tr111: { href: "https://rules.incourts.gov/Content/trial/rule11-1/current.htm", text: "Read Trial Rule 11.1" },
+  acr5: { href: "https://rules.incourts.gov/Content/records/rule5/current.htm", text: "Read Access to Court Records Rule 5" },
 };
 const CAPTION_WHY = ["The official form says to fill out its top section to match the other court forms in your case."];
 const RELATED_WHY = ["Trial Rule 3.1 says the Appearance must list the caption and case number of all related cases.", "tr31"];
@@ -2598,6 +2615,13 @@ function runChecks() {
   const flags = [];
   const has = id => vis.some(s => s.id === id);
   const handled = new Set();
+
+  // These print on a public form, so they come first.
+  vis.filter(s => (s.type === "text" || s.type === "textarea") && !PRIVATE_NOT.test(s.id)).forEach(s => {
+    const kind = privateKind(a[s.id], /address/i.test(s.id));
+    if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5,
+      why: `${PRIVATE_WHAT[kind]} Access to Court Records Rule 5 says to take these out of court papers unless the case needs them. If yours does, the rule requires filing it as a confidential document, plus a copy that leaves it out and an ACR Form.` });
+  });
 
   if (has("caseNumber")) {
     handled.add("caseNumber");
