@@ -2766,6 +2766,20 @@ function notAnAnswer(s, v) {
 const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)); // "None of them", "no fixed address"
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim()) && !startsNo(a[s.id]);
 
+// What's wrong with the shape of a typed U.S. phone or fax number, if anything: "impossible", "foreign", "letters" or "short".
+// Words around a good number, like "(cell)", and an extension are fine.
+function phoneShape(v) {
+  const raw = String(v ?? "");
+  if (raw.length > 100) return "short";
+  const t = raw.trim().replace(/[,;]?\s*(?:ext\.?|extension|x|#)\s*\d{1,6}$/i, "");
+  let d = digits(t);
+  if (d.length === 11 && d[0] === "1") d = d.slice(1);
+  // U.S. area codes and the three digits after them can't start with 0 or 1.
+  if (d.length === 10) return /^[01]/.test(d) || /^[01]/.test(d.slice(3)) || /^(\d)\1+$/.test(d) ? "impossible" : "";
+  if (/^(?:\+|011)/.test(t)) return "foreign";
+  return /\d[\s.-]*[a-z]{3,}(?:[\s.-]*[a-z]+)*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
+}
+
 /* ---------- address check ---------- */
 // First three digits of the ZIP codes used in each state, including ones that cross a state line.
 const ZIP_PREFIXES = Object.fromEntries("MH:969 AA:340 AE:90-98 AK:995-999 AL:350-369,388 AP:962-966 AR:380,657,716-729,755 AS:967 AZ:845,850-865,873,890 CA:894,900-961,976 CO:800-816,820 CT:60-69 DC:200,202-205,569 DE:197-199 FL:320-349 GA:300-319,398-399 GU:969 HI:967-968 IA:500-528,559-561 ID:831-838,979,991 IL:527,600-629 IN:460-479 KS:660-679 KY:380,400-427 LA:700-714,717 MA:10-27,55 MD:206-219,205 ME:39-49 MI:480-499 MN:550-567 MO:516,526,630-658,726 MP:969 MS:386-397 MT:590-599 NC:270-289 ND:576,580-588,592 NE:680-693,820 NH:30-38 NJ:70-89,100 NM:799,855,865,870-884 NV:889-898 NY:5,63,100-149 OH:430-459 OK:679,730-749,790 OR:970-979,993 PA:150-196 PR:6-9 RI:28-29 SC:290-299 SD:562,570-577,693 TN:370-385,422 TX:739,750-799,885,733 UT:840-847,860,865 VA:201,220-246,376,205 VI:8 VT:50-59 WA:980-994 WI:530-549 WV:247-268 WY:820-831,834".split(" ").map(e => { const [st, list] = e.split(":"); return [st, list.split(",").map(r => r.split("-").map(Number))]; }));
@@ -2979,13 +2993,19 @@ function runChecks() {
   const says = id => { const s = vis.find(x => x.id === id); return s ? notAnAnswer(s, a[id]) : false; }; // flagged below instead
   if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
     flags.push({ level: "check", title: "Email", why: "This email looks incomplete. Check it for typos.", fix: "email" });
-  if (has("phone") && !empty(a.phone) && !says("phone") && !SAYS_NONE.test(a.phone.trim())) {
-    const d = digits(a.phone);
-    if (!(d.length === 10 || (d.length === 11 && d.startsWith("1"))))
-      flags.push({ level: "check", title: "Phone number", why: sitKey === "feewaiver"
-        ? "This doesn't look like a full phone number with area code. Check it for typos."
-        : "The official form asks for a 10-digit phone number, including the area code.", fix: "phone" });
-  }
+  // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
+  [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
+    const v = String(a[id] ?? "").trim();
+    if (!has(id) || !v || saysNoAnswer(v) || startsNo(v) || privateKind(v, true)) return;
+    const kind = phoneShape(v);
+    // The Appearance forms ask for 10 digits. The fee waiver's form doesn't say, and neither does a fax box.
+    const asks = id === "phone" && sitKey !== "feewaiver" ? "The official form asks for a 10-digit phone number, including the area code." : "";
+    const why = { impossible: `This has 10 digits, but it doesn't look like a real U.S. ${word} number. Check it for typos.`,
+      foreign: `This looks like a number outside the U.S. ${asks || "Check it for typos."}`,
+      letters: `This has letters in it. Write the number in digits, including the area code.`,
+      short: asks || `This doesn't look like a full ${word} number with area code. Check it for typos.` }[kind];
+    if (why) flags.push({ level: "check", title, why, fix: id });
+  });
   // Addresses that look incomplete. Only a flag: this tool can't know every address.
   // (Sent through the e-filing system, a person's address box may hold something else.)
   vis.filter(s => /^(?:address|acpAddress|otherPartyAddress|svc\dAddress)$/.test(s.id) && !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !(s.noWords && saysNoAnswer(a[s.id])) && a[s.id.replace("Address", "Method")] !== "Indiana E-Filing System").forEach(s => {
