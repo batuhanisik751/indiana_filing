@@ -3087,7 +3087,9 @@ function renderStep() {
       <button class="ghost" id="back">${returnToSummary ? "Cancel" : "Back"}</button>
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
-    ${returnToSummary ? `<p class="need">${followUps.includes(step.id)
+    ${returnToSummary ? `<p class="need">${followUps.includes(step.id) && !empty(v)
+      ? "Your last change stays. Cancel goes back to the summary and keeps the answer shown here."
+      : followUps.includes(step.id)
       ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
@@ -3150,7 +3152,7 @@ function chooseOtherForm() {
 // After an edit, go to the next question that edit opened, if any is still unanswered.
 function nextFollowUp() {
   const vis = visible();
-  const next = vis.find(s => followUps.includes(s.id) && empty(answers[s.id]) && !unsure[s.id]);
+  const next = vis.find(s => followUps.includes(s.id) && !(unsure[s.id] && empty(answers[s.id])));
   if (!next) { followUps = []; return false; }
   cur = vis.indexOf(next); render(); return true;
 }
@@ -3174,7 +3176,7 @@ function markUnsure(step) {
   if (returnToSummary) {
     // Clearing an answer can open questions too (for example the case type letters).
     followUps = followUps.filter(id => id !== step.id);
-    vis.forEach(s => { if (!before.has(s.id) && empty(answers[s.id])) followUps.push(s.id); });
+    vis.forEach(s => { if (!before.has(s.id)) followUps.push(s.id); });
     if (nextFollowUp()) return;
     editOriginal = null;
     returnToSummary = false; mode = "summary"; return render();
@@ -3208,9 +3210,10 @@ function save(step) {
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {
     // A changed answer can open follow-up questions (for example "Yes, there
-    // are related cases"). Ask those, and only those, before going back to the summary.
+    // are related cases"). Ask those, and only those, before going back to the summary. An earlier answer
+    // that comes back is asked again too, with that answer selected, so it can't return unseen.
     followUps = followUps.filter(id => id !== step.id);
-    vis.forEach(s => { if (!before.has(s.id) && empty(answers[s.id])) followUps.push(s.id); });
+    vis.forEach(s => { if (!before.has(s.id)) followUps.push(s.id); });
     if (nextFollowUp()) return;
     editOriginal = null; returnToSummary = false; mode = "summary"; return render();
   }
