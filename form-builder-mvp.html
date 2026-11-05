@@ -3767,6 +3767,8 @@ app.addEventListener("click", e => {
 function render() {
   drawnAt = performance.now();
   draft = null; // a new screen: what was typed has been saved or left
+  // Get help sits above the screen. Left open, a phone's next question starts far below the fold.
+  if (!helpPanel.hidden) { helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false"); }
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
   justMarked = false;
