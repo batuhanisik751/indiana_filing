@@ -2765,6 +2765,48 @@ function notAnAnswer(s, v) {
 const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)); // "None of them", "no fixed address"
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim()) && !startsNo(a[s.id]);
 
+/* ---------- address check ---------- */
+// First three digits of the ZIP codes used in each state, including ones that cross a state line.
+const ZIP_PREFIXES = Object.fromEntries("AA:340 AE:90-98 AK:995-999 AL:350-369,388 AP:962-966 AR:380,657,716-729,755 AS:967 AZ:845,850-865,873,890 CA:894,900-961,976 CO:800-816,820 CT:60-69 DC:200,202-205,569 DE:197-199 FL:320-349 GA:300-319,398-399 GU:969 HI:967-968 IA:500-528,559-561 ID:831-838,979,991 IL:527,600-629 IN:460-479 KS:660-679 KY:380,400-427 LA:700-714,717 MA:10-27,55 MD:206-219 ME:39-49 MI:480-499 MN:550-567 MO:516,526,630-658,726 MP:969 MS:386-397 MT:590-599 NC:270-289 ND:576,580-588,592 NE:680-693,820 NH:30-38 NJ:70-89,100 NM:799,855,865,870-884 NV:889-898 NY:5,63,100-149 OH:430-459 OK:679,730-749,790 OR:970-979,993 PA:150-196 PR:6-9 RI:28-29 SC:290-299 SD:562,570-577,693 TN:370-385,422 TX:739,750-799,885 UT:840-847,860,865 VA:201,220-246,376 VI:8 VT:50-59 WA:980-994 WI:530-549 WV:247-268 WY:820-831".split(" ").map(e => { const [st, list] = e.split(":"); return [st, list.split(",").map(r => r.split("-").map(Number))]; }));
+const STATE_NAMES = {"alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE", "district of columbia": "DC", "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS", "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD", "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT", "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT", "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY", "puerto rico": "PR"};
+const STREET_WORDS = /^(?:st|street|ave|avenue|rd|road|dr|drive|ln|lane|blvd|boulevard|ct|court|pl|place|way|ter|terrace|cir|circle|pkwy|parkway|hwy|highway|trl|trail|apt|apartment|unit|ste|suite|lot|fl|floor|rm|room|n|s|e|w|ne|nw|se|sw|north|south|east|west|box)$/i;
+// What a typed U.S. address seems to be missing. Worked out on this device only: an address is never sent anywhere to be checked.
+function addressGaps(text) {
+  const none = { missing: [], note: "" };
+  const s = String(text ?? "").replace(/\s*\n+\s*/g, ", ").replace(/\s+/g, " ").replace(/[.,;\s]+$/, "").trim();
+  if (!s || s.includes("@") || startsNo(s) || /\b(?:canada|mexico)\b/i.test(s)) return none; // not a U.S. street address
+  const atEnd = /(?:^|[\s,])(\d[\d-]*)$/.exec(s), digitsAtEnd = atEnd ? atEnd[1] : "";
+  const zip = /^\d{5}(?:-\d{4})?$/.test(digitsAtEnd) ? digitsAtEnd : "";
+  let rest = atEnd && (zip || /^\d/.test(digitsAtEnd)) ? s.slice(0, atEnd.index).replace(/[.,;\s]+$/, "") : s;
+  // The state comes right before the ZIP code. Without one, "Ct" could be a street, so it has to follow a comma or be in capitals.
+  const name = Object.keys(STATE_NAMES).sort((x, y) => y.length - x.length).find(n => new RegExp(`(?:^|[\\s,])${n}$`, "i").test(rest));
+  const code = /(?:^|([\s,]))([A-Za-z]{2})\.?$/.exec(rest);
+  let state = "";
+  if (name) state = STATE_NAMES[name];
+  else if (code && ZIP_PREFIXES[code[2].toUpperCase()]) {
+    const upper = code[2].toUpperCase(), afterComma = /,\s*[A-Za-z]{2}\.?$/.test(rest);
+    if (zip || afterComma || (code[2] === upper && upper !== "CT")) state = upper;
+  }
+  // Digits that weren't a ZIP code only count as a bad one right after a state. Otherwise they're part of the street.
+  const badZip = !zip && digitsAtEnd && state;
+  if (!zip && !badZip) rest = s;
+  if (state || zip) { const cut = name ? new RegExp(`(?:^|[\\s,])${name}$`, "i") : /(?:^|[\s,])[A-Za-z]{2}\.?$/; if (state) rest = rest.replace(cut, ""); }
+  rest = rest.replace(/[.,;\s]+$/, "").trim();
+  const words = rest.split(/[\s,]+/).filter(Boolean), last = (words[words.length - 1] || "").replace(/\.$/, "");
+  const oneNumberedPart = !rest.includes(",") && /^\d/.test(rest) && words.length <= 2 && (state || zip);
+  const noCity = !words.length || /\d/.test(last) || /^#/.test(last) || STREET_WORDS.test(last) || oneNumberedPart;
+  const hasStreet = /\d/.test(rest) || /\b(?:p\.?\s?o\.?\s*box|box|general delivery|rural route)\b/i.test(rest) || /^(?:one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(rest);
+  const missing = [];
+  if (!hasStreet) missing.push("street number");
+  if (noCity) missing.push("city");
+  if (!state) missing.push("state");
+  if (!zip && !badZip) missing.push("ZIP code");
+  let note = "";
+  if (badZip) note = "The ZIP code should have 5 digits, or 5 digits, a dash and 4 more.";
+  else if (zip && state && !ZIP_PREFIXES[state].some(([lo, hi = lo]) => +zip.slice(0, 3) >= lo && +zip.slice(0, 3) <= hi)) note = `The ZIP code ${zip} doesn't usually go with ${state}. Check both against your papers.`;
+  return { missing, note };
+}
+
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
 // or for the two below, which can be left blank, as something to check.
 function completeness() {
@@ -2896,6 +2938,14 @@ function runChecks() {
         ? "This doesn't look like a full phone number with area code. Check it for typos."
         : "The official form asks for a 10-digit phone number, including the area code.", fix: "phone" });
   }
+  // Addresses that look incomplete. Only a flag: this tool can't know every address.
+  vis.filter(s => /^(?:address|acpAddress|otherPartyAddress|svc\dAddress)$/.test(s.id) && !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !(s.noWords && NO_WORDS.test(String(a[s.id]).trim()))).forEach(s => {
+    const { missing, note } = addressGaps(a[s.id]);
+    if (!missing.length && !note) return;
+    const list = missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0];
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+      why: `${missing.length ? `This address may be missing the ${list}. A full address looks like 123 Main St, Indianapolis, IN 46204.` : ""}${missing.length && note ? " " : ""}${note}` });
+  });
   // Answers like "no" or "none" in fill-in boxes would print on the form.
   vis.filter(s => s.noWords && NO_WORDS.test(String(a[s.id] ?? "").trim())).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
