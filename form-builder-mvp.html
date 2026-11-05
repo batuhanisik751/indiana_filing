@@ -2267,12 +2267,12 @@ const sortingInCopy = () => { try { const d = JSON.parse(store.get(STORE_KEY) ||
 const savedIsMine = () => { try { return !!sitKey && JSON.parse(store.get(STORE_KEY) || "null")?.sitKey === sitKey; } catch { return false; } };
 // Deleting answers on purpose also clears them from any other open tab.
 // (The signal goes first, so other tabs reset before they hear the copy went, and say so once.)
-function clearEverywhere() { store.set(CLEAR_KEY, String(Date.now())); store.del(CLEAR_KEY); clearSaved(); }
+function clearEverywhere() { sendClear(String(Date.now())); clearSaved(); }
 // Deleting one form's answers also clears that form (and only that form) in other open tabs.
 function clearFormEverywhere(form) {
   // This form's copy, or sorting answers. If another tab saved a different form, that copy isn't this one to delete.
   let d = null; try { d = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
-  store.set(CLEAR_KEY, JSON.stringify({ at: Date.now(), form })); store.del(CLEAR_KEY);
+  sendClear(JSON.stringify({ at: Date.now(), form }));
   if (!d || d.triageOnly || d.sitKey === form) clearSaved();
 }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
@@ -2331,40 +2331,45 @@ function updatePrivacyNote() {
     : "Answers save only on this device. Nothing is sent.";
 }
 // Another tab saving the same form would replace this tab's answers (and the other way around).
-window.addEventListener("storage", e => {
-  if (e.key === CLEAR_KEY) {
-    if (e.newValue === null) return; // the signal removing itself
-    // Start over or Delete saved answers name one form; Clear my data names none (every form).
-    let form = null;
-    try { const v = JSON.parse(e.newValue); if (v && typeof v === "object" && typeof v.form === "string") form = v.form; } catch { /* a plain time */ }
-    if (form && form.startsWith("sorting:")) {
-      // Saved sorting answers were deleted: a tab still holding them clears too, or its next click saves them again.
-      const held = triageBeforeEdit || triage;
-      if (!hasAnswers() && (triageAnswered(held) || (mode === "triage" && triageTouched)) && sortingTag(held) === form) {
-        const title = kindOf(held).pick;
-        if (sitKey && (mode === "step" || mode === "summary")) {
-          // On a form with nothing in it yet: it stays open, without those answers.
-          triage = {}; triagePrev = {}; triageHist = []; fromTriage = false; triageBeforeEdit = null; triageFromSummary = false;
-          if (mode === "summary") render();
-        } else { resetAnswers(); mode = "pick"; render(); }
-        announce(`Your answers for "${title}" were deleted in another tab.`);
-      } else if (mode === "pick") renderPick(true);
-      return;
-    }
-    if (form && form !== sitKey) { if (mode === "pick") renderPick(true); return; } // a different form: nothing to delete here
-    if (form) {
-      const title = SITUATIONS[form] ? SITUATIONS[form].title : "this form";
-      resetAnswers(); mode = "pick"; render();
+// Deleting answers reaches other tabs by a storage event. That needs working storage, so a channel carries it too.
+let lastClearSignal = null, clearChannel = null;
+try { clearChannel = new BroadcastChannel("icfh-clear"); clearChannel.onmessage = e => heardClear(e.data); } catch { /* the storage event still works */ }
+function sendClear(signal) { store.set(CLEAR_KEY, signal); store.del(CLEAR_KEY); try { clearChannel?.postMessage(signal); } catch { /* the storage event still works */ } }
+function heardClear(signal) {
+  if (signal === lastClearSignal) return; // it arrived both ways
+  lastClearSignal = signal;
+  // Start over or Delete saved answers name one form; Clear my data names none (every form).
+  let form = null;
+  try { const v = JSON.parse(signal); if (v && typeof v === "object" && typeof v.form === "string") form = v.form; } catch { /* a plain time */ }
+  if (form && form.startsWith("sorting:")) {
+    // Saved sorting answers were deleted: a tab still holding them clears too, or its next click saves them again.
+    const held = triageBeforeEdit || triage;
+    if (!hasAnswers() && (triageAnswered(held) || (mode === "triage" && triageTouched)) && sortingTag(held) === form) {
+      const title = kindOf(held).pick;
+      if (sitKey && (mode === "step" || mode === "summary")) {
+        // On a form with nothing in it yet: it stays open, without those answers.
+        triage = {}; triagePrev = {}; triageHist = []; fromTriage = false; triageBeforeEdit = null; triageFromSummary = false;
+        if (mode === "summary") render();
+      } else { resetAnswers(); mode = "pick"; render(); }
       announce(`Your answers for "${title}" were deleted in another tab.`);
-      return;
-    }
-    // The person deleted their answers in another tab: delete them here too.
-    const had = hasAnswers();
-    if (!had && mode === "pick") { resetAnswers(); renderPick(true); updatePrivacyNote(); return; } // nothing changes here
-    resetAnswers(); mode = "pick"; render();
-    if (had) announce("Your answers were deleted in another tab.");
+    } else if (mode === "pick") renderPick(true);
     return;
   }
+  if (form && form !== sitKey) { if (mode === "pick") renderPick(true); return; } // a different form: nothing to delete here
+  if (form) {
+    const title = SITUATIONS[form] ? SITUATIONS[form].title : "this form";
+    resetAnswers(); mode = "pick"; render();
+    announce(`Your answers for "${title}" were deleted in another tab.`);
+    return;
+  }
+  // The person deleted their answers in another tab: delete them here too.
+  const had = hasAnswers();
+  if (!had && mode === "pick") { resetAnswers(); renderPick(true); updatePrivacyNote(); return; } // nothing changes here
+  resetAnswers(); mode = "pick"; render();
+  if (had) announce("Your answers were deleted in another tab.");
+}
+window.addEventListener("storage", e => {
+  if (e.key === CLEAR_KEY) { if (e.newValue !== null) heardClear(e.newValue); return; } // null: the signal removing itself
   if (e.key === PREF_KEY) {
     const now = savingOn();
     if (now === lastSavingOn) { updatePrivacyNote(); return; } // nothing changed for this page
