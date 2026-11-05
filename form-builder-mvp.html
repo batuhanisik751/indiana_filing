@@ -3154,7 +3154,7 @@ function renderStep() {
     ${returnToSummary ? `<p class="need">${editOriginal?.erased
       ? "The answer you erased before reloading isn't kept. Cancel goes back to the summary and leaves this blank."
       : followUps.includes(step.id) && !empty(v)
-      ? "Your last change stays. Cancel goes back to the summary and keeps the answer shown here."
+      ? "Your last change stays. Cancel keeps the answer shown here."
       : followUps.includes(step.id)
       ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
@@ -3171,6 +3171,9 @@ function renderStep() {
         if (editOriginal.value === undefined) delete answers[step.id]; else answers[step.id] = editOriginal.value;
         if (editOriginal.unsure) unsure[step.id] = true; else delete unsure[step.id];
       }
+      // Earlier answers that came back are still shown before they can print.
+      const cameBack = followUps.includes(step.id) && visible().find(s => s.id !== step.id && followUps.includes(s.id) && !empty(answers[s.id]));
+      if (cameBack) { followUps = followUps.filter(id => id !== step.id); editOriginal = null; cur = visible().indexOf(cameBack); return render(); }
       editOriginal = null; followUps = []; returnToSummary = false; mode = "summary"; return render();
     }
     readInput(step); // keep what was typed
