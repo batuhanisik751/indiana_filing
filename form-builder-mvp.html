@@ -2772,12 +2772,14 @@ const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) &&
 function phoneShape(v) {
   const raw = String(v ?? "");
   if (raw.length > 100) return "short";
-  const t = raw.trim().replace(/[,;]?\s*(?:ext\.?|extension|x|#)\s*\d{1,6}$/i, "");
+  const t = raw.trim().replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, "$1").replace(/#\s*\d{1,6}/g, "");
+  if (/^(?:\+\s*[2-9]|011)/.test(t)) return "foreign"; // a country code other than the U.S.'s
   let d = digits(t);
+  if (d.length === 13 && d.startsWith("001")) d = d.slice(3);
   if (d.length === 11 && d[0] === "1") d = d.slice(1);
-  // U.S. area codes and the three digits after them can't start with 0 or 1.
-  if (d.length === 10) return /^[01]/.test(d) || /^[01]/.test(d.slice(3)) || /^(\d)\1+$/.test(d) ? "impossible" : "";
-  if (/^(?:\+|011)/.test(t)) return "foreign";
+  // U.S. area codes and the three digits after them can't start with 0 or 1, or be like 911.
+  if (d.length === 10) return /^[01]|^\d11/.test(d) || /^[01]|^\d11/.test(d.slice(3)) ? "impossible" : "";
+  if (d.length > 11) return "long";
   return /\d[\s.-]*[a-z]{3,}[a-z\s.-]*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
 }
 
@@ -2963,7 +2965,8 @@ function runChecks() {
   vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel").forEach(s => {
     const v = String(a[s.id] ?? "");
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
-    const kind = s.type === "tel" ? privateKind(v, true)
+    // A good or foreign phone number isn't an account number, however long.
+    const kind = s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
       : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) ? " " : t)), false)
       : privateKind(v, /address/i.test(s.id));
     if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5,
@@ -3004,6 +3007,7 @@ function runChecks() {
     const why = { impossible: `This has 10 digits, but it doesn't look like a real U.S. ${word} number. Check it for typos.`,
       foreign: `This looks like a number outside the U.S. ${asks || "Check it for typos."}`,
       letters: `This has letters in it. Write the number in digits, including the area code.`,
+      long: asks || `This has more digits than one ${word} number. Check it for typos.`,
       short: asks || `This doesn't look like a full ${word} number with area code. Check it for typos.` }[kind];
     if (why) flags.push({ level: "check", title, why, fix: id });
   });
