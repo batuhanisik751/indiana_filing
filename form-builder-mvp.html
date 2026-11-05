@@ -1020,13 +1020,16 @@ function feeWaiverFields(a) {
    form pages. Nothing leaves the device.
    ===================================================================== */
 const loaded = {};
+const LOAD_TIMEOUT_MS = 60000;
 function loadScript({ src, integrity }) {
   if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
     const s = document.createElement("script");
+    const fail = () => { clearTimeout(timer); delete loaded[src]; s.remove(); reject(new Error("load")); };
+    const timer = setTimeout(fail, LOAD_TIMEOUT_MS); // a stalled connection never reports an error
     s.src = src;
     if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
-    s.onload = resolve;
-    s.onerror = () => { delete loaded[src]; s.remove(); reject(new Error("load")); };
+    s.onload = () => { clearTimeout(timer); resolve(); };
+    s.onerror = fail;
     document.head.appendChild(s);
   });
   return loaded[src];
