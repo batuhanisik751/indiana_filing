@@ -549,13 +549,13 @@ const fwYouSteps = sec => {
 };
 
 const fwHouseholdSteps = sec => [
-  { id: "adults", sec, type: "text", label: "People over 18 who live with you", optional: true,
+  { id: "adults", sec, type: "text", label: "People over 18 who live with you", optional: true, sworn: true,
     q: "Who do you live with who is over eighteen (18)?",
     help: "The form says: \"I live with the following persons who are over eighteen (18) years of age.\" List their names, or type None if there's no one." },
-  { id: "children", sec, type: "text", label: "People under 18 who live with you", optional: true,
+  { id: "children", sec, type: "text", label: "People under 18 who live with you", optional: true, sworn: true,
     q: "Who do you live with who is under eighteen (18)?",
     help: "The form says: \"I live with the following persons who are under eighteen (18) years of age.\" List their names, or type None if there's no one." },
-  { id: "supported", sec, type: "text", label: "People you financially support", optional: true,
+  { id: "supported", sec, type: "text", label: "People you financially support", optional: true, sworn: true,
     q: "Who do you financially support who lives in your household?",
     help: "The form says: \"I am responsible for the financial support of the following people who live in my household.\" List their names, or type None if there's no one." },
 ];
@@ -921,6 +921,8 @@ const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
 const incomeTotal = a => wages(a) + INCOME.reduce((s, [k]) => s + toNum(a[k]), 0);
 const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
 const INCOME_IDS = ["hourlyRate", "monthlyHours", ...INCOME.map(x => x[0])], EXPENSE_IDS = EXPENSES.map(x => x[0]);
+const EARNED_IDS = ["hourlyRate", ...INCOME.map(x => x[0])];
+const anyAmount = (a, ids) => ids.some(k => !empty(a[k]) && AMOUNT_RE.test(cleanNum(a[k])));
 // A sworn total can't be worked out while part of it is marked "I'm not sure", so it stays blank on the form.
 const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k]));
 // Nothing entered isn't the same as swearing to $0.00, so that stays blank too (noneText says so). A typed 0 prints.
@@ -2897,16 +2899,20 @@ function addressGaps(text) {
 }
 
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
-// or for the two below, which can be left blank, as something to check.
+// or for the ones below, which can be left blank, as something to check.
 function completeness() {
   const a = visibleAnswers(), vis = visible();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
   const isIn = s => !empty(a[s.id]) && !badNum(s) && !notAnAnswer(s, a[s.id]);
-  const need = vis.filter(s => !s.optional || badNum(s));
+  const need = vis.filter(s => !s.optional || s.sworn || badNum(s));
   let total = need.length, filled = need.filter(isIn).length;
   if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
     total++;
     if (vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a))) filled++;
+  }
+  if (sitKey === "feewaiver") { // items 6 and 8 of the sworn motion print blank without these. Income and expenses count once each
+    total += 2;
+    filled += [EARNED_IDS, EXPENSE_IDS].filter(ids => anyAmount(a, ids)).length;
   }
   return { total, filled };
 }
@@ -3064,7 +3070,7 @@ function runChecks() {
   // "I'm not sure" typed into a box would print on the form. The button is what flags it instead.
   vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
       why: `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
   });
   // Amounts that aren't numbers can't go on the form.
@@ -3135,14 +3141,14 @@ function runChecks() {
       if (a.related === "yes" && empty(a[`rel${i}Caption`]) && !empty(a[`rel${i}Number`]))
         flags.push({ level: "check", title: `Related case ${i} caption`, why: `You gave a case number for related case ${i} but no caption (case name), so the number prints next to a blank line.`, fix: `rel${i}Caption` });
     });
-    if (incomeTotal(a) === 0 && ["hourlyRate", ...INCOME.map(x => x[0])].every(k => empty(a[k]) && !unsure[k]))
-      flags.push({ level: "check", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
-    if (EXPENSE_IDS.every(k => empty(a[k]) && !unsure[k]))
-      flags.push({ level: "check", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, enter 0 for any one of them so the form shows $0.00.", fix: "housing" });
+    if (!anyAmount(a, EARNED_IDS))
+      flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
+    if (!anyAmount(a, EXPENSE_IDS))
+      flags.push({ level: "missing", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, enter 0 for any one of them so the form shows $0.00.", fix: "housing" });
     [["adults", "People over 18 who live with you", "Item 3 of the Verified Motion for Fee Waiver asks who you live with who is over 18."],
      ["children", "People under 18 who live with you", "Item 4 of the Verified Motion for Fee Waiver asks who you live with who is under 18."],
      ["supported", "People you financially support", "Item 5 of the Verified Motion for Fee Waiver asks who you financially support in your household."]].forEach(([k, label, why]) => {
-      if (has(k) && empty(a[k])) flags.push({ level: "check", title: label, why: `${why} If there's no one, type None.`, fix: k, blank: true });
+      if (has(k) && empty(a[k])) flags.push({ level: "missing", title: label, why: `${why} If there's no one, type None.`, fix: k, blank: true });
     });
   }
 
@@ -3169,7 +3175,7 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
+    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
       // A question the form needs keeps the reason it matters, when that reason is a rule.
       why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).link ? `${blankWhy(s).why} ` : ""}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
