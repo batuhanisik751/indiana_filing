@@ -2536,6 +2536,14 @@ const DATE_RES = [
 ];
 const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 
+// How many of the answers this form needs are in. What isn't counts as "Missing" on the summary.
+function completeness() {
+  const a = visibleAnswers();
+  const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
+  const need = visible().filter(s => !s.optional || badNum(s));
+  return { total: need.length, filled: need.filter(s => !empty(a[s.id]) && !badNum(s)).length };
+}
+
 // Why each required answer matters, from the rule or the official form. [reason, rule to link]
 const RULES = {
   tr31: { href: "https://rules.incourts.gov/Content/trial/rule3-1/current.htm", text: "Read Trial Rule 3.1" },
@@ -2989,6 +2997,7 @@ function renderSummary(rerender = false) {
   const checking = pdfState.busy || !pdfState.key; // the PDF's own checks aren't in yet
   const ready = flags.length === 0 && !checking;
   const fields = sit.fields(a);
+  const score = completeness(), scorePct = score.total ? Math.round(score.filled / score.total * 100) : 100;
 
   // Every visible question gets an Edit link somewhere on this page.
   const covered = new Set(fields.map(x => x.step).filter(Boolean));
@@ -2999,8 +3008,8 @@ function renderSummary(rerender = false) {
   const visIds = new Set(visible().map(s => s.id));
 
   app.innerHTML = `
-    <div class="bar"><span style="width:100%"></span></div>
-    <div class="barlabel"><span>Summary</span><span>Done</span></div>
+    <div class="bar" role="progressbar" aria-label="Required answers filled in" aria-valuenow="${scorePct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
+    <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} required answers filled in</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
       <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : "Checking your filled form…"}</strong>
