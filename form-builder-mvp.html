@@ -2753,7 +2753,7 @@ function completeness() {
 // The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
 function paragraphNumbers(v) {
   const out = new Set();
-  for (const m of String(v ?? "").matchAll(/(\d+)(?:\s*(?:-|to|through|thru)\s*(\d+))?/gi)) {
+  for (const m of String(v ?? "").matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|to|through|thru)\s*(\d+))?/gi)) {
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to - from < 1000) for (let i = from; i <= to; i++) out.add(i);
     else { out.add(from); out.add(to); }
@@ -3199,7 +3199,7 @@ function renderStep() {
     e.preventDefault();
     // Moving on from a choice with nothing selected would skip it by accident.
     if (step.type === "choice" && !app.querySelector("input[name=ans]:checked")) {
-      document.getElementById("err").textContent = "Choose one with the arrow keys or Space, or press Continue to skip it.";
+      document.getElementById("err").textContent = `Choose one with the arrow keys or Space, or press ${returnToSummary ? "Save and review" : "Continue"} to skip it.`;
       return;
     }
     save(step);
