@@ -2539,7 +2539,7 @@ const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 // Access to Court Records Rule 5(C): complete Social Security numbers, account numbers, PINs and
 // passwords are redacted unless the case needs them. A flag never repeats what it found.
 function privateKind(text, isAddress = false) {
-  const s = String(text ?? "").replace(/\s+/g, " ").replace(/[\u2013\u2014]/g, "-").replace(/ ?- ?/g, "-");
+  const s = String(text ?? "").replace(/\s+/g, " ").replace(/[\u2013\u2014]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
   if (/(^|[^\d$-])\d{3}(?:-\d{2}[- ]| \d{2} |\.\d{2}\.)\d{4}(?![\d-])/.test(s)) return "ssn";
   if (/(\bssn\b|\bss ?#|\bsocial security\b|\bsoc\.? ?sec\b)[^\d]{0,25}(\d[ -]?){9}(?!\d)/i.test(s)) return "ssn";
   if (!isAddress) { // in an address these could be a company name and a ZIP+4
