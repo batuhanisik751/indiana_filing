@@ -2777,7 +2777,7 @@ function phoneShape(v) {
   // U.S. area codes and the three digits after them can't start with 0 or 1.
   if (d.length === 10) return /^[01]/.test(d) || /^[01]/.test(d.slice(3)) || /^(\d)\1+$/.test(d) ? "impossible" : "";
   if (/^(?:\+|011)/.test(t)) return "foreign";
-  return /\d[\s.-]*[a-z]{3,}(?:[\s.-]*[a-z]+)*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
+  return /\d[\s.-]*[a-z]{3,}[a-z\s.-]*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
 }
 
 /* ---------- address check ---------- */
