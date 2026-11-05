@@ -1713,6 +1713,7 @@ const SOURCES = {
   courtStaff: { href: "https://www.in.gov/courts/selfservice/unrepresented/help", text: "Indiana courts: How court staff can help" },
   evictionFaq: { href: "https://indianalegalhelp.org/eviction-frequently-asked-questions/", text: "Indiana Legal Help: Eviction Frequently Asked Questions" },
   proSup: { href: "https://www.indianalegalservices.org/debt-collection-pro-sup/", text: "Indiana Legal Services: Guide to Proceedings Supplemental" },
+  debt: { href: "https://indianalegalhelp.org/legal-topic-category/debt-2/", text: "Indiana Legal Help: Debt" },
   garnishment: { href: "https://indianalegalhelp.org/legal-topic/wage-garnishment-reduction/", text: "Indiana Legal Help: Wage Garnishment Reduction" },
   efileSchedule: { href: "https://www.in.gov/courts/efiling/schedule/", text: "Which case types can be e-filed" },
 };
@@ -1870,7 +1871,7 @@ function nextSteps(key, a) {
   if (key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) out.push({
     title: "If the court decides you owe money",
     body: "Indiana Legal Help says: \"Wage garnishment is when money is taken directly from your paycheck to pay a debt you owe.\" It has a form to ask the court to lower your wage garnishment if it's causing financial hardship. Indiana Legal Services, a nonprofit law firm that gives free civil legal help to eligible low-income people, says proceedings supplemental hearings are held after a court has granted a money judgment against you, to find out if you have any income or property that can be taken to pay it. It says you must go to court if you get an order to appear, even if you have no income or property. It says that if you are notified of the hearing and don't go, the party who was awarded the judgment (the judgment creditor) can ask the court to set a \"rule to show cause\" hearing, where you are ordered to explain why you missed it, and if you also miss that one, the court may issue a warrant for your arrest (called a writ or body attachment). It also says a court may not put you in jail or punish you in any other way for not paying on a judgment debt. The Small Claims Manual also says that if a debtor served with notice of this hearing doesn't attend, the court may set a show cause hearing, and it defines a body attachment as an order of arrest issued when a party doesn't appear at that hearing.",
-    links: [SOURCES.proSup, SOURCES.smallClaims, SOURCES.garnishment] });
+    links: [SOURCES.proSup, SOURCES.smallClaims, SOURCES.debt, SOURCES.garnishment] });
 
   out.push({ title: "Get free help", body: `Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. ${HELP_DESK}`, links: [SOURCES.getHelp, SOURCES.helpDesk] });
   return out;
