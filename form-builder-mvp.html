@@ -2161,7 +2161,8 @@ const store = {
 };
 // Some browsers (private windows, blocked site data) don't let the page save at all.
 const storageWorks = store.set("icfh-test", "1") && (store.del("icfh-test"), true);
-const savingOn = () => storageWorks && store.get(PREF_KEY) === "on"; // off unless turned on
+let turningOn = false; // this tab's first save, just before the setting changes
+const savingOn = () => storageWorks && (turningOn || store.get(PREF_KEY) === "on"); // off unless turned on
 // Storage that's only full can still be read. Nothing new can be saved, but what's saved isn't touched.
 const storageFull = !storageWorks && store.get(PREF_KEY) === "on";
 // With saving off, nothing is kept: a copy found when the page opens (for example one saved
@@ -2506,9 +2507,15 @@ function setSaving(on) {
   if (saved && !confirm(sitKey && hasAnswers()
     ? "Turn off saving? This deletes the answers saved on this device. Your answers stay on this page until you close it."
     : `Turn off saving? This deletes your saved answers for "${savedTitle(saved)}". This can't be undone.`)) return false;
+  // This tab saves first. Another tab hears the setting right away and saves too, so it has to find this tab's copy
+  // already there, or it could write over it without asking.
+  const before = [saveOk, savedHere];
+  if (on) { turningOn = true; saveProgress(); turningOn = false; }
   if (!store.set(PREF_KEY, on ? "on" : "off")) {
     if (on) {
       // The browser refused: the setting didn't change, so don't say it did.
+      if (store.get(STORE_KEY) === lastWritten) clearSaved();
+      [saveOk, savedHere] = before;
       updatePrivacyNote();
       announce("Saving couldn't be turned on, because this browser isn't letting the page save. Your answers stay on this page until you close it.");
       return false;
@@ -2516,7 +2523,7 @@ function setSaving(on) {
     store.del(PREF_KEY); // off is the same as no setting
   }
   lastSavingOn = on;
-  if (on) saveProgress(); else clearSaved();
+  if (!on) clearSaved();
   updatePrivacyNote();
   // Say "saved" only when a copy really is on the device.
   const stored = saveOk && savedIsMine();
