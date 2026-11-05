@@ -2212,7 +2212,9 @@ function saveProgress() {
   // A choice that isn't saved yet can't lose the answers it would hide: Cancel after a reload brings them back.
   // A protected address is the exception. It leaves the copy as soon as the choice is made.
   const guarded = id => (withDraft.acp === "yes" && id === "address") || (withDraft.agConfidential === "yes" && ["address", "email", "phone", "fax", "acceptEmail"].includes(id));
-  const keptNow = withDraft === answers ? shownNow : steps.filter(s => visIds.has(s.id) || ((!s.showIf || s.showIf(answers)) && !guarded(s.id)));
+  // During an edit the original answer counts too, even after a reload: Cancel puts it back.
+  const beforeEdit = returnToSummary && editOriginal ? { ...answers, [editOriginal.id]: editOriginal.value } : answers;
+  const keptNow = steps.filter(s => visIds.has(s.id) || ((!s.showIf || s.showIf(answers) || s.showIf(beforeEdit)) && !guarded(s.id)));
   const keptIds = new Set(keptNow.map(s => s.id));
   // From the first screen, "Which one fits?" or the sorting questions, the copy reopens at the
   // question (or the summary, when the person was changing the sorting answers from it).
