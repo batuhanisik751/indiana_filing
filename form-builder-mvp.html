@@ -2135,6 +2135,8 @@ function readSaved() {
       : Object.hasOwn(SITUATIONS, d.sitKey)
         && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.values(d.unsure || {}).includes(true)));
     if (usable) return d;
+    // Answers that expired: saving goes back to off, so the next person on this computer isn't saved without choosing it.
+    if (fresh === false && d && d.v === 1 && Number.isFinite(d.savedAt) && age > MAX_AGE_DAYS * 864e5) savingOffForNext();
   } catch { /* unreadable */ }
   store.del(STORE_KEY);
   return null;
@@ -2245,6 +2247,7 @@ function takeFromOtherTab(old) {
   } else if (mode === "summary") setTimeout(() => { if (mode === "summary") keepFocus(() => renderSummary(true)); });
 }
 function clearSaved() { store.del(STORE_KEY); }
+function savingOffForNext() { store.del(PREF_KEY); lastSavingOn = false; }
 // Writes the saved copy and remembers it, so this page can tell its own copy from another tab's.
 function writeCopy(json) { const ok = store.set(STORE_KEY, json); if (ok) lastWritten = json; return ok; }
 // Are these sorting answers what's in the saved copy? (A form's copy is never replaced by them.)
@@ -2912,10 +2915,11 @@ function renderPick(quiet = false) {
       if (now) restoreSaved(now); else { renderPick(); announce("Those saved answers are no longer on this device."); }
     };
     document.getElementById("discard").onclick = () => {
-      if (!confirm(`Delete your saved answers for "${savedTitle(saved)}"? This also clears them in any other open tab with this form. This can't be undone.`)) return;
+      if (!confirm(`Delete your saved answers for "${savedTitle(saved)}"? This also clears them in any other open tab with this form, and turns saving off. This can't be undone.`)) return;
       clearFormEverywhere(saved.triageOnly ? sortingTag(saved.triage) : saved.sitKey);
+      savingOffForNext();
       resetAnswers(); render();
-      announce("Your saved answers were deleted.");
+      announce("Your saved answers were deleted, and saving is off.");
     };
   }
   if (live) document.getElementById("backToWork").onclick = () => {
@@ -3203,9 +3207,10 @@ function renderSummary(rerender = false) {
   });
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("restart").onclick = () => {
-    if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device.`)) return;
-    clearFormEverywhere(sitKey); resetAnswers(); mode = "pick"; render();
-    announce("Your answers were deleted.");
+    const wasOn = savingOn();
+    if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device${wasOn ? ", and turns saving off" : ""}.`)) return;
+    clearFormEverywhere(sitKey); savingOffForNext(); resetAnswers(); mode = "pick"; render();
+    announce(wasOn ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
   if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
