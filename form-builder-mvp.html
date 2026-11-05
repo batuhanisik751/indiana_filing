@@ -2750,7 +2750,8 @@ function notAnAnswer(s, v) {
 }
 
 // "None" can be right for one of the Answer's three lists, but not for all of them.
-const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim());
+const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)); // "None of them", "no fixed address"
+const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim()) && !startsNo(a[s.id]);
 
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
 // or for the two below, which can be left blank, as something to check.
@@ -2919,7 +2920,7 @@ function runChecks() {
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
-  if (a.receiveAt === "Choice1" && a.acp !== "yes" && SAYS_NONE.test(String(a.address ?? "").trim()))
+  if (a.receiveAt === "Choice1" && a.acp !== "yes" && startsNo(a.address))
     flags.push({ level: "check", title: "Where you want court papers", why: `You chose to receive court papers at your street address, but you typed "${String(a.address).trim()}" as your address.`, fix: "receiveAt" });
   if (a.receiveAt === "Choice3" && a.acp !== "yes")
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
@@ -3158,6 +3159,9 @@ function renderStep() {
   const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
     + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "")
     + (step.id === "address" && (unsure.acp || unsure.agConfidential) ? " If you're in the Address Confidentiality Program, don't enter your home address here." : "");
+  // Earlier answers that came back are still shown before they can print (see the Back button below).
+  const cameBack = followUps.includes(step.id) && vis.some(s => s.id !== step.id && followUps.includes(s.id) && !empty(answers[s.id]));
+  const cancelGoes = cameBack ? "moves on to the next earlier answer" : "goes back to the summary";
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
@@ -3172,11 +3176,11 @@ function renderStep() {
       <button class="primary" id="next">${returnToSummary ? "Save and review" : "Continue"}</button>
     </div>
     ${returnToSummary ? `<p class="need">${editOriginal?.erased
-      ? "The answer you erased before reloading isn't kept. Cancel goes back to the summary and leaves this blank."
+      ? `The answer you erased before reloading isn't kept. Cancel ${cancelGoes} and leaves this blank.`
       : followUps.includes(step.id) && !empty(v)
       ? "Your last change stays. Cancel keeps the answer shown here."
       : followUps.includes(step.id)
-      ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
+      ? `Your last change stays. Cancel ${cancelGoes} without answering this question, and the summary will flag it if it's needed.`
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
     <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>
