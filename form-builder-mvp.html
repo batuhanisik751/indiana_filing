@@ -2786,6 +2786,8 @@ const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) &
 // What a list needs to name any paragraphs: a number, or a word like "all" or "the first three".
 const LIST_WORDS = /\b(?:all|each|every|everything|entire|whole|rest|remaining|others?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/i;
 const namesParagraphs = v => /\d/.test(String(v ?? "")) || LIST_WORDS.test(String(v ?? ""));
+const REST_WORDS = /\b(?:all|every|everything|entire|whole|rest|remaining|others?|else)\b/i;
+const PARAGRAPH_MAX = 500;
 const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !saysNoList(a[s.id]) && namesParagraphs(a[s.id]);
 
@@ -2919,6 +2921,17 @@ function paragraphNumbers(v) {
     else { out.add(from); out.add(to); }
   }
   return out;
+}
+
+// "3, 5 through 9 and 12", from sorted numbers.
+function rangesText(ns) {
+  const parts = [];
+  for (let i = 0, j; i < ns.length; i = j + 1) {
+    j = i;
+    while (ns[j + 1] === ns[j] + 1) j++;
+    parts.push(j - i > 1 ? `${ns[i]} through ${ns[j]}` : j > i ? `${ns[i]}, ${ns[j]}` : `${ns[i]}`);
+  }
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
 }
 
 // Why each required answer matters, from the rule or the official form. [reason, rule to link]
@@ -3074,6 +3087,14 @@ function runChecks() {
     const twice = [...new Set(lists.flatMap(([, n]) => [...n]))].filter(n => lists.filter(([, l]) => l.has(n)).length > 1).sort((x, y) => x - y);
     if (twice.length) flags.push({ level: "check", title: "Paragraphs listed in more than one list", fix: lists.find(([, l]) => twice.some(n => l.has(n)))[0],
       why: `${twice.length > 1 ? `Paragraphs ${twice.slice(0, -1).join(", ")} and ${twice[twice.length - 1]} are` : `Paragraph ${twice[0]} is`} in more than one of your lists. The form warns that you won't be able to challenge the paragraphs you admit later. Check which list each one belongs in.` });
+
+    // A number skipped between the ones listed. "The rest" covers it, and a number this big isn't a paragraph.
+    const listed = new Set(lists.flatMap(([, n]) => [...n]).filter(n => n >= 1 && n <= PARAGRAPH_MAX));
+    const skipped = [];
+    for (let i = 1, top = Math.max(0, ...listed); i < top; i++) if (!listed.has(i)) skipped.push(i);
+    if (skipped.length && !lists.some(([k]) => unsure[k] || REST_WORDS.test(String(a[k] ?? ""))))
+      flags.push({ level: "check", title: "Paragraphs not in any list", fix: "admitted", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
+        why: `${skipped.length > 1 ? `Paragraphs ${rangesText(skipped)} aren't` : `Paragraph ${skipped[0]} isn't`} in any of your lists. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't see your Complaint, so check these numbers against it.` });
   }
 
   if (sitKey === "respond" && empty(a.defenses) && !unsure.defenses)
