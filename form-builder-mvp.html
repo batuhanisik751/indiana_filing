@@ -2652,13 +2652,19 @@ const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumb
 // Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.
 const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|\?+)[.!]*$/i;
 const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
+const NAME_BOXES = /^(name|plaintiff|otherParty|otherPerson|svc\dName)$/;
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
   if (t && !s.noWords && (s.type === "email" || s.type === "tel")) return !SAYS_NONE.test(t) && (NO_WORDS.test(t) || NOT_KNOWN.test(t));
   if (!t || s.noWords || !(s.type === "text" || s.type === "textarea") || CODE_BOXES.test(s.id)) return false;
   if (NOT_KNOWN.test(t)) return true;
   // In a box the form needs, "none" or a single letter isn't an answer either. In an optional one, "None" can be.
-  return !s.optional && (NO_WORDS.test(t) || /^[^\p{L}\p{N}]*\p{L}?[^\p{L}\p{N}]*$/u.test(t));
+  if (s.optional) return false;
+  // Trial Rule 11.1 asks for an address "if available", so None is how someone with no address answers.
+  if (s.id === "address" && SAYS_NONE.test(t)) return false;
+  // A name can be one letter, or "Na" or "No".
+  if (NAME_BOXES.test(s.id)) return (NO_WORDS.test(t) && !/^(na|no)\.?$/i.test(t)) || /^[^\p{L}\p{N}]*$/u.test(t);
+  return NO_WORDS.test(t) || /^[^\p{L}\p{N}]*\p{L}?[^\p{L}\p{N}]*$/u.test(t);
 }
 
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
@@ -2704,7 +2710,7 @@ const BLANK_WHY = {
   caseTypeLetters: ["The Appearance asks for the two letters that show your case type, and Trial Rule 3.1 says it must give the case type.", "tr31"],
   name: ["Trial Rule 3.1 says the Appearance must give your name.", "tr31"],
   acp: ["This decides which address prints on the form. Trial Rule 11.1 lets an address be withheld or replaced by a public mailing address when the rules allow it.", "tr111"],
-  address: [T111, "tr111"],
+  address: [`${T111} If you don't have one, type None.`, "tr111"],
   acpAddress: ["Trial Rule 11.1 lets a public mailing address replace yours when the rules allow it. This address prints instead of your home address.", "tr111"],
   email: ["The official form says an email address is required, and Trial Rule 11.1 says to give one if available. If you don't have one, type None.", "tr111"],
   phone: [`The official form says a phone number is required, and ${T111} If you don't have one, type None.`, "tr111"],
@@ -2820,7 +2826,7 @@ function runChecks() {
 
   if (sitKey === "respond" && empty(a.defenses) && !unsure.defenses)
     flags.push({ level: "check", title: "Your defenses", fix: "defenses", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
-      why: "Indiana Legal Help's Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case. This tool can't tell you which ones apply. If you don't have any to list, type None." });
+      why: "Indiana Legal Help's Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case. This tool can't tell you which ones apply. You can ask free legal help about that. Typing None clears this flag, and None prints on the form." });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
