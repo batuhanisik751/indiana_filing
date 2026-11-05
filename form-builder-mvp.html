@@ -1499,8 +1499,10 @@ async function renderPreview(bytes, el) {
 
 // Plain letters, numbers and dashes only, and well under the E-Filing User Guide's 100-character limit.
 const fileStem = s => String(s).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+// Only a real case number goes in a file name. Whatever else was typed in that box might be private.
+const pdfFileCase = () => caseMatch(answers.caseNumber) && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber).slice(0, 30)}` : "";
 function downloadPdf(bytes, name) {
-  const caseNo = answers.caseNumber && visible().some(s => s.id === "caseNumber") ? `-${fileStem(answers.caseNumber).slice(0, 30)}` : "";
+  const caseNo = pdfFileCase();
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
   const link = document.createElement("a");
   link.href = url; link.download = `${fileStem(name).slice(0, 95 - caseNo.length)}${caseNo}.pdf`;
@@ -2645,7 +2647,7 @@ function privateKind(text, isAddress = false) {
   return null;
 }
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
-const PRIVATE_NOT = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
+const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
 
 // Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.
 const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|\?+)[.!]*$/i;
@@ -2735,8 +2737,12 @@ function runChecks() {
   const handled = new Set();
 
   // These print on a public form, so they come first.
-  vis.filter(s => (s.type === "text" || s.type === "textarea") && !PRIVATE_NOT.test(s.id)).forEach(s => {
-    const kind = privateKind(a[s.id], /address/i.test(s.id));
+  vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel").forEach(s => {
+    const v = String(a[s.id] ?? "");
+    // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
+    const kind = s.type === "tel" ? privateKind(v, true)
+      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) ? " " : t)), false)
+      : privateKind(v, /address/i.test(s.id));
     if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5,
       why: `${PRIVATE_WHAT[kind]} Access to Court Records Rule 5 says to take these out of court papers unless the case needs them. If yours does, the rule requires filing it on green paper (or as a confidential document if e-filed), plus a copy that leaves it out and an ACR Form.` });
   });
