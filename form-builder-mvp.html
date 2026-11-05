@@ -2741,23 +2741,25 @@ function privateKind(text, isAddress = false) {
   if (/(\bssn|\bs\.s\.n\b\.?|\bss ?#|\bss number\b|\bsocial(?! (?:worker|services?|media)\b)(?: security)?\b|\bsoc\.? ?sec\b|\btax(?:payer)? id\b|\bitin\b)[^\d]{0,25}(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
   // "SS" and "Soc" alone are only that right before the number. "SS Bank claim 123456789" isn't.
   if (/\b(?:s\.?s\.?(?: ?no\.?)?|soc):? ?(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
-  if (!isAddress) { // in an address these could be a company name and a ZIP+4
-    for (const m of s.matchAll(new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])([^\\d]{0,40})(\\d(?:[ -]?\\d){5,})`, "gi"))) {
-      // What's after the nearest label, without letters joined to the number, as in "account no ABC12345678".
-      const gap = m[1].split(ACCOUNT_LABEL).pop().replace(/(\s)[a-z]{1,3}$/i, "$1"), count = m[2].replace(/\D/g, "").length;
-      const marked = /^[\s:#.=,(/-]*$|(?:\bis|\bwas|\bnumber|\bnum|\bnbr|\bno\.?|\bid|:|#|=)[\s:#.=(-]*$/i.test(gap);
-      // Or a long number a few words on, as in "account with Chase 12345678". Too long to be an amount.
-      const nearby = count >= 8 && gap.trim().split(/\s+/).length <= 6 && !/[.;,]/.test(gap) && !isReference(s, m.index + m[0].length - m[2].length) && !/^\d{5}-\d{4}$/.test(m[2]) && !/\b(?:of|on|in|since|dated?|phone|call|tel|fax|officer|services?|department|dept|center|company)\b/i.test(gap);
-      if (!marked && !nearby) continue;
-      const labeled = /\b(?:number|num|nbr|no|id)\b|#/i.test(gap);
-      if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
-      if (!labeled && count < 8 && /\b(?:is|was)\s*$/i.test(gap) && /^(?:loans?|mortgages?)/i.test(m[0])) continue; // "the loan was 150000": an amount
-      if (/^(1[ -])?\d{3}[ -]\d{3}[ -]\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
-      if (/^ ?(dollars|usd)\b/i.test(s.slice(m.index + m[0].length))) continue;
-      return "account";
-    }
-    for (const m of s.matchAll(/(^|[^\d$-])\d{9}(?![\d-])/g)) if (!isReference(s, m.index + m[1].length)) return "ssn";
+  for (const m of s.matchAll(new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])([^\\d]{0,40})(\\d(?:[ -]?\\d){5,})`, "gi"))) {
+    // What's after the nearest label, without letters joined to the number, as in "account no ABC12345678".
+    const gap = m[1].split(ACCOUNT_LABEL).pop().replace(/(\s)[a-z]{1,3}$/i, "$1"), count = m[2].replace(/\D/g, "").length;
+    const marked = /^[\s:#.=,(/-]*$|(?:\bis|\bwas|\bnumber|\bnum|\bnbr|\bno\.?|\bid|:|#|=)[\s:#.=(-]*$/i.test(gap);
+    // Or a long number a few words on, as in "account with Chase 12345678". Too long to be an amount.
+    const nearby = count >= 8 && gap.trim().split(/\s+/).length <= 6 && !/[.;,]/.test(gap) && !isReference(s, m.index + m[0].length - m[2].length) && !/^\d{5}-\d{4}$/.test(m[2]) && !/\b(?:of|on|in|since|dated?|phone|call|tel|fax|officer|services?|department|dept|center|company)\b/i.test(gap);
+    if (!marked && !nearby) continue;
+    const labeled = /\b(?:number|num|nbr|no|id)\b|#/i.test(gap);
+    // In an address, "Loan Servicing" or "Member Services" can be a company name before a house number or a ZIP+4.
+    if (isAddress && (/^\d{5}[ -]\d{4}$/.test(m[2]) || !(labeled || (count >= 8 && /^(?:accounts?|accts?|acc|a\/c|routing|aba)\b/i.test(m[0]))))) continue;
+    if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
+    if (!labeled && count < 8 && /\b(?:is|was)\s*$/i.test(gap) && /^(?:loans?|mortgages?)/i.test(m[0])) continue; // "the loan was 150000": an amount
+    if (/^(1[ -])?\d{3}[ -]\d{3}[ -]\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
+    if (/^ ?(dollars|usd)\b/i.test(s.slice(m.index + m[0].length))) continue;
+    return "account";
   }
+  // In an address, 9 digits could be a ZIP+4, but not before the rest of the address.
+  if (isAddress) { if (/^\d{9}[ ,]+\S/.test(s)) return "ssn"; }
+  else for (const m of s.matchAll(/(^|[^\d$-])\d{9}(?![\d-])/g)) if (!isReference(s, m.index + m[1].length)) return "ssn";
   // Whole groups of digits, so a longer tracking number doesn't read as a card number. Years and round numbers aren't a card.
   const notCard = n => n.split(/[ .-]/).every(d => /^(?:19|20)\d\d$|^\d000$/.test(d));
   if ([...s.matchAll(/\d+(?:[ .-]\d+)*/g)].some(({ 0: n, index }) => (!isReference(s, index) || passesCardCheck(n)) && (n.split(/[ .-]/).some(d => d.length >= 12 && d.length <= 19)
