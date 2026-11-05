@@ -3046,7 +3046,8 @@ function renderStep() {
       ? "Your last change stays. Cancel goes back to the summary without answering this question, and the summary will flag it if it's needed."
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
-    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>`;
+    <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>
+    ${returnToSummary ? "" : `<p class="need"><button class="link" id="changeForm">Choose a different form</button></p>`}`;
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
   const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
@@ -3067,6 +3068,8 @@ function renderStep() {
     }
     cur--; render();
   };
+  const other = document.getElementById("changeForm");
+  if (other) other.onclick = () => { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; chooseOtherForm(); };
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
   app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" ? "change" : "input", () => {
@@ -3087,6 +3090,15 @@ function readInput(step) {
   let val = cleanText(document.getElementById("ans").value).trim();
   if (step.upper) val = val.toUpperCase();
   answers[step.id] = val;
+}
+
+// The first screen, in one step from any question: the answers stay until another form is chosen, and Go back returns here.
+function chooseOtherForm() {
+  if (hasAnswers()) {
+    if (fromTriage || mode === "summary") setSortingAside();
+    if (mode === "summary") triageFromSummary = true;
+  }
+  mode = "pick"; render();
 }
 
 // "I'm not sure": leave the answer blank, remember it, and move on.
@@ -3225,6 +3237,7 @@ function renderSummary(rerender = false) {
       <button class="ghost" id="toQuestions">Back to questions</button>
       <button class="ghost" id="restart">Start over</button>
     </div>
+    <p class="need"><button class="link" id="changeForm">Choose a different form</button></p>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
@@ -3232,6 +3245,7 @@ function renderSummary(rerender = false) {
     goFix(b.dataset.fix, where, [...app.querySelectorAll(`${where === "flags" ? "ul.flags" : "dl.vals"} [data-fix="${b.dataset.fix}"]`)].indexOf(b));
   });
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
+  document.getElementById("changeForm").onclick = chooseOtherForm;
   document.getElementById("restart").onclick = () => {
     const wasOn = savingOn();
     if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device${wasOn ? ", and turns saving off" : ""}.`)) return;
