@@ -2552,12 +2552,18 @@ function privateKind(text, isAddress = false) {
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
 const PRIVATE_NOT = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
 
-// How many of the answers this form needs are in. What isn't counts as "Missing" on the summary.
+// How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
+// or for the two below, which can be left blank, as something to check.
 function completeness() {
   const a = visibleAnswers();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
-  const need = visible().filter(s => !s.optional || badNum(s));
-  return { total: need.length, filled: need.filter(s => !empty(a[s.id]) && !badNum(s)).length };
+  const need = visible().filter(s => !s.optional || s.id === "spokeDate" || badNum(s)); // spokeDate is item 6 on the form
+  let total = need.length, filled = need.filter(s => !empty(a[s.id]) && !badNum(s)).length;
+  if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
+    total++;
+    if (["admitted", "denied", "notEnough"].some(k => !empty(a[k]))) filled++;
+  }
+  return { total, filled };
 }
 
 // Why each required answer matters, from the rule or the official form. [reason, rule to link]
@@ -3036,8 +3042,8 @@ function renderSummary(rerender = false) {
   const visIds = new Set(visible().map(s => s.id));
 
   app.innerHTML = `
-    <div class="bar" role="progressbar" aria-label="Required answers filled in" aria-valuenow="${scorePct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
-    <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} required answers filled in</span></div>
+    <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
+    <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
       <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : "Checking your filled form…"}</strong>
