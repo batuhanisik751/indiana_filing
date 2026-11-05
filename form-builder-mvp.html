@@ -1022,7 +1022,7 @@ function feeWaiverFields(a) {
    form pages. Nothing leaves the device.
    ===================================================================== */
 const loaded = {};
-const LOAD_TIMEOUT_MS = 60000;
+const LOAD_TIMEOUT_MS = 120000; // the whole download, which is about 1.6 MB for the largest form
 function loadScript({ src, integrity }) {
   if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
     const s = document.createElement("script");
