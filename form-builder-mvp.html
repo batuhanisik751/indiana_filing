@@ -913,7 +913,7 @@ const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && 
 const totalRow = (form, label, total, ids, a, names, noneText, waiting = "") => {
   const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
   const open = marked || none || !!waiting;
-  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), null,
+  return f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), ids[0],
     names.map(name => ({ t: "text", name, value: open ? "" : money(total) })));
 };
 const amountRow = (form, label, k, a, name) =>
