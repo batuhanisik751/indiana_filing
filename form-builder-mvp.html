@@ -2618,14 +2618,17 @@ const looksLikeDate = v => DATE_RES.some(re => re.test(String(v ?? "")));
 // Access to Court Records Rule 5(C): complete Social Security numbers, account numbers, PINs and
 // passwords are redacted unless the case needs them. A flag never repeats what it found.
 function privateKind(text, isAddress = false) {
-  const s = String(text ?? "").replace(/\s+/g, " ").replace(/[\u2013\u2014]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
-  if (/(^|[^\d$-])\d{3}(?:-\d{2}[- ]| \d{2} |\.\d{2}\.)\d{4}(?![\d-])/.test(s)) return "ssn";
-  if (/(\bssn\b|\bss ?#|\bsocial security\b|\bsoc\.? ?sec\b)[^\d]{0,25}(\d[ -]?){9}(?!\d)/i.test(s)) return "ssn";
+  const s = String(text ?? "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
+  if (/(^|[^\d$-])\d{3}(?:-\d{2}[- ]| \d{2} |\.\d{2}\.|\/\d{2}\/)\d{4}(?![\d-])/.test(s)) return "ssn";
+  if (/(\bssn\b|\bss ?#|\bss number\b|\bsocial(?: security)?\b|\bsoc\.? ?sec\b)[^\d]{0,25}(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
   if (!isAddress) { // in an address these could be a company name and a ZIP+4
-    const LABEL = "account|acct|a\\/c|routing|card|loan|checking|savings";
+    const LABEL = "accounts?|accts?|acc|a\\/c|routing|cards?|loans?|checking|savings";
     for (const m of s.matchAll(new RegExp(`\\b(?:${LABEL})\\b([^\\d]{0,40})(\\d(?:[ -]?\\d){5,})`, "gi"))) {
       const gap = m[1].split(new RegExp(`\\b(?:${LABEL})\\b`, "i")).pop(); // what's after the nearest label
-      if (/\b(ends?|ending|last|final|box|balance|amount|total|owed?|paid|payment|due)\b|\$ ?$/i.test(gap)) continue;
+      // The number has to be presented as that thing's number ("account 123", "account number 123", "my account is 123").
+      if (!/^[\s:#.=-]*$|(?:\bis|\bwas|\bnumber|\bnum|\bnbr|\bno\.?|:|#|=)[\s:#.=-]*$/i.test(gap)) continue;
+      const labeled = /\b(?:number|num|nbr|no)\b|#/i.test(gap);
+      if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
       if (/^(1-)?\d{3}-\d{3}-\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
       if (/^ ?(dollars|usd)\b/i.test(s.slice(m.index + m[0].length))) continue;
       return "account";
@@ -2633,10 +2636,12 @@ function privateKind(text, isAddress = false) {
     if (/(^|[^\d-])\d{9}(?![\d-])/.test(s)) return "ssn";
   }
   // Whole groups of digits, so a longer tracking number doesn't read as a card number.
-  if ((s.match(/\d+(?:[ -]\d+)*/g) || []).some(n => n.split(/[ -]/).some(d => d.length >= 12 && d.length <= 19)
-    || /^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,7}(?:[ -]\d{1,3})?$|^\d{4}[ -]\d{6}[ -]\d{5}$/.test(n))) return "account";
-  if (/\bpin\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,))* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}\b(?:is|was)\b[: ]*\d{4,8}\b/i.test(s)) return "pin";
-  if (/\bpass(?:word|code)\b ?[:=] ?\S/i.test(s) || /\bpass(?:word|code)\b ?(?:is|was) \S*[\d!@#$%^&*]\S*/i.test(s)) return "pin";
+  if ((s.match(/\d+(?:[ .-]\d+)*/g) || []).some(n => n.split(/[ .-]/).some(d => d.length >= 12 && d.length <= 19)
+    || /^\d{4}[ .-]\d{4}[ .-]\d{4}[ .-]\d{1,7}(?:[ .-]\d{1,3})?$|^\d{4}[ .-]\d{6}[ .-]\d{5}$/.test(n))) return "account";
+  if (/\b(?:pin|personal identification number)\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,))* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}(?:\b(?:is|was)\b|:)[: ]*\d{4,8}\b/i.test(s)) return "pin";
+  if (/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S/i.test(s)
+    || /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S/i.test(s)
+    || /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S/i.test(s)) return "pin";
   return null;
 }
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
