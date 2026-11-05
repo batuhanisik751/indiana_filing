@@ -2005,6 +2005,7 @@ let triage = {}, fromTriage = false;
 let notSureBeforeEdit = false;  // what "Which one fits?" was set to when the sorting answers were set aside
 let triagePrev = {};            // earlier sorting answers, pre-selected when changing them
 let triageTouched = false;      // this page has had sorting answers (answered here, or reopened from a saved copy)
+let pickedOther = false;        // on the first screen because of "Choose a different form"
 let triageFromSummary = false;  // the person is changing their sorting answers from the summary
 let notSureFromKind = false;    // "Which one fits?" was opened from the kind of case question
 const triageVisible = () => TRIAGE_STEPS.filter(s => !s.showIf || s.showIf(triage));
@@ -2549,7 +2550,7 @@ function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
   savedHere = true; saveOk = true; copyKept = {}; notSureFromKind = false; whereOpen = false;
   editOriginal = null; lastProgress = {}; fixNth = 0;
-  cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
+  cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false; pickedOther = false;
   pdfState = { key: null, result: null, error: false, busy: false };
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
@@ -3439,6 +3440,7 @@ function chooseOtherForm() {
   if (hasAnswers()) {
     if (fromTriage || mode === "summary") setSortingAside();
     if (mode === "summary") triageFromSummary = true;
+    pickedOther = true;
   }
   mode = "pick"; render();
 }
@@ -3785,13 +3787,18 @@ function render() {
 const inGuard = () => !!history.state && history.state.icfh === 1;
 let ignorePop = false; // this page itself stepped off the extra entry
 function dropGuard() { ignorePop = true; history.back(); }
+// After "Choose a different form", Back returns to the answers. From anywhere else, Back leaves from the first screen,
+// so nobody is trapped going back and forth.
+const backToAnswers = () => mode === "pick" && pickedOther && !!sitKey && hasAnswers();
 function syncHistory() {
-  if (mode === "pick") { if (inGuard() && !ignorePop) dropGuard(); return; } // from here, Back leaves the app
+  if (mode !== "pick") pickedOther = false;
+  if (mode === "pick") { if (inGuard() && !ignorePop && !backToAnswers()) dropGuard(); return; } // from here, Back leaves the app
   if (!inGuard()) { try { history.pushState({ icfh: 1 }, ""); } catch { /* not allowed here: Back leaves, with the usual warning */ } }
 }
 window.addEventListener("popstate", () => {
   if (ignorePop) { ignorePop = false; syncHistory(); return; }
-  if (inGuard()) { if (mode === "pick") dropGuard(); return; } // Forward onto the extra entry
+  if (inGuard()) { if (mode === "pick" && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
+  if (backToAnswers()) { document.getElementById("backToWork").click(); return; }
   if (mode === "pick") return;
   if (!helpPanel.hidden) { setHelp(false); syncHistory(); return; }
   const back = document.getElementById(mode === "summary" ? "toQuestions" : "back");
