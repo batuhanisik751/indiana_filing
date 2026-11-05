@@ -2031,7 +2031,9 @@ function startSituation(key, from = "pick") {
     const kept = Object.keys(keep).length
       ? ` Your contact details${sameCase && Object.keys(keep).some(k => SHARED_CASE.includes(k)) ? " and case details" : ""} will be kept.` : "";
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
-    clearSaved();
+    // Only the copy that question names. Another tab's copy of a different form stays, and saving the new form asks about it.
+    const copy = readSaved();
+    if (!copy || copy.triageOnly || copy.sitKey === prev) clearSaved();
   }
   cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; copyKept = {}; clearTimeout(otherTabTimer);
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = keepMarks; cur = 0; mode = "step"; returnToSummary = false; render();
