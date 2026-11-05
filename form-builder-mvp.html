@@ -1052,9 +1052,9 @@ const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 // (for example "Ł" as "L"), otherwise as "?". Either way it is reported.
 const LOOKALIKE = { "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ": "h", "ı": "i", "Ŀ": "L", "ŀ": "l", "Ŧ": "T", "ŧ": "t", "ĸ": "k",
   "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "..." };
-// Accents typed as separate marks become one letter (NFC), and invisible formatting
-// characters (zero-width spaces, soft hyphens) are dropped.
-const cleanText = v => String(v ?? "").normalize("NFC").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");
+// Accents typed as separate marks become one letter (NFC). Invisible formatting characters (zero-width spaces,
+// soft hyphens, direction marks) are dropped, and look-alike spaces and hyphens, common in pasted text, become plain ones.
+const cleanText = v => String(v ?? "").normalize("NFC").replace(/\p{Cf}/gu, "").replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, " ").replace(/[\u2010-\u2012\u2212]/g, "-");
 function makeSafe(font, report) {
   const ok = new Map();
   const fits = ch => {
