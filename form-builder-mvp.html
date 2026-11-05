@@ -2739,7 +2739,7 @@ function completeness() {
   const a = visibleAnswers(), vis = visible();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
   const isIn = s => !empty(a[s.id]) && !badNum(s) && !notAnAnswer(s, a[s.id]);
-  const need = vis.filter(s => !s.optional || s.id === "spokeDate" || badNum(s)); // spokeDate is item 6 on the form
+  const need = vis.filter(s => !s.optional || badNum(s));
   let total = need.length, filled = need.filter(isIn).length;
   if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
     total++;
@@ -2917,7 +2917,7 @@ function runChecks() {
     if (has("timeNeeded") && looksLikeDate(a.timeNeeded))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
     if (has("spokeDate") && empty(a.spokeDate))
-      flags.push({ level: "missing", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank.", fix: "spokeDate", blank: true });
+      flags.push({ level: "check", title: "Date you spoke to the other party", why: "Item 6 on the form asks when you spoke to the other party about this continuance. It will be blank. If you haven't spoken to them, you can ask free legal help what to do.", fix: "spokeDate", blank: true, link: { href: LINKS.getHelp, text: "Find free legal help" } });
   }
 
   if (sitKey === "feewaiver") {
@@ -2962,7 +2962,7 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional && s.id !== "spokeDate" ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
+    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
       // A question the form needs keeps the reason it matters, when that reason is a rule.
       why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).link ? `${blankWhy(s).why} ` : ""}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
