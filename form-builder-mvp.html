@@ -3444,7 +3444,8 @@ function chooseOtherForm() {
 }
 
 /* ---------- where each answer goes ---------- */
-let whereOpen = false;  // the preview under each question; it stays open from one question to the next
+let whereOpen = false;  // the preview under each question; it stays open from one question to the next, on one form
+let whereForm = null;   // the form it was opened on
 let whereToken = 0;     // only the newest drawing may finish
 const whereDocs = {}, whereNotes = {}, whereCanvases = {};
 const shortForm = form => ({ [FORM.caption]: "Top of each form", [FORM.appearance]: "Appearance", [FORM.fwAppearance]: "Appearance", [FORM.fwOrder]: "Order", [FORM.contOrder]: "Order", [FORM.sign]: "Signature lines" }[form] || form);
@@ -3476,6 +3477,7 @@ function whereRows(step) {
   return all.some(r => r.pdf.length) ? all : []; // a row with no place on the page, like "Anyone else to send a copy to"
 }
 function whereHtml(step) {
+  if (whereForm !== sitKey) whereOpen = false; // another form's preview is another download, so it waits to be asked for
   const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3;
   const text = rows.length
     ? `Prints on: ${rows.slice(0, MAX).map(r => `${shortForm(r.form)}: ${r.label}`).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
@@ -3494,7 +3496,7 @@ function wireWhere(step) {
   const toggle = document.getElementById("whereToggle");
   if (!toggle) return;
   toggle.onclick = () => {
-    whereOpen = !whereOpen; whereToken++;
+    whereOpen = !whereOpen; whereForm = sitKey; whereToken++;
     toggle.setAttribute("aria-expanded", String(whereOpen));
     toggle.textContent = whereOpen ? "Hide the form" : "Show it on the form";
     document.getElementById("wherePreview").hidden = !whereOpen;
