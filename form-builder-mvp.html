@@ -372,10 +372,10 @@ const youSteps = sec => [
     link: { href: LINKS.acp, text: "About the Address Confidentiality Program" } },
   { id: "email", sec, type: "email", label: "Email",
     q: "What is your email address?",
-    help: "The official form says an email address is required." },
+    help: "The official form says an email address is required, and Trial Rule 11.1 says to give one if available. If you don't have one, type None." },
   { id: "phone", sec, type: "tel", label: "Phone number",
     q: "What is your phone number?",
-    help: "The official form asks for a 10-digit phone number, including the area code." },
+    help: "The official form asks for a 10-digit phone number, including the area code. If you don't have one, type None." },
   { id: "fax", sec, type: "tel", label: "Fax number", optional: true, noWords: true,
     q: "What is your fax number?",
     help: "Leave this blank if you don't have one." },
@@ -511,7 +511,7 @@ const fwYouSteps = sec => {
       q: "Will you accept court papers at this email address?",
       help: "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.",
       options: [["no", "No"], ["yes", "Yes"]] },
-    { ...base.phone, showIf: contact, help: "The form asks for your phone number." },
+    { ...base.phone, showIf: contact, help: "The form asks for your phone number. If you don't have one, type None." },
     { ...base.fax, showIf: contact, noWords: true },
     { id: "related", sec, type: "choice", label: "Related cases",
       q: "Are there other court cases related to this one?",
@@ -2460,7 +2460,6 @@ function shown(step) {
 /* ---------- checks: run only at the end ---------- */
 // Where to look when you're not sure, by kind of question.
 const CASE_IDS = /^(county|courtType|courtTypeOther|caseNumber|caseTypeLetters|courtDate|plaintiff|hearingDate|role|otherParty|otherPartyAddress|related|relatedNumbers|rel\d\w+|svc\dName|svc\dAddress|fwCourtType|otherPerson|fwCaseType)$/;
-const YOU_IDS = /^(name|address|email|phone|fax|acceptEmail|receiveAt|adults|children|supported)$/;
 const PROGRAM_IDS = /^(acp|acpAddress|agConfidential)$/;
 const PARAGRAPH_IDS = /^(admitted|denied|notEnough)$/;
 const MONEY_IDS = new Set(["hourlyRate", "monthlyHours", "otherIncomeDesc", "otherCostsDesc", ...INCOME.map(x => x[0]), ...EXPENSES.map(x => x[0])]);
@@ -2468,7 +2467,13 @@ function unsureAdvice(step) {
   const id = step.id;
   if (PROGRAM_IDS.test(id)) return "The Attorney General's office says to email confidential@atg.in.gov to learn more about the Address Confidentiality Program.";
   if (id === "name" && sitKey !== "feewaiver") return "The form says to fill out its top section to match the other court forms filed in this case. Check how your name appears on your court papers, or get free legal help.";
-  if (YOU_IDS.test(id)) return "This is about you, so there's nothing to look up.";
+  if (id === "email" || id === "phone") return "If you need help with this, you can get free legal help.";
+  if (id === "address") return "If you're not sure which address to use, you can get free legal help.";
+  if (id === "name") return "If you're not sure how to write it, you can get free legal help.";
+  if (id === "fax") return "Leave this blank if you don't have one.";
+  if (id === "receiveAt") return "The form asks you to pick one. If you're not sure, you can get free legal help.";
+  if (id === "acceptEmail") return "The official instructions say to check this box only if you want the court to communicate with you only by email and you can check your email every day.";
+  if (id === "adults" || id === "children" || id === "supported") return "List their names, or type None if there's no one.";
   if (id === "bank") return "Check your bank statements, or get free legal help.";
   if (id === "hourlyRate" || id === "monthlyHours") return "Check your pay stubs, or get free legal help.";
   if (INCOME.some(x => x[0] === id) || id === "otherIncomeDesc") return "Check your benefit letters or statements, or get free legal help.";
@@ -2627,8 +2632,8 @@ const BLANK_WHY = {
   acp: ["This decides which address prints on the form. Trial Rule 11.1 lets an address be withheld or replaced by a public mailing address when the rules allow it.", "tr111"],
   address: [T111, "tr111"],
   acpAddress: ["Trial Rule 11.1 lets a public mailing address replace yours when the rules allow it. This address prints instead of your home address.", "tr111"],
-  email: ["The official form says an email address is required, and Trial Rule 11.1 says to give one if available.", "tr111"],
-  phone: [`The official form says a phone number is required, and ${T111}`, "tr111"],
+  email: ["The official form says an email address is required, and Trial Rule 11.1 says to give one if available. If you don't have one, type None.", "tr111"],
+  phone: [`The official form says a phone number is required, and ${T111} If you don't have one, type None.`, "tr111"],
   receiveAt: ["The Appearance asks you to choose one, and Trial Rule 3.1 says the clerk uses the Appearance to send you court papers.", "tr31"],
   related: ["Trial Rule 3.1 says the Appearance must list all related cases.", "tr31"],
   relatedNumbers: ["Trial Rule 3.1 says the Appearance must give the case number of all related cases.", "tr31"],
@@ -2657,7 +2662,7 @@ const BLANK_WHY = {
 };
 function blankWhy(s) {
   if (sitKey === "feewaiver" && s.id === "county") return { why: "The top of the official form names the county where you're filing." };
-  if (sitKey === "feewaiver" && s.id === "phone") return { why: T111, link: RULES.tr111 }; // this form doesn't call it required
+  if (sitKey === "feewaiver" && s.id === "phone") return { why: `${T111} If you don't have one, type None.`, link: RULES.tr111 }; // this form doesn't call it required
   const [why, rule] = BLANK_WHY[s.id.replace(/^(svc|rel)\d/, "$1").replace(/^svcMore\d$/, "svcMore")] || ["This is blank."];
   return rule ? { why, link: RULES[rule] } : { why };
 }
@@ -2694,9 +2699,10 @@ function runChecks() {
       flags.push({ level: "check", title: "Eviction case", why: "Your case type is EV, which means eviction. If your case is in small claims court, Indiana Legal Help says Answers are not usually filed there. Check with the clerk whether you need one.", fix: lettersFix });
   }
 
-  if (has("email") && !empty(a.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
+  // "None" is how someone with no email or phone answers on the forms that require them.
+  if (has("email") && !empty(a.email) && !(sitKey !== "feewaiver" && NO_WORDS.test(a.email.trim())) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
     flags.push({ level: "check", title: "Email", why: "This email looks incomplete. Check it for typos.", fix: "email" });
-  if (has("phone") && !empty(a.phone)) {
+  if (has("phone") && !empty(a.phone) && !NO_WORDS.test(a.phone.trim())) {
     const d = digits(a.phone);
     if (!(d.length === 10 || (d.length === 11 && d.startsWith("1"))))
       flags.push({ level: "check", title: "Phone number", why: sitKey === "feewaiver"
@@ -2729,6 +2735,8 @@ function runChecks() {
       why: "Indiana Legal Help's Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case. This tool can't tell you which ones apply. If you don't have any to list, type None." });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
+  if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
+    flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
   if (a.receiveAt === "Choice3" && a.acp !== "yes")
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
 
@@ -2779,8 +2787,9 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s),
-      why: `You marked this "I'm not sure." ${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
+    flags.push({ level: s.optional ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
+      // A question the form needs keeps the reason it matters, when that reason is a rule.
+      why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).link ? `${blankWhy(s).why} ` : ""}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
 
   // Everything else that is required but blank.
