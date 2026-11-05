@@ -1079,6 +1079,8 @@ function wrap(text, font, size, maxWidth, spacesOnly = false) {
 }
 
 const SIZES = [11, 10.5, 10, 9.5, 9, 8.5, 8];
+const LINES_MAX = 3000;
+const ANSWER_MAX = 20000; // the longest answer a question accepts: past this, building the form gets slow
 
 // Text written on a form's printed rules: one rule per line, shrinking the
 // text if needed. With op.continues, text that still doesn't fit goes on an
@@ -1129,6 +1131,7 @@ function wrapLines(text, font, size, op) {
 // For addresses (op.runOn), lines may run together ("street, city") before the
 // text is made smaller, so a 3-line address fits a form that has 2 lines.
 function fitLines(text, font, op) {
+  if (!op.continues) text = String(text).slice(0, LINES_MAX); // lines that can't continue elsewhere never hold this much
   // A line that can grow upward from its printed rule (op.layouts): try one line,
   // then two, then three, each over a range of sizes. The last line sits on the rule.
   if (op.layouts) {
@@ -1178,8 +1181,11 @@ function fitLines(text, font, op) {
 const innerWidth = rect => (Math.abs(rect.width) - 4) * 0.98;
 // ownBreaks: the app writes this field's line breaks itself (a field with one box).
 // Otherwise pdf-lib wraps it, only at spaces, so a word wider than the box doesn't fit.
+// The most characters a box could hold in its smallest text, even if all were as narrow as "i".
+const boxRoom = rect => Math.ceil((innerWidth(rect) / 1.3) * Math.max(1, (Math.abs(rect.height) - 2) / 6.9));
 function fitField(text, font, rect, multiline, maxSize, ownBreaks = true, oneLine = false) {
   const width = innerWidth(rect), height = Math.abs(rect.height) - 2;
+  if (text.length > boxRoom(rect)) return { size: 6, overflow: true }; // no size can fit it, and trying them is slow on long text
   const sizes = [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6];
   const wrapped = size => {
     const lines = wrap(text, font, size, width, !ownBreaks);
@@ -1270,8 +1276,11 @@ async function buildPdf(key, a) {
         // pdf-lib's own line breaking leaves out the spaces when it measures, so its lines
         // can run past the box edge. A field with one box gets our line breaks instead.
         const widgets = tf.acroField.getWidgets();
+        // What can't fit is cut here: pdf-lib laying out thousands of characters would freeze the page.
+        const fitsBoxes = value.slice(0, Math.max(...widgets.map(w => boxRoom(w.getRectangle()))));
         if (widgets.length === 1 && tf.isMultiline() && !fits[0].drawn)
-          tf.setText(wrap(value, font, fits[0].size, innerWidth(widgets[0].getRectangle())).join("\n"));
+          tf.setText(wrap(fitsBoxes, font, fits[0].size, innerWidth(widgets[0].getRectangle())).join("\n"));
+        else if (fitsBoxes !== value) tf.setText(fitsBoxes);
         if (real.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
         else if (real.length && Math.min(...real.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...real.map(x => x.size)) });
       } else if (op.t === "radio") {
@@ -3149,6 +3158,7 @@ function save(step) {
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse("This date isn't complete. Enter the month, day and year, or clear the box.");
   readInput(step);
   const v = answers[step.id];
+  if (String(v ?? "").length > ANSWER_MAX) return refuse(`This is too long: ${String(v).length.toLocaleString("en-US")} characters. Keep it under ${ANSWER_MAX.toLocaleString("en-US")}.`);
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
   if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);
