@@ -3150,7 +3150,13 @@ function renderStep() {
   }));
   app.querySelectorAll("input, select").forEach(i => i.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.repeat || e.isComposing) return;
-    e.preventDefault(); save(step);
+    e.preventDefault();
+    // Moving on from a choice with nothing selected would skip it by accident.
+    if (step.type === "choice" && !app.querySelector("input[name=ans]:checked")) {
+      document.getElementById("err").textContent = "Choose one with the arrow keys or Space, or press Continue to skip it.";
+      return;
+    }
+    save(step);
   }));
 }
 
