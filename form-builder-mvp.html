@@ -2270,6 +2270,12 @@ function saveProgress() {
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
 }
+// Saving this tab's answers would undo the other tab's choice to protect an address, so the question says so.
+function addressNote(old) {
+  const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
+  return (theirs.acp === "yes" && answers.acp !== "yes") || (theirs.agConfidential === "yes" && answers.agConfidential !== "yes")
+    ? " The other tab chose to keep your address confidential, and this tab's address would be saved instead." : "";
+}
 // One copy is kept, so saving here would replace what another tab saved. Ask each time another tab has saved since,
 // unless this tab already chose to keep that form's copy.
 function mayReplaceCopy(old, stored) {
@@ -2277,10 +2283,8 @@ function mayReplaceCopy(old, stored) {
   if (!Object.hasOwn(SITUATIONS, form) || stored === copyReplaced) return true; // not a form this page can open, or already answered
   if (!copyKept[form]) {
     if (document.hidden) { savedHere = false; savedHereWhy = "replaced"; return false; } // this tab isn't in front: ask when it is
-    const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
-    const exposes = (theirs.acp === "yes" && answers.acp !== "yes") || (theirs.agConfidential === "yes" && answers.agConfidential !== "yes");
     const replace = confirm(same
-      ? `Another tab saved different answers for "${SITUATIONS[form].title}" on this device. Only one copy can be saved. Replace them with the answers in this tab?${exposes ? " The other tab chose to keep your address confidential, and this tab's address would be saved instead." : ""} (Cancel keeps what the other tab saved. This tab's answers stay on this page but aren't saved.)`
+      ? `Another tab saved different answers for "${SITUATIONS[form].title}" on this device. Only one copy can be saved. Replace them with the answers in this tab?${addressNote(old)} (Cancel keeps what the other tab saved. This tab's answers stay on this page but aren't saved.)`
       : `Another tab saved your answers for "${SITUATIONS[form].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`);
     if (replace) { copyReplaced = stored; return true; }
     copyKept[form] = true;
@@ -2547,9 +2551,12 @@ document.addEventListener("keydown", e => {
 
 // After keeping what another tab saved, this tab can still choose to save its own answers instead.
 document.getElementById("saveMine").onclick = () => {
-  if (!confirm("Replace what the other tab saved on this device with this tab's answers?")) return;
+  let old = null; try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
+  if (!confirm(`Replace what the other tab saved on this device with this tab's answers?${old && old.sitKey === sitKey ? addressNote(old) : ""}`)) return;
   copyKept = {}; copyReplaced = store.get(STORE_KEY);
   saveProgress(); updatePrivacyNote();
+  announce(savedHere ? "This tab's answers are saved on this device." : "This tab's answers couldn't be saved.");
+  document.getElementById("saveToggle").focus(); // this link is hidden now
 };
 document.getElementById("clearData").onclick = () => {
   const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
