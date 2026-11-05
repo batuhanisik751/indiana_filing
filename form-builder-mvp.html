@@ -1437,8 +1437,8 @@ function ensurePdf() {
         if (t) { t.focus(); t.scrollIntoView({ block: "center" }); }
       }
       pendingFocus = null;
-      const n = app.querySelectorAll("ul.flags li").length;
-      announce(error ? "We couldn't make the PDF." : `Your filled form is ready to download. ${n ? `${n} item${n > 1 ? "s" : ""} to review before filing.` : "Nothing to review."}`);
+      const n = app.querySelectorAll("ul.flags li").length, sc = completeness();
+      announce(error ? "We couldn't make the PDF." : `Your filled form is ready to download. ${sc.filled} of ${sc.total} needed answers filled in. ${n ? `${n} item${n > 1 ? "s" : ""} to review before filing.` : "Nothing to review."}`);
     }
   })();
 }
@@ -3252,7 +3252,7 @@ function renderSummary(rerender = false) {
   const visIds = new Set(visible().map(s => s.id));
 
   app.innerHTML = `
-    <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
+    <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
     <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
