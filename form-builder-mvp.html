@@ -37,7 +37,7 @@
 *, *::before, *::after { box-sizing: inherit; }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.125rem; line-height: 1.55; }
-.wrap { max-width: 36rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+.wrap { max-width: 36rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; overflow-wrap: anywhere; }
 header.top { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .toprow, .saverow { display: flex; justify-content: space-between; align-items: center; gap: 0 1rem; flex-wrap: wrap; }
 .saverow { row-gap: .4rem; }
@@ -67,7 +67,7 @@ p { margin: 0 0 1rem; }
 /* progress */
 .bar { height: .5rem; background: var(--line); border-radius: 4px; overflow: hidden; margin-bottom: .5rem; }
 .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
-.barlabel { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
+.barlabel { display: flex; flex-wrap: wrap; gap: 0 .75rem; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
 
 input[type=text], input[type=tel], input[type=email], input[type=date], input[type=time], input[type=number], textarea, select {
   width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 2px solid var(--field-line); border-radius: 10px; padding: .85rem 1rem;
@@ -95,7 +95,7 @@ input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visib
 .morebox h2.sub:first-child { margin-top: .75rem; }
 
 .err { color: var(--warn); font-weight: 700; margin: .75rem 0 0; min-height: 1.4rem; }
-.nav { display: flex; justify-content: space-between; gap: .75rem; margin-top: 1.75rem; }
+.nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; margin-top: 1.75rem; }
 button { font: inherit; font-weight: 700; border-radius: 10px; padding: .85rem 1.2rem; cursor: pointer; border: 2px solid transparent; }
 button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
 button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
@@ -148,7 +148,6 @@ ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }
 .downloads { display: grid; gap: .6rem; margin: .5rem 0 1rem; }
 .downloads button { width: 100%; }
-.nowrap { white-space: nowrap; }
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }
@@ -1534,7 +1533,7 @@ function pdfSectionHtml(sit) {
   return `
     <div class="downloads">
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
-      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` <span class="nowrap">(${esc(d.number)})</span>` : ""}</button>`).join("")}
+      ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
     </div>
     ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code${sit.official.docs.includes("order") ? ', and a proposed order under the "Proposed Order" filing code' : ""}.</p>` : ""}
     <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>
