@@ -1545,6 +1545,7 @@ function downloadPdf(bytes, name) {
   link.href = url; link.download = `${fileStem(name).slice(0, 95 - caseNo.length)}${caseNo}.pdf`;
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+  announce("Your PDF is downloading. What to do next is just below the download buttons.");
 }
 
 function pdfSectionHtml(sit) {
@@ -1557,9 +1558,10 @@ function pdfSectionHtml(sit) {
       ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
     </div>
     ${each.length ? `<p class="draftnote">To print, use "Download all forms." To e-file, download each form separately: Indiana's E-Filing User Guide says appearance documents go under the Appearance filing code, other documents under a separate filing code${sit.official.docs.includes("order") ? ', and a proposed order under the "Proposed Order" filing code' : ""}.</p>` : ""}
-    <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>
-    <div class="preview" id="preview"></div>`;
+    <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>`;
 }
+// The pages themselves come after the next steps, so those aren't thousands of pixels below the download.
+const previewHtml = () => (pdfState.result && !pdfState.busy && !pdfState.error ? `<h2 class="sub">Read your filled form</h2><div class="preview" id="preview"></div>` : "");
 
 function wirePdfSection(sit) {
   const retry = document.getElementById("retryPdf");
@@ -3649,6 +3651,7 @@ function renderSummary(rerender = false) {
     <h2 class="sub">Your filled form</h2>
     ${pdfSectionHtml(sit)}
     ${nextStepsHtml(sitKey, a)}
+    ${previewHtml()}
 
     <h2 class="sub">What goes on your official forms</h2>
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank. <a id="summaryBlank" href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">Blank official forms (PDF)</a> · <a href="${sit.official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a></p>
