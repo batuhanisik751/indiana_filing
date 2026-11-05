@@ -3051,6 +3051,7 @@ function renderStep() {
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
   app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" ? "change" : "input", () => {
+    if (i.validity?.badInput) return; // a half-typed date isn't an answer yet
     draft = { id: step.id, value: i.value };
     const wasOk = saveOk; saveProgress(); updatePrivacyNote();
     if (wasOk && !saveOk) announce("Your answers can't be saved on this device right now.");
@@ -3063,6 +3064,7 @@ function renderStep() {
 
 function readInput(step) {
   if (step.type === "choice") { const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : ""; return; }
+  if (step.type === "date" && document.getElementById("ans").validity?.badInput) return; // half-typed: keep what was there
   let val = cleanText(document.getElementById("ans").value).trim();
   if (step.upper) val = val.toUpperCase();
   answers[step.id] = val;
@@ -3107,13 +3109,15 @@ function markUnsure(step) {
 function save(step) {
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
-  readInput(step);
-  const v = answers[step.id];
   const refuse = msg => {
     document.getElementById("err").textContent = msg;
     const box = document.getElementById("ans");
     box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "err qhelp qneed"); box.focus();
   };
+  // A date input reports a half-typed date as empty, which would quietly erase the answer.
+  if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse("This date isn't complete. Enter the month, day and year, or clear the box.");
+  readInput(step);
+  const v = answers[step.id];
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
   if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);
