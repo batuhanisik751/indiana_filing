@@ -296,6 +296,7 @@ const validNum = (step, v) => (step.type === "money" ? AMOUNT_RE : HOURS_RE).tes
 const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
 const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
 const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
+const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or phone answers. "idk" isn't that.
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
@@ -2650,6 +2651,7 @@ const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t 
 const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
+  if (t && !s.noWords && (s.type === "email" || s.type === "tel")) return !SAYS_NONE.test(t) && (NO_WORDS.test(t) || NOT_KNOWN.test(t));
   if (!t || s.noWords || !(s.type === "text" || s.type === "textarea") || CODE_BOXES.test(s.id)) return false;
   if (NOT_KNOWN.test(t)) return true;
   // In a box the form needs, "none" or a single letter isn't an answer either. In an optional one, "None" can be.
@@ -2775,9 +2777,10 @@ function runChecks() {
   }
 
   // "None" is how someone with no email or phone answers on the forms that require them.
-  if (has("email") && !empty(a.email) && !(sitKey !== "feewaiver" && NO_WORDS.test(a.email.trim())) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
+  const says = id => { const s = vis.find(x => x.id === id); return s ? notAnAnswer(s, a[id]) : false; }; // flagged below instead
+  if (has("email") && !empty(a.email) && !says("email") && !(sitKey !== "feewaiver" && SAYS_NONE.test(a.email.trim())) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(a.email.trim()))
     flags.push({ level: "check", title: "Email", why: "This email looks incomplete. Check it for typos.", fix: "email" });
-  if (has("phone") && !empty(a.phone) && !NO_WORDS.test(a.phone.trim())) {
+  if (has("phone") && !empty(a.phone) && !says("phone") && !SAYS_NONE.test(a.phone.trim())) {
     const d = digits(a.phone);
     if (!(d.length === 10 || (d.length === 11 && d.startsWith("1"))))
       flags.push({ level: "check", title: "Phone number", why: sitKey === "feewaiver"
