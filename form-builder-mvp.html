@@ -1404,7 +1404,7 @@ function ensurePdf() {
     pdfState = { key, result, error, busy: false };
     if (mode === "summary") {
       keepFocus(() => renderSummary(true));
-      if (pendingFocus && document.activeElement && document.activeElement.matches(".status")) {
+      if (pendingFocus && document.activeElement && document.activeElement.matches(`.status, ul.flags [data-fix="${pendingFocus.id}"]`)) {
         const t = app.querySelectorAll(`ul.flags [data-fix="${pendingFocus.id}"]`)[pendingFocus.nth] || app.querySelector(`ul.flags [data-fix="${pendingFocus.id}"]`);
         if (t) { t.focus(); t.scrollIntoView({ block: "center" }); }
       }
@@ -3097,7 +3097,8 @@ function renderSummary(rerender = false) {
     : app.querySelectorAll(`dl.vals [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
   if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
   // A Fix button for a flag from the PDF check may only appear once the check finishes.
-  pendingFocus = back && back.matches(".status") && lastEdited ? { id: lastEdited, nth: fixNth } : null;
+  const tapped = lastEdited && fixFrom === "flags" && app.querySelectorAll(`ul.flags [data-fix="${lastEdited}"]`)[fixNth];
+  pendingFocus = lastEdited && fixFrom === "flags" && !tapped ? { id: lastEdited, nth: fixNth } : null;
   lastEdited = null; fixFrom = null;
 }
 
