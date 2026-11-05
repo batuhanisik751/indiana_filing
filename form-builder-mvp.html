@@ -151,6 +151,12 @@ ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }
 .downloads { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; margin: .5rem 0 1rem; }
 .downloads button { width: 100%; }
+.where { margin-top: 1rem; }
+.wherepage { position: relative; max-width: 28rem; margin: .6rem 0 .3rem; }
+.wherepage canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.wheremark { position: absolute; background: rgba(255, 196, 0, .4); outline: 2px solid #B45309; border-radius: 2px; pointer-events: none; }
+.wherenav { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+button.link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }
@@ -754,7 +760,7 @@ const SITUATIONS = {
     title: "Appearance and Answer",
     sections: ["Your case", "About you", "How the court reaches you", "Your answer", "Sending a copy", "Signing"],
     steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...answerSteps(3), ...serviceSteps(4), ...signSteps(5, SIGN_HELP.court)],
-    official: { packet: "answerPacket", docs: ["appearance", "answer"] },
+    official: { packet: "answerPacket", docs: ["appearance", "answer"], page: "https://indianalegalhelp.org/legal-topic/answer/" },
     fields: a => [...captionFields(a), ...appearanceFields(a), ...answerFields(a), ...serviceFields(a, true), ...signatureFields(a, "respond")],
     reminders: ["Check that every paragraph number of the Complaint is in one of your three lists. Indiana Legal Help's instructions say a skipped paragraph will be taken as true."],
   },
@@ -764,7 +770,7 @@ const SITUATIONS = {
     title: "Appearance",
     sections: ["Your case", "About you", "How the court reaches you", "Sending a copy", "Signing"],
     steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...serviceSteps(3), ...signSteps(4, SIGN_HELP.court)],
-    official: { packet: "answerPacket", docs: ["appearance"] },
+    official: { packet: "answerPacket", docs: ["appearance"], page: "https://indianalegalhelp.org/respond-after-a-case-is-filed/" },
     fields: a => [...captionFields(a), ...appearanceFields(a), ...serviceFields(a, false), ...signatureFields(a, "appearance")],
     reminders: [],
   },
@@ -774,7 +780,7 @@ const SITUATIONS = {
     title: "Fee waiver",
     sections: ["Your case", "About you", "Your household", "Income", "Expenses", "Signing"],
     steps: () => [...fwCaseSteps(0), ...fwYouSteps(1), ...fwHouseholdSteps(2), ...fwIncomeSteps(3), ...fwExpenseSteps(4), ...signSteps(5, SIGN_HELP.feewaiver)],
-    official: { packet: "feeWaiverPacket", docs: ["appearance", "motion", "order"] },
+    official: { packet: "feeWaiverPacket", docs: ["appearance", "motion", "order"], page: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/" },
     fields: a => [...feeWaiverFields(a), ...signatureFields(a, "feewaiver")],
     reminders: [],
   },
@@ -784,7 +790,7 @@ const SITUATIONS = {
     title: "Continuance",
     sections: ["Your case", "About you", "How the court reaches you", "Your request", "Sending a copy", "Signing"],
     steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp, { href: LINKS.continuanceInstructions, text: "Read the full definitions (page 3 of the continuance instructions)" }), ...signSteps(5, SIGN_HELP.court)],
-    official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"] },
+    official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"], page: "https://indianalegalhelp.org/how-to-ask-for-a-new-court-date/" },
     formNumbers: { [FORM.appearance]: "CCA-GF-1219-3000" },
     fields: a => [...contCaptionFields(a), ...contAppearanceFields(a), ...contMotionFields(a), ...contServiceFields(a), ...contOrderFields(a), ...signatureFields(a, "continuance")],
     reminders: ["Indiana Legal Help says asking does not change your court date by itself: only an order signed by the judge can change a court date or time."],
@@ -1040,9 +1046,10 @@ function loadScript({ src, integrity }) {
 }
 // What the download needs: pdf-lib and the official PDF packet.
 let formDataTry = 0; // after a failed build the form may have come through damaged, so Try again fetches it fresh
+const formDataSrc = file => `forms/data/${file}.js${formDataTry ? `?try=${formDataTry}` : ""}`;
 async function loadPdfTools(file) {
   // Each official PDF is packed in its own script (see scripts/build-form-data.mjs).
-  await Promise.all([loadScript(LIBS.pdfLib), loadScript({ src: `forms/data/${file}.js${formDataTry ? `?try=${formDataTry}` : ""}` })]);
+  await Promise.all([loadScript(LIBS.pdfLib), loadScript({ src: formDataSrc(file) })]);
 }
 // What only the preview needs: PDF.js and its worker. The worker is fetched with
 // an integrity check too, then started from a local copy.
@@ -2525,7 +2532,7 @@ const app = document.getElementById("app");
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
-  savedHere = true; saveOk = true; copyKept = {}; notSureFromKind = false;
+  savedHere = true; saveOk = true; copyKept = {}; notSureFromKind = false; whereOpen = false;
   editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
@@ -3184,7 +3191,9 @@ function renderStep() {
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
     <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>
+    ${whereHtml(step)}
     ${returnToSummary ? "" : `<p class="need"><button class="link" id="changeForm">Choose a different form</button></p>`}`;
+  wireWhere(step);
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
   const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
@@ -3245,6 +3254,124 @@ function chooseOtherForm() {
     if (mode === "summary") triageFromSummary = true;
   }
   mode = "pick"; render();
+}
+
+/* ---------- where each answer goes ---------- */
+let whereOpen = false;  // the preview under each question; it stays open from one question to the next
+let whereToken = 0;     // only the newest drawing may finish
+const whereDocs = {}, whereNotes = {}, whereCanvases = {};
+const shortForm = form => ({ [FORM.caption]: "Top of each form", [FORM.appearance]: "Appearance", [FORM.fwAppearance]: "Appearance", [FORM.fwOrder]: "Order", [FORM.contOrder]: "Order", [FORM.sign]: "Signature lines" }[form] || form);
+const sampleAnswer = s => (s.type === "date" ? "2031-01-15" : s.type === "money" || s.type === "number" ? "1" : "x");
+// The rows of the official forms this question's answer fills. It may not be answered yet, so they're worked out as
+// if it were, and as if the other boxes were too: a signature needs a name before it has a place to print.
+function whereRows(step) {
+  const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select").map(s => [s.id, sampleAnswer(s)]));
+  Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
+  const tries = step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [empty(answers[step.id]) ? step.options[0] : answers[step.id]] : [empty(answers[step.id]) ? sampleAnswer(step) : answers[step.id]];
+  const rows = new Map();
+  for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, [step.id]: value })) {
+    // When e-filing, the name also prints as "/s/ name" on the signature lines.
+    if (r.step !== step.id && !(step.id === "name" && r.form === FORM.sign && r.pdf.length)) continue;
+    const key = `${r.form}|${r.label}`;
+    if (rows.has(key)) rows.get(key).pdf.push(...r.pdf); else rows.set(key, { form: r.form, label: r.label, pdf: [...r.pdf] });
+  }
+  const all = [...rows.values()];
+  return all.some(r => r.pdf.length) ? all : []; // a row with no place on the page, like "Anyone else to send a copy to"
+}
+function whereHtml(step) {
+  const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3;
+  const text = rows.length
+    ? `Prints on: ${rows.slice(0, MAX).map(r => `${shortForm(r.form)}: ${r.label}`).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
+    : "This answer doesn't print on the form itself. It decides what the form asks next, where other answers print, or what your next steps say.";
+  return `<div class="where">
+      <p class="need" id="whereText">${esc(text)}</p>
+      <p class="need wherenav">
+        ${rows.length ? `<button class="link" id="whereToggle" aria-expanded="${whereOpen}" aria-controls="wherePreview">${whereOpen ? "Hide the form" : "Show it on the form"}</button>` : ""}
+        <a id="whereBlank" href="${OFFICIAL[official.packet].source}" target="_blank" rel="noopener">Blank official form (PDF)</a>
+        <a href="${official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a>
+      </p>
+      ${rows.length ? `<p class="draftnote" id="whereSize"${whereOpen ? " hidden" : ""}>Showing it downloads up to 3 MB the first time.</p><div id="wherePreview"${whereOpen ? "" : " hidden"}></div>` : ""}
+    </div>`;
+}
+function wireWhere(step) {
+  const toggle = document.getElementById("whereToggle");
+  if (!toggle) return;
+  toggle.onclick = () => {
+    whereOpen = !whereOpen; whereToken++;
+    toggle.setAttribute("aria-expanded", String(whereOpen));
+    toggle.textContent = whereOpen ? "Hide the form" : "Show it on the form";
+    document.getElementById("wherePreview").hidden = !whereOpen;
+    document.getElementById("whereSize").hidden = whereOpen;
+    if (whereOpen) drawWhere(step);
+  };
+  if (whereOpen) drawWhere(step);
+}
+const whereDoc = file => (whereDocs[file] ||= pdfjsLib.getDocument({ data: b64ToBytes(window.OFFICIAL_PDFS[file]) }).promise);
+const whereFields = (doc, file, page) => (whereNotes[`${file}:${page}`] ||= doc.getPage(page + 1).then(p => p.getAnnotations()));
+// Where on the packet's pages this answer prints: [{ page, rects: [[x1, y1, x2, y2], ...] }], in PDF points.
+async function whereSpots(step, doc) {
+  const { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet];
+  const pages = official.docs.flatMap(k => off.docs[k].pages);
+  const ops = whereRows(step).flatMap(r => r.pdf), names = new Set(ops.filter(o => o.name).map(o => o.name));
+  const spots = new Map();
+  const add = (page, rect) => { if (pages.includes(page)) spots.set(page, [...(spots.get(page) || []), rect]); };
+  if (names.size) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (names.has(a.fieldName)) add(page, a.rect);
+  for (const o of ops) {
+    if (o.t === "draw") add(o.page, [o.x - 1, o.y - 3, o.x + (o.w || 90), o.y + 11]);
+    if (o.t === "lines") {
+      const left = Math.min(...[o.x0].flat()), low = Math.min(...o.ys);
+      const tall = o.layouts ? Math.max(...o.layouts.map(l => l.n * l.sizes[0] * 1.15)) : Math.max(...o.ys) - low + 11;
+      add(o.page, [left, low - 1, o.x1, low + tall + 2]);
+    }
+  }
+  return [...spots].sort(([x], [y]) => x - y).map(([page, rects]) => ({ page, rects }));
+}
+// One canvas per page, kept and reused.
+function whereCanvas(doc, file, page) {
+  return (whereCanvases[`${file}:${page}`] ||= doc.getPage(page + 1).then(async p => {
+    const scale = Math.min(800, 460 * (window.devicePixelRatio || 1)) / p.getViewport({ scale: 1 }).width, viewport = p.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+    await p.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    return canvas;
+  }));
+}
+async function drawWhere(step, at = 0) {
+  const box = document.getElementById("wherePreview");
+  if (!box) return;
+  const token = ++whereToken, stale = () => token !== whereToken || !box.isConnected;
+  const { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet];
+  if (!box.querySelector("canvas")) box.innerHTML = `<p class="draftnote" role="status">Loading the form…</p>`;
+  try {
+    await Promise.all([loadPreviewTools(), loadScript({ src: formDataSrc(off.file) })]);
+    if (stale()) return;
+    const doc = await whereDoc(off.file), spots = await whereSpots(step, doc);
+    const { page, rects } = spots[at];
+    const [pg, canvas] = await Promise.all([doc.getPage(page + 1), whereCanvas(doc, off.file, page)]);
+    if (stale()) return;
+    const form = official.docs.map(k => off.docs[k]).find(d => d.pages.includes(page));
+    const where = `${form.name} (${form.number}), page ${form.pages.indexOf(page) + 1} of ${form.pages.length}`;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `${where}, with the place for this answer highlighted.`);
+    const view = pg.getViewport({ scale: 1 }), pct = (v, of) => `${(v / of * 100).toFixed(2)}%`;
+    const marks = rects.map(r => {
+      const [x1, y1, x2, y2] = view.convertToViewportRectangle(r);
+      const left = Math.min(x1, x2), top = Math.min(y1, y2), width = Math.max(Math.abs(x2 - x1), 8), height = Math.max(Math.abs(y2 - y1), 8);
+      return `<span class="wheremark" style="left:${pct(left, view.width)};top:${pct(top, view.height)};width:${pct(width, view.width)};height:${pct(height, view.height)}"></span>`;
+    }).join("");
+    box.innerHTML = `<div class="wherepage">${marks}</div><p class="draftnote" id="whereCaption">${esc(where)}${spots.length > 1 ? `. Place ${at + 1} of ${spots.length}.` : "."}</p>
+      ${spots.length > 1 ? `<p class="need wherenav"><button class="link" id="wherePrev"${at ? "" : " disabled"}>Previous place</button><button class="link" id="whereNext"${at < spots.length - 1 ? "" : " disabled"}>Next place</button></p>` : ""}`;
+    box.querySelector(".wherepage").prepend(canvas);
+    // The button pressed can become disabled at either end, and focus shouldn't fall to the top of the page.
+    const move = (id, to, other) => { const b = document.getElementById(id); if (b) b.onclick = () => drawWhere(step, to).then(() => { const again = document.getElementById(id); (again && !again.disabled ? again : document.getElementById(other))?.focus({ preventScroll: true }); }); };
+    move("wherePrev", at - 1, "whereNext"); move("whereNext", at + 1, "wherePrev");
+  } catch (e) {
+    console.error(e);
+    delete whereDocs[off.file];
+    if (stale()) return;
+    box.innerHTML = `<p class="draftnote" role="alert">The preview couldn't be shown. The blank form link above still works. <button class="link" id="whereRetry">Try again</button></p>`;
+    document.getElementById("whereRetry").onclick = () => drawWhere(step, at);
+  }
 }
 
 // "I'm not sure": leave the answer blank, remember it, and move on.
@@ -3370,7 +3497,7 @@ function renderSummary(rerender = false) {
     ${nextStepsHtml(sitKey, a)}
 
     <h2 class="sub">What goes on your official forms</h2>
-    <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank.</p>
+    <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank. <a id="summaryBlank" href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">Blank official forms (PDF)</a> · <a href="${sit.official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a></p>
     ${groups.map(g => `
       <section class="formcard">
         <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>

@@ -4,6 +4,8 @@
 
 The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
 
+Every question says where its answer prints and links to the blank official form. "Show it on the form" opens a small picture of the form with that spot highlighted, and it stays open from one question to the next.
+
 Every question also has an "I'm not sure" button: the question is left blank, remembered, and flagged on the summary (with where to look for that kind of answer) until it's answered. On the summary, every answer has an Edit link; an edit can be saved or cancelled, and any questions the change opens are asked before going back, including earlier answers that come back. "Choose a different form" on the summary and on every question, except while editing one answer, goes to the first screen; the answers stay until another form is confirmed.
 
 The summary shows how many of the needed answers are filled in. Each Missing flag says why that answer matters, from the court rule or the official form, with a link to the rule when there is one. It also warns about what may be a complete Social Security number, account or card number, PIN or password in a typed answer, because [Access to Court Records Rule 5](https://rules.incourts.gov/Content/records/rule5/current.htm) says these come out of court papers unless the case needs them. The warning never repeats the number, and it can't catch everything.
@@ -82,7 +84,7 @@ Then go to http://localhost:5190/. If that port is busy, pass another one, for e
 
 ## Privacy
 
-Nothing anyone types is sent anywhere, and the PDF is filled in the browser. The page uses the device's own fonts, so opening it contacts no other site; the PDF tools load from cdnjs only when the summary first builds the form.
+Nothing anyone types is sent anywhere, and the PDF is filled in the browser. The page uses the device's own fonts, so opening it contacts no other site; the PDF tools load from cdnjs only when the summary first builds the form or someone opens the picture of the form on a question.
 
 Saving is off unless the person turns it on, because many people use a shared or public computer, like a library or courthouse kiosk. "Turn on saving," at the top of every screen, and a checkbox on the first screen turn it on. When it's on, answers are saved only in the person's own browser, so a refresh or a closed tab doesn't erase them, and the first screen offers to continue where they left off. Turning it off asks first, because it deletes what's saved. With saving off, the browser warns before a page with answers is closed or refreshed.
 
