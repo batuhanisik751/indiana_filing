@@ -3316,7 +3316,14 @@ function renderSummary(rerender = false) {
   lastEdited = null; fixFrom = null;
 }
 
+// A double-click's second click lands on whatever the first one just drew, so it's ignored.
+let drawnAt = -1e9;
+app.addEventListener("click", e => {
+  if (e.detail >= 2 && performance.now() - drawnAt < 500) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+
 function render() {
+  drawnAt = performance.now();
   draft = null; // a new screen: what was typed has been saved or left
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
