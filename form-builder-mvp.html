@@ -2783,7 +2783,11 @@ function notAnAnswer(s, v) {
 
 // "None" can be right for one of the Answer's three lists, but not for all of them.
 const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)) && !NOT_KNOWN.test(String(v).trim()); // "None of them", "no fixed address"
-const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim()) && !startsNo(a[s.id]);
+// What a list needs to name any paragraphs: a number, or a word like "all" or "the first three".
+const LIST_WORDS = /\b(?:all|each|every|everything|entire|whole|rest|remaining|others?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/i;
+const namesParagraphs = v => /\d/.test(String(v ?? "")) || LIST_WORDS.test(String(v ?? ""));
+const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);
+const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !saysNoList(a[s.id]) && namesParagraphs(a[s.id]);
 
 // What's wrong with the shape of a typed U.S. phone or fax number, if anything: "impossible", "foreign", "letters" or "short".
 // Words around a good number, like "(cell)", and an extension are fine.
@@ -3059,6 +3063,11 @@ function runChecks() {
   // The three lists count once in the score: at least one has to have something.
   if (sitKey === "respond" && !vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a)))
     flags.push({ level: "missing", title: "Your answer", why: "You haven't listed any paragraph numbers. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true.", fix: "admitted" });
+
+  // A real list next to one that names no paragraphs: what was typed still prints.
+  if (sitKey === "respond" && vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a)))
+    vis.filter(s => PARAGRAPH_IDS.test(s.id) && !empty(a[s.id]) && !saysNoList(a[s.id]) && !namesParagraphs(a[s.id])).forEach(s =>
+      flags.push({ level: "check", title: s.label, why: "This list has no paragraph numbers in it, and what you typed will print on the form. If you don't have any to list here, clear it.", fix: s.id }));
 
   if (sitKey === "respond") {
     const lists = ["admitted", "denied", "notEnough"].map(k => [k, paragraphNumbers(a[k])]);
