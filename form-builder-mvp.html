@@ -3273,7 +3273,8 @@ function whereRows(step) {
   Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
   const given = !empty(answers[step.id]);
   // A choice not made yet could print any of its options. One that's made prints only that one.
-  const tries = given ? [answers[step.id]] : step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [step.options[0]] : [sampleAnswer(step)];
+  // (A real case number, because that's what fills in the case type letters too.)
+  const tries = given ? [answers[step.id]] : step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [step.options[0]] : [step.id === "caseNumber" ? "49D01-2610-CC-000000" : sampleAnswer(step)];
   // A blank box isn't a place this answer prints, and neither is a box that stays unticked because of it.
   const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && step.type !== "choice");
   const rows = new Map();
