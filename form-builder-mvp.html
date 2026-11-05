@@ -54,7 +54,7 @@ footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
 footer li { margin: 0 0 .25rem; padding: .35rem 0; }
 footer li a { display: inline; padding: .45rem 0; position: relative; }
 .privacy { font-size: .85rem; color: var(--muted); }
-.headbtns { display: flex; gap: 1.25rem; margin-left: auto; }
+.headbtns { display: flex; flex-wrap: wrap; gap: 0 1.25rem; margin-left: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }
 h1.q { font-size: 1.55rem; line-height: 1.2; margin: 0 0 .75rem; }
@@ -166,7 +166,7 @@ footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top:
     </div>
     <div class="saverow">
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
-      <span class="headbtns"><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
+      <span class="headbtns"><button class="link cleardata" id="saveMine" type="button" hidden>Save this tab's answers</button><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
     </div>
   </header>
   <section class="helppanel" id="helpPanel" hidden aria-labelledby="helpTitle">
@@ -2033,7 +2033,7 @@ function startSituation(key, from = "pick") {
     if (!confirm(`Start "${title}"? Your other answers for "${SITUATIONS[prev].title}" will be deleted, including any saved on this device.${kept}`)) return;
     clearSaved();
   }
-  cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; copyChoice = {}; clearTimeout(otherTabTimer);
+  cameFrom(); finishTriageChange(); savedHere = true; otherTab = false; copyKept = {}; clearTimeout(otherTabTimer);
   sitKey = key; steps = SITUATIONS[key].steps(); answers = keep; unsure = keepMarks; cur = 0; mode = "step"; returnToSummary = false; render();
 }
 // What two forms share when switching between them.
@@ -2143,7 +2143,8 @@ let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
 let savedHereWhy = "deleted"; // or "replaced", "kept", "otherForm"
-let copyChoice = {}; // for another tab's saved copy, by form: "replace" or "keep"
+let copyKept = {};       // forms whose copy, saved by another tab, this tab chose to keep
+let copyReplaced = null; // the copy this tab chose to replace: if writing fails, it isn't asked about again
 let otherTab = false;   // has another tab been saving this same form?
 let otherTabTimer = null;
 let lastWritten = null;  // the saved copy as this page last wrote or opened it
@@ -2253,7 +2254,8 @@ function saveProgress() {
   const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
   // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
   // mixed in here either: they could be for another case, or something this page erased.
-  if (old && old.sitKey && store.get(STORE_KEY) !== lastWritten && JSON.stringify([old.sitKey, filled(old)]) !== JSON.stringify([sitKey, filled(data)]) && !mayReplaceCopy(old)) return;
+  const stored = store.get(STORE_KEY), compared = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort()]);
+  if (old && old.sitKey && stored !== lastWritten && compared(old) !== compared(data) && !mayReplaceCopy(old, stored)) return;
   // Only a change to the answers restarts the 30 days, so reopening a copy or stepping past a question changes nothing.
   const content = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort(), sortingKey(d.triage)]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
@@ -2262,19 +2264,21 @@ function saveProgress() {
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
 }
-// One copy is kept, so saving here would replace what another tab saved. Ask once in this tab for each form.
-function mayReplaceCopy(old) {
+// One copy is kept, so saving here would replace what another tab saved. Ask each time another tab has saved since,
+// unless this tab already chose to keep that form's copy.
+function mayReplaceCopy(old, stored) {
   const form = old.sitKey, same = form === sitKey;
-  if (!Object.hasOwn(SITUATIONS, form)) return true; // not a form this page can open
-  if (!copyChoice[form]) {
+  if (!Object.hasOwn(SITUATIONS, form) || stored === copyReplaced) return true; // not a form this page can open, or already answered
+  if (!copyKept[form]) {
     if (document.hidden) { savedHere = false; savedHereWhy = "replaced"; return false; } // this tab isn't in front: ask when it is
     const theirs = old.draft && typeof old.draft.value === "string" ? { ...strings(old.answers), [old.draft.id]: old.draft.value } : strings(old.answers);
     const exposes = (theirs.acp === "yes" && answers.acp !== "yes") || (theirs.agConfidential === "yes" && answers.agConfidential !== "yes");
-    copyChoice[form] = confirm(same
+    const replace = confirm(same
       ? `Another tab saved different answers for "${SITUATIONS[form].title}" on this device. Only one copy can be saved. Replace them with the answers in this tab?${exposes ? " The other tab chose to keep your address confidential, and this tab's address would be saved instead." : ""} (Cancel keeps what the other tab saved. This tab's answers stay on this page but aren't saved.)`
-      : `Another tab saved your answers for "${SITUATIONS[form].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`) ? "replace" : "keep";
+      : `Another tab saved your answers for "${SITUATIONS[form].title}" on this device. Only one form can be saved at a time. Replace them with your answers for "${SITUATIONS[sitKey].title}"?`);
+    if (replace) { copyReplaced = stored; return true; }
+    copyKept[form] = true;
   }
-  if (copyChoice[form] === "replace") return true;
   savedHere = false; savedHereWhy = same ? "kept" : "otherForm";
   return false;
 }
@@ -2298,7 +2302,7 @@ function clearFormEverywhere(form) {
 }
 // keep(): optional, runs after the saved state is loaded and before the screen is drawn.
 function restoreSaved(d, keep) {
-  lastWritten = store.get(STORE_KEY); copyChoice = {};
+  lastWritten = store.get(STORE_KEY); copyKept = {};
   if (d.triageOnly) {
     resetAnswers(); triage = cleanTriage(d.triage); triageTouched = true; fromNotSure = d.fromNotSure === true; mode = "triage";
     if (keep) keep();
@@ -2339,6 +2343,7 @@ function updatePrivacyNote() {
   const working = sitKey && (mode === "step" || mode === "summary");
   const live = sitKey && hasAnswers();
   const notInCopy = (live || (draft && !empty(draft.value))) && !savedHere;
+  document.getElementById("saveMine").hidden = !(notInCopy && savingOn() && saveOk && (savedHereWhy === "kept" || savedHereWhy === "otherForm"));
   el.textContent = otherTab && working && savingOn() && saveOk && !notInCopy ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || ((sitKey || mode === "triage") && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
@@ -2429,7 +2434,7 @@ window.addEventListener("storage", e => {
         || shownNow.some(s => unsure[s.id] && empty(current[s.id]) && !(saver.unsure && saver.unsure[s.id]));
       if (lost) {
         if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here can save yours again.");
-        savedHere = false; savedHereWhy = copyChoice[saver.sitKey] !== "keep" ? "replaced" : saver.sitKey === sitKey ? "kept" : "otherForm";
+        savedHere = false; savedHereWhy = !copyKept[saver.sitKey] ? "replaced" : saver.sitKey === sitKey ? "kept" : "otherForm";
       } else savedHere = true; // the other tab's copy holds everything this page has now
     }
   }
@@ -2509,7 +2514,7 @@ const app = document.getElementById("app");
 // Forget every answer in this tab. (clearSaved() deletes the saved copy.)
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
-  savedHere = true; saveOk = true; copyChoice = {};
+  savedHere = true; saveOk = true; copyKept = {};
   editOriginal = null; lastProgress = {}; fixNth = 0;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false;
   pdfState = { key: null, result: null, error: false, busy: false };
@@ -2534,6 +2539,12 @@ document.addEventListener("keydown", e => {
   helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false");
 });
 
+// After keeping what another tab saved, this tab can still choose to save its own answers instead.
+document.getElementById("saveMine").onclick = () => {
+  if (!confirm("Replace what the other tab saved on this device with this tab's answers?")) return;
+  copyKept = {}; copyReplaced = store.get(STORE_KEY);
+  saveProgress(); updatePrivacyNote();
+};
 document.getElementById("clearData").onclick = () => {
   const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
   if (!confirm(`Clear my data? This deletes every answer you have entered, on this page${stored ? ", in any other open tab, and saved on this device" : " and in any other open tab"}${wasOn ? ", and turns saving off" : ""}.`)) return;
