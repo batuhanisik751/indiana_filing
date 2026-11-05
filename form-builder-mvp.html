@@ -2289,7 +2289,8 @@ function restoreSaved(d, keep) {
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
   if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) {
     answers[d.draft.id] = d.draft.value;
-    if (!empty(d.draft.value)) delete unsure[d.draft.id];
+    // During an edit a mark stays until the answer is saved: Save with the box empty again still counts as not sure.
+    if (!empty(d.draft.value) && !(d.edit && d.mode !== "summary")) delete unsure[d.draft.id];
   }
   triage = cleanTriage(d.triage); fromTriage = d.fromTriage === true; fromNotSure = d.fromNotSure === true;
   cur = Number.isInteger(d.cur) && d.cur > 0 ? d.cur : 0; returnToSummary = false;
