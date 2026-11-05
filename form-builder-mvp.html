@@ -156,6 +156,7 @@ ol.steps .srcs { font-size: .85rem; }
 .wherepage canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
 .wheremark { position: absolute; background: rgba(255, 196, 0, .4); outline: 2px solid #B45309; border-radius: 2px; pointer-events: none; }
 .wherenav { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+.wherenav button.link, .wherenav a { display: inline-block; padding: .3rem 0; }
 button.link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -3316,7 +3317,7 @@ function wireWhere(step) {
     toggle.textContent = whereOpen ? "Hide the form" : "Show it on the form";
     document.getElementById("wherePreview").hidden = !whereOpen;
     document.getElementById("whereSize").hidden = whereOpen;
-    if (whereOpen) drawWhere(step);
+    if (whereOpen) drawWhere(step, 0, true);
   };
   if (whereOpen) drawWhere(step);
 }
@@ -3358,7 +3359,8 @@ function whereCanvas(doc, file, page) {
     return canvas;
   }));
 }
-async function drawWhere(step, at = 0) {
+// speak: the person asked for this, so a screen reader hears when it's ready. Moving to the next question stays quiet.
+async function drawWhere(step, at = 0, speak = false) {
   const box = document.getElementById("wherePreview");
   if (!box) return;
   const token = ++whereToken, stale = () => token !== whereToken || !box.isConnected;
@@ -3384,8 +3386,9 @@ async function drawWhere(step, at = 0) {
     box.innerHTML = `<div class="wherepage">${marks}</div><p class="draftnote" id="whereCaption">${esc(where)}${spots.length > 1 ? `. Place ${at + 1} of ${spots.length}.` : "."}</p>
       ${spots.length > 1 ? `<p class="need wherenav"><button class="link" id="wherePrev"${at ? "" : " disabled"}>Previous place</button><button class="link" id="whereNext"${at < spots.length - 1 ? "" : " disabled"}>Next place</button></p>` : ""}`;
     box.querySelector(".wherepage").prepend(canvas);
+    if (speak) announce(`${where}. The place for this answer is highlighted.`);
     // The button pressed can become disabled at either end, and focus shouldn't fall to the top of the page.
-    const move = (id, to, other) => { const b = document.getElementById(id); if (b) b.onclick = () => drawWhere(step, to).then(() => { const again = document.getElementById(id); (again && !again.disabled ? again : document.getElementById(other))?.focus({ preventScroll: true }); }); };
+    const move = (id, to, other) => { const b = document.getElementById(id); if (b) b.onclick = () => drawWhere(step, to, true).then(() => { const again = document.getElementById(id); (again && !again.disabled ? again : document.getElementById(other))?.focus({ preventScroll: true }); }); };
     move("wherePrev", at - 1, "whereNext"); move("whereNext", at + 1, "wherePrev");
   } catch (e) {
     console.error(e);
@@ -3395,7 +3398,8 @@ async function drawWhere(step, at = 0) {
     box.innerHTML = `<p class="draftnote" role="alert">The preview couldn't be shown. The blank form link above still works. <button class="link" id="whereRetry">Try again</button></p>`;
     document.getElementById("whereRetry").onclick = () => {
       if (damaged) { formDataTry++; Object.keys(whereCanvases).forEach(k => { if (k.startsWith(`${off.file}:`)) delete whereCanvases[k]; }); Object.keys(whereNotes).forEach(k => { if (k.startsWith(`${off.file}:`)) delete whereNotes[k]; }); delete whereDocs[off.file]; }
-      drawWhere(step, at);
+      document.getElementById("whereToggle").focus(); // the Try again button is about to go
+      drawWhere(step, at, true);
     };
   }
 }
