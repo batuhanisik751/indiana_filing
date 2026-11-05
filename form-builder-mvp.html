@@ -2806,7 +2806,9 @@ const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) &&
 function phoneShape(v) {
   const raw = String(v ?? "");
   if (raw.length > 100) return "short";
-  const t = raw.trim().replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, "$1").replace(/#\s*\d{1,6}/g, "");
+  // An extension comes after a number. Before one, "Cell #" or "Ex:" is a label, and the digits are the number itself.
+  const t = raw.trim().replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, (m, pre, at, all) => (/\d/.test(all.slice(0, at) + pre) ? pre : m))
+    .replace(/#\s*\d{1,6}/g, (m, at, all) => (/\d/.test(all.slice(0, at)) ? "" : m));
   if (/^(?:\+\s*[2-9]|011)/.test(t)) return "foreign"; // a country code other than the U.S.'s
   let d = digits(t);
   if (d.length === 13 && d.startsWith("001")) d = d.slice(3);
