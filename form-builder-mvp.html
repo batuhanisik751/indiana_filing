@@ -2808,7 +2808,7 @@ function noCityIn(rest) {
 }
 function hasStreetIn(rest) {
   const plain = rest.replace(/\b(?:apt|apartment|unit|ste|suite|lot|bldg|building|fl|floor|rm|room)\b\.?\s*#?\s*[\w-]+/gi, " ").replace(/#\s*[\w-]+/g, " ").replace(/\b\d+(?:st|nd|rd|th)\b/gi, " ");
-  return /\d/.test(plain) || /\b(?:p\.?\s?o\.?\s*box|box|general delivery|rural route|courthouse|square|plaza|city hall|government center|county building|city-county building)\b/i.test(rest)
+  return /\d/.test(plain) || /\b(?:p\.?\s?o\.?\s*box|box|gen(?:eral|\.)? del(?:ivery|\.)?|rural route|star route|apo|fpo|dpo|courthouse|square|plaza|city hall|government center|county building|city-county building)(?:\b|$)/i.test(rest)
     || /(?:^|,\s*)(?:one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(rest);
 }
 // What a typed U.S. address seems to be missing. Worked out on this device only: an address is never sent anywhere to be checked.
