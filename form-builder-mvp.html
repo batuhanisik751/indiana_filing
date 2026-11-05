@@ -2850,7 +2850,13 @@ function noCityIn(rest) {
   if (/^(?:p\.?\s?o\.?\s*box|box|rr|rural route)\b/i.test(last)) return !tokens.some(w => !/^(?:p\.?|o\.?|p\.?o\.?|box|rr|rural|route|#?\d+\w*)$/i.test(w));
   if (!/^\d/.test(last)) return false; // only words: taken as the city
   const road = tokens.findIndex((w, i) => i > 1 && ROAD_WORD.test(clean(w)));
-  if (road < 0) return tokens.slice(1).filter((w, i) => !(i === 0 && SIDE_WORD.test(clean(w)))).length < 2; // "123 N Main"
+  if (road < 0) {
+    const words = tokens.slice(1).filter((w, i) => !(i === 0 && SIDE_WORD.test(clean(w))));
+    // A numbered road, like "8901 N 300 W" or "3210 SR 37": the city is whatever comes after the number.
+    const numbered = words.findIndex(w => /^\d/.test(w));
+    if (numbered >= 0) return !words.slice(numbered + 1).some(w => !/^\d/.test(w) && !SIDE_WORD.test(clean(w)));
+    return words.length < 2; // "123 N Main"
+  }
   // After the street: a word that isn't another part of the street, a unit or a number is the city.
   const after = tokens.slice(road + 1);
   for (let i = 0; i < after.length; i++) {
@@ -2861,8 +2867,11 @@ function noCityIn(rest) {
   return true;
 }
 function hasStreetIn(rest) {
-  const plain = rest.replace(/\b(?:apt|apartment|unit|ste|suite|lot|bldg|building|fl|floor|rm|room)\b\.?\s*#?\s*[\w-]+/gi, " ").replace(/#\s*[\w-]+/g, " ").replace(/\b\d+(?:st|nd|rd|th)\b/gi, " ");
-  return /\d/.test(plain) || /\b(?:p\.?\s?o\.?\s*box|box|gen(?:eral|\.)? del(?:ivery|\.)?|rural route|star route|apo|fpo|dpo|courthouse|square|plaza|city hall|government center|county building|city-county building)(?:\b|$)/i.test(rest)
+  // The number in "County Road 500 E" or "Highway 31" names the road. It isn't a house number.
+  const plain = rest.replace(/\b(?:apt|apartment|unit|ste|suite|lot|bldg|building|fl|floor|rm|room)\b\.?\s*#?\s*[\w-]+/gi, " ").replace(/#\s*[\w-]+/g, " ").replace(/\b\d+(?:st|nd|rd|th)\b/gi, " ")
+    .replace(/(^|,\s*)(?:county (?:road|rd)|cr|state (?:road|rd|route)|sr|us (?:highway|hwy)|highway|hwy)\s+\d+\w*/gi, "$1 ");
+  // "PO Box A" has its letter, and "PO Box" alone has nothing to deliver to.
+  return /\d/.test(plain) || /\b(?:box\s*#?\s*[a-z]\b|gen(?:eral|\.)? del(?:ivery|\.)?|apo|fpo|dpo|courthouse|square|plaza|city hall|government center|county building|city-county building)(?:\b|$)/i.test(rest)
     || /(?:^|,\s*)(?:one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(rest);
 }
 // What a typed U.S. address seems to be missing. Worked out on this device only: an address is never sent anywhere to be checked.
@@ -2899,7 +2908,9 @@ function addressGaps(text) {
     rest = zip ? trimEnd(s.slice(0, found.find(m => m[1] === zip).index)) : s; state = "";
   }
   const missing = [];
-  if (!hasStreetIn(rest + (zipEnd ? ` ${s.slice(zipEnd)}` : ""))) missing.push("street number"); // the street can come after the ZIP code
+  if (!hasStreetIn(rest + (zipEnd ? ` ${s.slice(zipEnd)}` : ""))) missing.push(/\bbox\b/i.test(rest) ? "box number" : "street number"); // the street can come after the ZIP code
+  // "123 Main St Apt," has the word and no number. (Not "Building": that can be a building's name.)
+  else if (rest.split(",").some(p => /^(?:\d.*\s)?(?:apt|apartment|unit|ste|suite|lot|rm|room)\.?$/i.test(p.trim()))) missing.push("unit number");
   if (noCityIn(rest)) missing.push("city");
   if (!state) missing.push("state");
   if (!zip && !badZip) missing.push("ZIP code");
@@ -3066,6 +3077,9 @@ function runChecks() {
   // Addresses that look incomplete. Only a flag: this tool can't know every address.
   // (Sent through the e-filing system, a person's address box may hold something else.)
   vis.filter(s => /^(?:address|acpAddress|otherPartyAddress|svc\dAddress)$/.test(s.id) && !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !(s.noWords && saysNoAnswer(a[s.id])) && a[s.id.replace("Address", "Method")] !== "Indiana E-Filing System").forEach(s => {
+    // "No fixed address" can be right for someone's own address. For someone else's, it's what's unknown so far.
+    if ((s.service || s.noWords) && startsNo(a[s.id])) return flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+      why: "This says there's no address, and that will print on the form. If you don't have the address yet, clear it and choose \"I'm not sure\" so it's flagged here instead." });
     const { missing, note } = addressGaps(a[s.id]);
     if (!missing.length && !note) return;
     const list = missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0];
