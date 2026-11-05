@@ -1864,7 +1864,7 @@ function nextSteps(key, a) {
   const scLinks = [SOURCES.smallClaims, SOURCES.sc10, ...(a.county === "Marion" ? [SOURCES.sc1] : [])];
   const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] : [])];
   const defaultFact = notSmallClaims ? "" : `${ifSC}, Small Claims Rule 10(B) says that if the defendant (the person being sued) fails to appear at the time and place on the notice of claim, or on a continued date, "the court may enter a default judgment against him." The Small Claims Manual defines that as a decision for the plaintiff when the defendant fails to appear in court. So if that's you, missing court can mean losing without the court hearing your side.${marionNote}`;
-  const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case.${marionNote}`;
+  const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case. Small Claims Rule 10(A) adds that if a counterclaim has been filed (a claim back against the person suing), "the court may grant judgment for the defendant" after first making an inquiry, so you could lose on that claim without the court hearing your side.${marionNote}`;
   const dismissFact = notSmallClaims ? "" : dismissText;
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
@@ -1883,7 +1883,7 @@ function nextSteps(key, a) {
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
     body: `${dismissText} In other kinds of cases, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`,
-    links: [SOURCES.smallClaims, SOURCES.courtStaff, SOURCES.getHelp] });
+    links: [SOURCES.smallClaims, SOURCES.sc10, SOURCES.courtStaff, SOURCES.getHelp] });
 
   // After a money judgment. Indiana Legal Help covers wage garnishment, and not these hearings. Indiana Legal Services' guide speaks to the
   // person who owes; the Small Claims Manual covers it from the winner's side. For people being sued, not for a
