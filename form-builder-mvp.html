@@ -1692,6 +1692,7 @@ const SOURCES = {
   efileSite: { href: "https://efile.incourts.gov/", text: "efile.incourts.gov (the state's e-filing provider)" },
   tr86: { href: "https://rules.incourts.gov/Content/trial/rule86/current.htm", text: "Trial Rule 86" },
   tr55: { href: "https://rules.incourts.gov/Content/trial/rule55/current.htm", text: "Trial Rule 55" },
+  sc4: { href: "https://rules.incourts.gov/Content/small-claims/rule4/current.htm", text: "Small Claims Rule 4" },
   feeFaq: { href: "https://indianalegalhelp.org/filing-fee-frequently-asked-questions/", text: "Indiana Legal Help: Filing Fee Questions" },
   feeWaiverInstructions: { href: LINKS.feeWaiverInstructions, text: "Indiana Legal Help: Fee waiver instructions" },
   serviceFaq: { href: "https://indianalegalhelp.org/service-frequently-asked-questions/", text: "Indiana Legal Help: Service Frequently Asked Questions" },
@@ -1847,6 +1848,11 @@ function nextSteps(key, a) {
     // The person who started the case: the eviction sentence is about the other side, so it never applies here.
     body: a.role === "me" ? [dismissFact, noSourceStarter].filter(Boolean).join(" ") : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
     links: [...(a.role === "me" ? (noSourceStarter ? [SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? [SOURCES.smallClaims] : [])] });
+  // Small Claims Rule 4(C): someone being sued can ask for a jury, with a short deadline.
+  if ((key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) && !notSmallClaims) out.push({
+    title: "If you want a jury trial",
+    body: `${ifSC}, Small Claims Rule 4(C) says a defendant may request a jury trial by submitting a written request to the court "within ten (10) days after receipt of the notice of claim." It says that unless filed in that time, the right to a jury trial is waived, and that the person requesting one pays the clerk an additional amount (in the Marion Small Claims Court, the filing fee for a case in the appropriate court). You can ask free legal help whether this makes sense for you.`,
+    links: [SOURCES.sc4, SOURCES.getHelp] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
     body: `${dismissText} In other kinds of cases, the official sources this tool uses don't say what can happen if you miss a hearing. ${whoToAsk}`,
@@ -2861,6 +2867,10 @@ function runChecks() {
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
 
   const notMail = (sitKey === "respond" || sitKey === "appearance") && vis.find(s => /^svc\dMethod$/.test(s.id) && a[s.id] && a[s.id] !== "First Class U.S. mail");
+  // Filing at the courthouse, but sending the copy through the e-filing system.
+  const eService = a.fileMethod === "paper" && vis.find(s => /^svc\dMethod$/.test(s.id) && a[s.id] === "Indiana E-Filing System");
+  if (eService)
+    flags.push({ level: "check", title: `Certificate of Service: ${eService.label}`, why: "You chose to file on paper at the courthouse, but you listed Indiana's E-Filing System as the way you sent a copy. Check which one you mean.", fix: eService.id });
   if (notMail)
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
 
