@@ -829,7 +829,7 @@ function appearanceFields(a) {
     f(FORM.appearance, "1. My name is", a.name, "name"),
     f(FORM.appearance, "3. My address", myAddress(a), myAddressStep(a),
       [{ t: "lines", page: 4, x0: 72, x1: 540, ys: [447.5, 425.5], runOn: true, value: myAddress(a) }]),
-    f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email }]),
+    f(FORM.appearance, "Email address", a.email, "email", [{ t: "text", name: "Email Address", value: a.email, oneLine: true }]),
     f(FORM.appearance, "Phone number", a.phone, "phone", [{ t: "text", name: "Phone Number", value: a.phone }]),
     f(FORM.appearance, "Fax number", empty(a.fax) ? "Left blank" : a.fax, "fax", [{ t: "text", name: "Fax Number", value: a.fax }]),
     f(FORM.appearance, "4. Receive court papers", receive, "receiveAt",
@@ -837,13 +837,14 @@ function appearanceFields(a) {
     f(FORM.appearance, "5. Case type letters", caseLetters(a), caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters",
       [{ t: "text", name: "Case Type Letters", value: caseLetters(a) }]),
     f(FORM.appearance, "6. Related cases", a.related === "yes" ? "Yes" : a.related === "no" ? "No other related cases" : "", "related",
-      a.related ? [{ t: "radio", name: "Related Cases", option: a.related === "yes" ? "Choice1" : "Choice2" },
-                   { t: "text", name: "Related Case Numbers", value: a.related === "yes" ? a.relatedNumbers : "" }] : []),
-    ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers")] : []),
+      a.related ? [{ t: "radio", name: "Related Cases", option: a.related === "yes" ? "Choice1" : "Choice2" }] : []),
+    // Written above the printed rule: these two boxes run below it, so a second line would be struck through.
+    ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers",
+      [{ t: "lines", page: 5, x0: 107.6, x1: 539.7, ys: [720], layouts: ABOVE_RULE_LAYOUTS, spacesOnly: true, value: a.relatedNumbers }])] : []),
     f(FORM.appearance, "7. Local rule information", a.localRule === "yes" ? "Provided below" : a.localRule === "none" ? "Not aware of any" : "", "localRule",
-      a.localRule ? [{ t: "radio", name: "Local Rules", option: a.localRule === "yes" ? "Choice2" : "Choice1" },
-                     { t: "text", name: "Local Rule", value: a.localRule === "yes" ? a.localRuleText : "" }] : []),
-    ...(a.localRule === "yes" ? [f(FORM.appearance, "7. Information required by local rule", a.localRuleText, "localRuleText")] : []),
+      a.localRule ? [{ t: "radio", name: "Local Rules", option: a.localRule === "yes" ? "Choice2" : "Choice1" }] : []),
+    ...(a.localRule === "yes" ? [f(FORM.appearance, "7. Information required by local rule", a.localRuleText, "localRuleText",
+      [{ t: "lines", page: 5, x0: 107.6, x1: 539.7, ys: [610], layouts: ABOVE_RULE_LAYOUTS, value: a.localRuleText }])] : []),
     f(FORM.appearance, "Date next to your signature", formDate(a.signDate), "signDate",
       [{ t: "draw", page: 5, x: 461, y: 547, value: formDate(a.signDate) }]),
   ];
@@ -924,6 +925,7 @@ const NAME_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n:
 // Where the printed "v." sits right above the line, two lines are used only if the top
 // line stays below the "v." (op.maxTop); otherwise one smaller line.
 const NAME_V_LINE = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [7, 6.5, 6] }, { n: 1, sizes: [7, 6.5, 6, 5.5, 5] }];
+const ABOVE_RULE_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [8, 7.5, 7, 6.5, 6] }, { n: 3, sizes: [6] }];
 const SIGN_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5] }, { n: 2, sizes: [7, 6.5, 6] }, { n: 1, sizes: [7, 6.5, 6] }];
 const CAPTION_LAYOUTS = [{ n: 1, sizes: [11, 10.5, 10, 9.5, 9] }, { n: 2, sizes: [11, 10.5, 10, 9.5, 9, 8.5, 8] }];
 const CAPTION_RULES = {
@@ -1175,7 +1177,7 @@ function fitLines(text, font, op) {
 const innerWidth = rect => (Math.abs(rect.width) - 4) * 0.98;
 // ownBreaks: the app writes this field's line breaks itself (a field with one box).
 // Otherwise pdf-lib wraps it, only at spaces, so a word wider than the box doesn't fit.
-function fitField(text, font, rect, multiline, maxSize, ownBreaks = true) {
+function fitField(text, font, rect, multiline, maxSize, ownBreaks = true, oneLine = false) {
   const width = innerWidth(rect), height = Math.abs(rect.height) - 2;
   const sizes = [maxSize, ...SIZES.filter(s => s < maxSize), 7.5, 7, 6.5, 6];
   const wrapped = size => {
@@ -1185,7 +1187,7 @@ function fitField(text, font, rect, multiline, maxSize, ownBreaks = true) {
   const fitsLines = size => wrapped(size).length * size * 1.15 <= height;
   if (!multiline) {
     for (const size of sizes.filter(s => s >= 7.5)) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
-    for (const size of sizes) if (wrapped(size).length > 1 && fitsLines(size)) return { size, overflow: false, wrap: true };
+    if (!oneLine) for (const size of sizes) if (wrapped(size).length > 1 && fitsLines(size)) return { size, overflow: false, wrap: true };
     for (const size of sizes) if (font.widthOfTextAtSize(text, size) <= width) return { size, overflow: false };
     return { size: 6, overflow: true };
   }
@@ -1240,7 +1242,7 @@ async function buildPdf(key, a) {
         // so size the text for each box on its own.
         const boxes = tf.acroField.getWidgets();
         const fits = boxes.map(w => {
-          const fit = fitField(value, font, w.getRectangle(), tf.isMultiline(), op.maxSize || off.maxSize, boxes.length === 1);
+          const fit = fitField(value, font, w.getRectangle(), tf.isMultiline(), op.maxSize || off.maxSize, boxes.length === 1, op.oneLine);
           w.setDefaultAppearance(`/Helv ${fit.size} Tf 0 g`);
           // A name that doesn't fit its caption box, or only in small text, is drawn on the
           // box's rule instead. (Only caption boxes: narrow ones at the left margin.)
