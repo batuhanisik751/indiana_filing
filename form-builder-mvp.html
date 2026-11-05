@@ -306,6 +306,7 @@ const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
 const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
 const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
 const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or phone answers. "idk" isn't that.
+const NO_NUMBER = /^no\s+(?:phone|telephone|cell|fax)(?:\s+number)?\.?$/i;
 const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim());
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
@@ -2744,9 +2745,9 @@ const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", ac
 const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
 
 // Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.
-const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|\?+)[.!]*$/i;
+const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|no idea|no clue|no,? i don'?t know|\?+)[.!]*$/i;
 const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
-const saysNoAnswer = v => { const t = String(v ?? "").replace(/\u2019/g, "'").trim(); return NO_WORDS.test(t) || NOT_KNOWN.test(t); };
+const saysNoAnswer = v => { const t = String(v ?? "").replace(/\u2019/g, "'").trim(); return NO_WORDS.test(t) || NOT_KNOWN.test(t) || NO_NUMBER.test(t); };
 const NAME_BOXES = /^(name|plaintiff|otherParty|otherPerson|svc\dName)$/;
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
@@ -2763,7 +2764,7 @@ function notAnAnswer(s, v) {
 }
 
 // "None" can be right for one of the Answer's three lists, but not for all of them.
-const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)); // "None of them", "no fixed address"
+const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)) && !NOT_KNOWN.test(String(v).trim()); // "None of them", "no fixed address"
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !NO_WORDS.test(String(a[s.id]).trim()) && !startsNo(a[s.id]);
 
 // What's wrong with the shape of a typed U.S. phone or fax number, if anything: "impossible", "foreign", "letters" or "short".
@@ -2996,7 +2997,7 @@ function runChecks() {
   // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
   [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
     const v = String(a[id] ?? "").trim();
-    if (!has(id) || !v || saysNoAnswer(v) || startsNo(v) || privateKind(v, true)) return;
+    if (!has(id) || !v || saysNoAnswer(v) || SAYS_NONE.test(v) || NO_NUMBER.test(v) || (privateKind(v, true) && !["", "foreign"].includes(phoneShape(v)))) return;
     const kind = phoneShape(v);
     // The Appearance forms ask for 10 digits. The fee waiver's form doesn't say, and neither does a fax box.
     const asks = id === "phone" && sitKey !== "feewaiver" ? "The official form asks for a 10-digit phone number, including the area code." : "";
