@@ -2790,7 +2790,8 @@ function notAnAnswer(s, v) {
   if (s.id === "address" && SAYS_NONE.test(t)) return false;
   // A name can be one letter, or "Na" or "No".
   if (NAME_BOXES.test(s.id)) return (NO_WORDS.test(t) && !/^(na|no)\.?$/i.test(t)) || /^[^\p{L}\p{N}]*$/u.test(t);
-  return NO_WORDS.test(t) || /^[^\p{L}\p{N}]*\p{L}?[^\p{L}\p{N}]*$/u.test(t);
+  // Punctuation is taken out first: as one pattern, a long run of dashes takes this check many seconds.
+  return NO_WORDS.test(t) || /^\p{L}?$/u.test(t.replace(/[^\p{L}\p{N}]+/gu, ""));
 }
 
 // "None" can be right for one of the Answer's three lists, but not for all of them.
