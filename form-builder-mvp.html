@@ -2844,8 +2844,9 @@ function noCityIn(rest) {
   const parts = rest.split(",").map(x => x.trim()).filter(Boolean);
   if (!parts.length) return true;
   const last = parts[parts.length - 1], clean = w => w.replace(/\.$/, "");
-  if (/^#/.test(last) || UNIT_WORD.test(clean(last.split(/\s+/)[0]))) return true; // a unit, like "Apt 4"
   const tokens = last.split(/\s+/);
+  // A unit, like "Apt 4". What's after it can still be the city, as in "Apt 4 Indianapolis".
+  if (/^#/.test(last) || UNIT_WORD.test(clean(tokens[0]))) return !tokens.slice(/^#./.test(last) ? 1 : 2).some(w => /[a-z]/i.test(w));
   if (/^(?:p\.?\s?o\.?\s*box|box|rr|rural route)\b/i.test(last)) return !tokens.some(w => !/^(?:p\.?|o\.?|p\.?o\.?|box|rr|rural|route|#?\d+\w*)$/i.test(w));
   if (!/^\d/.test(last)) return false; // only words: taken as the city
   const road = tokens.findIndex((w, i) => i > 1 && ROAD_WORD.test(clean(w)));
@@ -2854,7 +2855,7 @@ function noCityIn(rest) {
   const after = tokens.slice(road + 1);
   for (let i = 0; i < after.length; i++) {
     const w = clean(after[i]);
-    if (UNIT_WORD.test(w)) { i++; continue; }
+    if (UNIT_WORD.test(w)) { if (!/^\d+(?:st|nd|rd|th)$/i.test(after[i - 1] || "")) i++; continue; } // "Apt 4", but "5th Floor" is over
     if (!/^#|\d/.test(w) && !ROAD_WORD.test(w) && !SIDE_WORD.test(w)) return false;
   }
   return true;
@@ -2874,11 +2875,11 @@ function addressGaps(text) {
   if (!s || startsNo(s) || SAYS_NONE.test(s) || /(?:^|,\s*)(?:canada|mexico)$/i.test(s)) return none;
   if (/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(s)) return { missing: [], note: "This looks like an email address, not a mailing address." };
   // The ZIP code is the last 5 digits with a state right before them, wherever they are. Anything can follow.
-  let zip = "", state = "", rest = s, why = null;
+  let zip = "", state = "", rest = s, why = null, zipEnd = 0;
   const found = [...s.matchAll(/(?:^|[\s,])(\d{5})(?:[\s\-–—]{1,2}\d{4})?(?=$|[\s,.;)])/g)];
   for (let i = found.length - 1; i >= 0 && !zip; i--) {
     why = stateAtEnd(s.slice(0, found[i].index));
-    if (why) { zip = found[i][1]; state = why.state; rest = why.rest; }
+    if (why) { zip = found[i][1]; state = why.state; rest = why.rest; zipEnd = found[i].index + found[i][0].length; }
   }
   // No state before it: 5 digits at the very end are still the ZIP code.
   if (!zip && found.length) { const m = found[found.length - 1]; if (m.index + m[0].length === s.length && m.index > 0) { zip = m[1]; rest = trimEnd(s.slice(0, m.index)); } }
@@ -2898,7 +2899,7 @@ function addressGaps(text) {
     rest = zip ? trimEnd(s.slice(0, found.find(m => m[1] === zip).index)) : s; state = "";
   }
   const missing = [];
-  if (!hasStreetIn(rest)) missing.push("street number");
+  if (!hasStreetIn(rest + (zipEnd ? ` ${s.slice(zipEnd)}` : ""))) missing.push("street number"); // the street can come after the ZIP code
   if (noCityIn(rest)) missing.push("city");
   if (!state) missing.push("state");
   if (!zip && !badZip) missing.push("ZIP code");
