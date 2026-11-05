@@ -2253,13 +2253,15 @@ function saveProgress() {
   const data = { v: 1, sitKey, answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
-    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, erased: !empty(editOriginal.value) } : editOriginal } : null };
+    edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, ...(empty(editOriginal.value) ? {} : { erased: true }) } : editOriginal } : null };
   // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
   const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
   // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
   // mixed in here either: they could be for another case, or something this page erased.
   const stored = store.get(STORE_KEY), compared = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort()]);
-  if (old && old.sitKey && stored !== lastWritten && compared(old) !== compared(data) && !mayReplaceCopy(old, stored)) return;
+  // A tab that rewrote what this page last saved, with nothing new, isn't something to ask about.
+  let lastMine = null; try { lastMine = JSON.parse(lastWritten || "null"); } catch { /* unreadable */ }
+  if (old && old.sitKey && stored !== lastWritten && compared(old) !== compared(data) && !(lastMine && compared(lastMine) === compared(old)) && !mayReplaceCopy(old, stored)) return;
   // Only a change to the answers restarts the 30 days, so reopening a copy or stepping past a question changes nothing.
   const content = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort(), sortingKey(d.triage)]);
   const savedAt = old && Number.isFinite(old.savedAt) && content(old) === content(data) ? old.savedAt : Date.now();
@@ -2333,7 +2335,7 @@ function restoreSaved(d, keep) {
     fixNth = Number.isInteger(d.edit.fixNth) && d.edit.fixNth > 0 ? d.edit.fixNth : 0;
     const o = d.edit.original;
     editOriginal = o && typeof o === "object" && ids.has(o.id) && (o.value === undefined || typeof o.value === "string")
-      ? { id: o.id, value: o.value, unsure: o.unsure === true, erased: o.erased === true, before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
+      ? { id: o.id, value: o.value, unsure: o.unsure === true, ...(o.erased === true ? { erased: true } : {}), before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
   }
   mode = d.mode === "summary" ? "summary" : "step";
   if (keep) keep();
