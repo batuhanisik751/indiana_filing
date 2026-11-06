@@ -54,11 +54,14 @@ function markNewTabLinks(root = document) {
   });
 }
 // Say something to screen-reader users without moving their focus.
+let announceTimer = null;
 function announce(msg) {
   const el = document.getElementById("announce");
   if (!el) return;
   el.textContent = "";
-  setTimeout(() => { el.textContent = msg; }, 50);
+  // Two at once would talk over each other. The last one is what's true now.
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => { el.textContent = msg; }, 50);
 }
 const strings = o => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([, v]) => typeof v === "string"));
 // A saved copy that can't be used (unreadable, too old, or with no answers) is deleted.
@@ -357,7 +360,9 @@ window.addEventListener("storage", e => {
       const lost = saver.sitKey !== sitKey || shownNow.some(s => !empty(current[s.id]) && theirs[s.id] !== current[s.id])
         || shownNow.some(s => unsure[s.id] && empty(current[s.id]) && !(saver.unsure && saver.unsure[s.id]));
       if (lost) {
-        if (savedHere && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here can save yours again.");
+        // With saving off this page has no copy to save over. The tab turning saving on writes its copy just before the setting
+        // changes, so this asks what this page last heard about the setting, not what it says by now.
+        if (savedHere && lastSavingOn && (saver.sitKey !== sitKey || (mode !== "step" && mode !== "summary"))) announce("Another tab saved different answers over this page's saved copy. Your next change here can save yours again.");
         savedHere = false; savedHereWhy = !copyKept[saver.sitKey] ? "replaced" : saver.sitKey === sitKey ? "kept" : "otherForm";
       } else savedHere = true; // the other tab's copy holds everything this page has now
     }
