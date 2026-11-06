@@ -86,7 +86,7 @@ To copy the tool somewhere, keep the `app/` and `forms/` folders next to `form-b
 
 ## Where the code is
 
-`form-builder-mvp.html` is the page itself. Its code is in `app/`, one file per topic. They are plain scripts that share one global scope and load in the order listed at the bottom of the page, so opening the page directly still works, with no server or build step. A script can use anything from an earlier one while it loads, and anything from any of them once the app is running.
+`form-builder-mvp.html` is the page itself. Its code is in `app/`, one file per topic. They are plain scripts that share one global scope and load in the order listed at the bottom of the page, so opening the page directly still works, with no server or build step. A script can use anything from an earlier one while it loads, and anything from any of them once the app is running. If one of them doesn't load, for example on a bad connection, the page says so and asks for a reload. A host should serve them together, because an old cached copy of one file next to new copies of the others can break the page.
 
 | File | What it holds |
 |---|---|

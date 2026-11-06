@@ -39,6 +39,10 @@
 
 <!-- The app, in the order it has to load. These are plain scripts sharing one global scope, not modules,
      so opening this file directly still works, with no server or build step. -->
+<script>
+// Each file loads on its own, so on a bad connection one can fail, and the app can't work without all of them.
+window.addEventListener("error", e => { if (e.target && e.target.tagName === "SCRIPT" && /\/app\//.test(e.target.src)) window.appFileFailed = true; }, true);
+</script>
 <script src="app/official-forms.js"></script>
 <script src="app/helpers.js"></script>
 <script src="app/questions.js"></script>
@@ -60,5 +64,10 @@
 <script src="app/answers.js"></script>
 <script src="app/summary.js"></script>
 <script src="app/main.js"></script>
+<script>
+if (window.appFileFailed || document.getElementById("app").childElementCount === 0) {
+  document.getElementById("app").innerHTML = '<h1>This page didn\'t finish loading</h1><p class="help" role="alert">Part of it didn\'t come through. Check your connection, then reload the page. The free help listed below still works.</p>';
+}
+</script>
 </body>
 </html>
