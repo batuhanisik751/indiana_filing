@@ -136,11 +136,12 @@ function renderStep() {
   if (lastProgress.sit === sitKey && cur > lastProgress.cur) pct = Math.max(pct, lastProgress.pct);
   lastProgress = { sit: sitKey, cur, pct };
   const v = answers[step.id] ?? "";
-  const goneHere = returnToSummary && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
   if (returnToSummary && (!editOriginal || editOriginal.id !== step.id))
     { editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id) }; editErased = null; }
+  // A reload kept this choice but not what it protects, and Cancel can only put the choice back.
+  const goneHere = returnToSummary && reloadedEdit === step.id && answers[step.id] === "yes" && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   let input;
   const desc = `aria-describedby="qhelp qneed"`;
   if (step.type === "choice") {

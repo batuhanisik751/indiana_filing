@@ -21,7 +21,7 @@ const app = document.getElementById("app");
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
   savedHere = true; saveOk = true; copyKept = {}; notSureFromKind = false; whereOpen = false;
-  editOriginal = null; lastProgress = {}; fixNth = 0; clearedContact = []; editErased = null;
+  editOriginal = null; lastProgress = {}; fixNth = 0; clearedContact = []; editErased = null; reloadedEdit = null;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false; pickedOther = false;
   pdfState = { key: null, result: null, error: false, busy: false };
 }

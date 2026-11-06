@@ -8,7 +8,7 @@ const shortForm = form => ({ [FORM.caption]: "Top of each form", [FORM.appearanc
 const sampleAnswer = s => (s.type === "date" ? "2031-01-15" : s.type === "money" || s.type === "number" ? "1" : "x");
 // The rows of the official forms this question's answer fills. It may not be answered yet, so they're worked out as
 // if it were, and as if the other boxes were too: a signature needs a name before it has a place to print.
-function whereRows(step) {
+function whereRows(step, guessRole = true) {
   const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select").map(s => [s.id, sampleAnswer(s)]));
   Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
   const chosen = draft && draft.id === step.id ? draft.value : answers[step.id], given = !empty(chosen); // the choice on screen counts before it's saved
@@ -19,7 +19,7 @@ function whereRows(step) {
   const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && (step.type !== "choice" || given)) && !(o.t === "drop" && /^_+$/.test(o.option));
   const rows = new Map();
   // Who started the case decides which box an answer prints in. Marked "I'm not sure", it could be either.
-  const roles = step.id !== "role" && steps.some(s => s.id === "role") && empty(filled.role) ? [{ role: "other" }, { role: "me" }] : [{}];
+  const roles = guessRole && step.id !== "role" && steps.some(s => s.id === "role") && empty(filled.role) ? [{ role: "other" }, { role: "me" }] : [{}];
   for (const role of roles) for (const value of tries) for (const r of SITUATIONS[sitKey].fields({ ...filled, ...role, [step.id]: value })) {
     // Worked out from this answer: a total counts as a place for each answer that goes into it, after the answer's own line.
     const worked = !!r.from && r.from.includes(step.id);
@@ -39,8 +39,10 @@ function whereRows(step) {
 function whereHtml(step) {
   if (whereForm !== sitKey) whereOpen = false; // another form's preview is another download, so it waits to be asked for
   const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3, place = r => `${shortForm(r.form)}: ${r.label}`;
+  // Nothing here prints until that's answered, and then only one of these does.
+  const roleOpen = rows.length && step.id !== "role" && steps.some(s => s.id === "role") && empty(answers.role) && !whereRows(step, false).length;
   const text = rows.length
-    ? `Prints on: ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
+    ? `${roleOpen ? "Once you answer who started the case, this prints on:" : "Prints on:"} ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
     : "This answer doesn't print on the form itself. It decides what the form asks next, where other answers print, or what your next steps say.";
   return `<div class="where">
       <p class="need" id="whereText">${esc(text)}</p>

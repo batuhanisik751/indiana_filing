@@ -33,6 +33,7 @@ const CONTACT_WORDS = { address: "address", email: "email address", phone: "phon
 const contactWords = ids => { const w = ids.map(k => CONTACT_WORDS[k]); return w.length > 1 ? `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}` : w[0]; };
 let clearedContact = []; // answers erased because of those, so the summary can say so
 let editErased = null;   // the question being edited, once its box has been emptied
+let reloadedEdit = null; // the question whose edit carried on after a reload
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
@@ -230,6 +231,7 @@ function restoreSaved(d, keep) {
   const ids = new Set(steps.map(s => s.id));
   if (d.edit && typeof d.edit === "object" && d.mode !== "summary") {
     returnToSummary = true;
+    reloadedEdit = d.draft?.id || null;
     followUps = Array.isArray(d.edit.followUps) ? d.edit.followUps.filter(id => ids.has(id)) : [];
     lastEdited = ids.has(d.edit.lastEdited) ? d.edit.lastEdited : null;
     fixFrom = d.edit.fixFrom === "flags" ? "flags" : "vals";
@@ -324,7 +326,7 @@ window.addEventListener("storage", e => {
   }
   if (e.key !== STORE_KEY) return;
   if (e.newValue === null && sitKey && (hasAnswers() || (draft && !empty(draft.value)))) {
-    if (savedHere) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
+    if (savedHere && savingOn()) announce("The saved copy was deleted in another tab. Your answers are still on this page.");
     savedHere = false; savedHereWhy = "deleted"; // deleted in another tab
   } else if (e.newValue === null && mode === "pick" && document.getElementById("resume")) announce("The saved answers were deleted in another tab.");
   // Another tab saved over this page's answers: a different form, or this form without something this page has.

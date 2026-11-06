@@ -37,11 +37,12 @@ async function loadPreviewTools() {
     const stop = new AbortController(), timer = setTimeout(() => stop.abort(), LOAD_TIMEOUT_MS); // a stalled connection never reports an error
     workerReady = fetch(LIBS.pdfJsWorker.src, { integrity: LIBS.pdfJsWorker.integrity, mode: "cors", signal: stop.signal })
       .then(r => { if (!r.ok) throw new Error("worker"); return r.blob(); })
-      .then(b => { pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(b); })
+      .then(b => URL.createObjectURL(b))
       .catch(e => { workerReady = null; throw e; })
       .finally(() => clearTimeout(timer));
   }
-  await workerReady;
+  // Set each time: a stalled copy of the viewer that arrives late replaces this setting, and without it the viewer would fetch a worker unchecked.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = await workerReady;
 }
 
 const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));

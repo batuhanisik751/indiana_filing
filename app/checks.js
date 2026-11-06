@@ -81,7 +81,7 @@ const BLANK_WHY = {
   otherIncomeDesc: ["The Verified Motion for Fee Waiver says to describe other income."],
   bank: ["The Verified Motion for Fee Waiver asks how much you have in the bank."],
   otherCostsDesc: ["The Verified Motion for Fee Waiver says to describe other expenses."],
-  role: ["This decides which side of the official form's top section your name prints on. Until you answer, the names there stay blank."],
+  role: ["This decides which side of the official form's top section your name prints on. Until you answer, the names there and the addresses in the Order's distribution list stay blank."],
   otherParty: ["Item 5 of the Verified Motion for Continuance asks for the other party's name."],
   hearingDate: ["Item 2 of the Verified Motion for Continuance asks when your hearing is scheduled."],
   reason: ["Item 3 of the Verified Motion for Continuance asks why. Indiana Legal Help's instructions say you need to show a good reason, and the court decides."],
