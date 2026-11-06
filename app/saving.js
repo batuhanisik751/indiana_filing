@@ -75,7 +75,7 @@ function readSaved() {
     if (usable) return d;
     // Answers that expired: saving goes back to off, so the next person on this computer isn't saved without choosing it.
     if (fresh === false && d && d.v === 1 && Number.isFinite(d.savedAt) && age > MAX_AGE_DAYS * 864e5) savingOffForNext();
-  } catch { /* unreadable */ }
+  } catch (e) { if (e instanceof ReferenceError) throw e; /* otherwise unreadable. A missing part of this app isn't a bad copy, so it's left alone. */ }
   store.del(STORE_KEY);
   return null;
 }

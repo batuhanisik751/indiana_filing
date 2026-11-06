@@ -15,6 +15,7 @@ const OTHER_CASES = [
 const focusKey = el => el.matches("a[href]") ? `a[href="${el.getAttribute("href")}"]` : el.id ? `#${el.id}` : el.dataset.k ? `[data-k="${el.dataset.k}"]` : el.dataset.kind ? `[data-kind="${el.dataset.kind}"]`
   : el.matches(".cardtitle") ? ".cardtitle" : el.matches("h1") ? "h1" : null;
 function renderPick(quiet = false) {
+  if (window.appFileFailed) return; // another tab's change can land here, and the page can't work
   // Answers still on this page (for example with saving off) come first; then a saved copy.
   const live = sitKey && hasAnswers();
   const saved = live ? null : readSaved();
