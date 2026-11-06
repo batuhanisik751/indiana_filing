@@ -36,6 +36,7 @@ if (footerHelp) document.getElementById("helpList").innerHTML = footerHelp.inner
 function setHelp(open) {
   helpPanel.hidden = !open; helpBtn.setAttribute("aria-expanded", String(open));
   (open ? document.getElementById("helpTitle") : helpBtn).focus();
+  syncHistory();
 }
 helpBtn.onclick = () => setHelp(helpPanel.hidden);
 document.getElementById("helpClose").onclick = () => setHelp(false);
@@ -45,6 +46,7 @@ document.addEventListener("keydown", e => {
   const active = document.activeElement;
   if (helpPanel.contains(active) || active === helpBtn || active === document.body) return setHelp(false);
   helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false");
+  syncHistory();
 });
 
 // After keeping what another tab saved, this tab can still choose to save its own answers instead.

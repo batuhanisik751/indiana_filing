@@ -29,15 +29,16 @@ function dropGuard() { ignorePop = true; history.back(); }
 const backToAnswers = () => mode === "pick" && pickedOther && !!sitKey && hasAnswers();
 function syncHistory() {
   if (mode !== "pick") pickedOther = false;
-  if (mode === "pick") { if (inGuard() && !ignorePop && !backToAnswers()) dropGuard(); return; } // from here, Back leaves the app
+  // From the first screen, Back leaves the app, unless it has something to close or return to first.
+  if (mode === "pick" && helpPanel.hidden && !backToAnswers()) { if (inGuard() && !ignorePop) dropGuard(); return; }
   if (!inGuard()) { try { history.pushState({ icfh: 1 }, ""); } catch { /* not allowed here: Back leaves, with the usual warning */ } }
 }
 window.addEventListener("popstate", () => {
   if (ignorePop) { ignorePop = false; syncHistory(); return; }
-  if (inGuard()) { if (mode === "pick" && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
+  if (inGuard()) { if (mode === "pick" && helpPanel.hidden && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
+  if (!helpPanel.hidden) { setHelp(false); return; }
   if (backToAnswers()) { document.getElementById("backToWork").click(); return; }
   if (mode === "pick") return;
-  if (!helpPanel.hidden) { setHelp(false); syncHistory(); return; }
   const back = document.getElementById(mode === "summary" ? "toQuestions" : "back");
   if (back) back.click(); else syncHistory();
 });

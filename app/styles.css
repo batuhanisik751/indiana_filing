@@ -1,7 +1,7 @@
 /* The look of the whole page, in light and dark. */
 :root {
   color-scheme: light;
-  --bg: #EEF3F2; --surface: #FFFFFF; --ink: #142B30; --muted: #4F6468; --line: #CFDBDA;
+  --bg: #EEF3F2; --surface: #FFFFFF; --ink: #142B30; --muted: #4F6468; --line: #CFDBDA; --edge: #6F8487;
   --accent: #0E6B66; --accent-ink: #FFFFFF;
   --ok: #1E7A3C; --ok-bg: #E7F4EA;
   --warn: #A8452E; --warn-bg: #FBEDE8;
@@ -93,9 +93,9 @@ input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visib
 .nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; margin-top: 1.75rem; }
 button { font: inherit; font-weight: 700; border-radius: 10px; padding: .85rem 1.2rem; cursor: pointer; border: 2px solid transparent; }
 button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
-button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--edge); }
 button.small { padding: .4rem .8rem; font-size: .95rem; }
-button.link { background: none; border: none; padding: 0; color: var(--accent); font-size: .9rem; text-decoration: underline; }
+button.link { background: none; border: none; padding: .2rem 0; color: var(--accent); font-size: .9rem; text-decoration: underline; }
 button.link.cleardata { font-size: .85rem; font-weight: 700; padding: .6rem 0; }
 button:focus-visible, .pick:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 button.link:focus-visible { outline-offset: 1px; }
