@@ -141,18 +141,21 @@ function phoneShape(v) {
   return /\d[\s.-]*[a-z]{3,}[a-z\s.-]*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
 }
 /* ---------- email check ---------- */
-// Big providers people mistype, and how far off a typed name can be. Worked out on this device only: nothing is sent anywhere.
-// Longer names can be two letters off, but "carter.net" is one letter from "charter.net", so most stay at one.
-const EMAIL_HOSTS = { gmail: ["com", 1], googlemail: ["com", 1], yahoo: ["com", 1], hotmail: ["com", 2], outlook: ["com", 2], icloud: ["com", 2],
-  comcast: ["net", 2], sbcglobal: ["net", 2], bellsouth: ["net", 2], verizon: ["net", 1], charter: ["net", 1], protonmail: ["com", 2] };
-// Real ones close to those.
-const EMAIL_REAL = /^(?:mail|ymail|email|fmail|hmail|gmx|cloud|horizon|carter)$/;
-// Free mail with one real ending. (comcast.com, verizon.com and charter.com are real, for people who work there.)
-const EMAIL_WEBMAIL = /^(?:gmail|googlemail|yahoo|hotmail|outlook|icloud|protonmail)$/;
-// Endings that aren't real, and what they're close to.
-const EMAIL_BAD_ENDS = { con: "com", cmo: "com", ocm: "com", vom: "com", xom: "com", cim: "com", cpm: "com", clm: "com", coom: "com", comm: "com", conm: "com", nte: "net", nett: "net", ner: "net", ogr: "org", orgg: "org", rog: "org" };
-// Endings close to these that are only real on other names.
-const EMAIL_NEAR_ENDS = { com: /^(?:co|cm|om|ne)$/, net: /^(?:ne|nt|met|bet)$/ };
+// Big providers people mistype, their usual ending, and how many typing slips a name can be off. Worked out on this device only: nothing is sent anywhere.
+const EMAIL_HOSTS = { gmail: ["com", 1], googlemail: ["com", 1], yahoo: ["com", 1], hotmail: ["com", 1], outlook: ["com", 1], icloud: ["com", 1], protonmail: ["com", 1],
+  comcast: ["net", 1], sbcglobal: ["net", 1], bellsouth: ["net", 1], verizon: ["net", 1], charter: ["net", 1], earthlink: ["net", 1], windstream: ["net", 1], centurylink: ["net", 1],
+  aol: ["com", 0], att: ["net", 0], cox: ["net", 0] }; // too short: too many real names are a letter away
+const EMAIL_WEBMAIL = /^(?:gmail|googlemail|yahoo|hotmail|outlook|icloud|protonmail|aol|sbcglobal|bellsouth)$/; // no real mail at another ending. (comcast.com or att.com is, for people who work there.)
+const EMAIL_REAL = /^(?:mail|ymail|email|fmail|gmx|cloud|horizon|carter)$/; // real ones close to those
+const EMAIL_MISSPELLED = { gemail: "gmail", gimail: "gmail", "g-mail": "gmail", gamial: "gmail", yahho: "yahoo", yahoomail: "yahoo", iclould: "icloud", icould: "icloud", sbcgloble: "sbcglobal" };
+// Endings people mean, and real endings one letter from them, which only count as typos on a provider's name.
+const EMAIL_ENDS = ["com", "net", "org", "edu", "gov"];
+const EMAIL_REAL_ENDS = /^(?:bet|bom|cam|cm|co|et|eu|gop|got|mom|mov|ne|nec|new|next|nov|ntt|om|ong|pet|vet)$/;
+const nearEnding = end => {
+  if (end.length > 5 || EMAIL_REAL_ENDS.test(end)) return "";
+  const e = end.replace(/0/g, "o");
+  return EMAIL_ENDS.includes(e) ? (e === end ? "" : e) : EMAIL_ENDS.find(x => editDistance(e, x) <= 1) || "";
+};
 // Letters added, dropped, changed or swapped.
 function editDistance(a, b) {
   if (Math.abs(a.length - b.length) > 2 || a.length > 40 || b.length > 40) return 99;
@@ -167,31 +170,61 @@ function editDistance(a, b) {
   }
   return one[b.length];
 }
+// How many typing slips apart: a neighboring key, a vowel for a vowel, a swapped pair, a dropped letter, or an extra one that's a double or a neighbor.
+// Any other difference means a different word: "pcloud" isn't a slip for "icloud", and "chapter" isn't for "charter".
+const KEY_AT = Object.fromEntries(["qwertyuiop", "asdfghjkl", "zxcvbnm"].flatMap((row, y) => [...row].map((c, x) => [c, [x + y / 2, y]])));
+const keysTouch = (a, b) => !!KEY_AT[a] && !!KEY_AT[b] && Math.hypot(KEY_AT[a][0] - KEY_AT[b][0], KEY_AT[a][1] - KEY_AT[b][1]) < 1.3;
+function typingSlips(typed, host) {
+  if (Math.abs(typed.length - host.length) > 2 || typed.length > 30) return 99;
+  const d = Array.from({ length: typed.length + 1 }, () => Array(host.length + 1).fill(99));
+  d[0][0] = 0;
+  for (let i = 0; i <= typed.length; i++) for (let j = 0; j <= host.length; j++) {
+    const a = typed[i - 1], b = host[j - 1], next = host[j];
+    if (i && j) d[i][j] = Math.min(d[i][j], d[i - 1][j - 1] + (a === b ? 0 : keysTouch(a, b) || (/[aeiou]/.test(a) && /[aeiou]/.test(b)) ? 1 : 99));
+    if (i > 1 && j > 1 && a === host[j - 2] && typed[i - 2] === b) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    if (j) d[i][j] = Math.min(d[i][j], d[i][j - 1] + 1);
+    if (i && (a === next || a === b || keysTouch(a, next) || keysTouch(a, b))) d[i][j] = Math.min(d[i][j], d[i - 1][j] + 1);
+  }
+  return d[typed.length][host.length];
+}
+const squashed = s => s.replace(/0/g, "o").replace(/(.)\1+/g, "$1"); // yah00, gmailll
+const swappedPair = (a, b) => a.length === b.length && [...a].some((c, i) => i && a.slice(0, i - 1) + c + a[i - 1] + a.slice(i + 1) === b);
+function nearHost(name, host, far) {
+  if (EMAIL_MISSPELLED[name] === host) return true;
+  const n = squashed(name.normalize("NFD").replace(/\p{M}/gu, "")), h = squashed(host);
+  return n === h || swappedPair(n, h) || swappedPair(name, host) || (far > 0 && !EMAIL_REAL.test(name) && typingSlips(n, h) <= far);
+}
+const NO_EMAIL = /^(?:i\s+)?(?:don'?t|do\s+not|does\s*n[o']t|no|none|not|nothing|never|n\s*\/\s*a)\b/i;
 // What's wrong with a typed email, if anything. { kind: "" } is fine, and a "typo" also gives the domain and what it may be a typo for.
 function emailShape(v) {
-  const t = String(v ?? "").normalize("NFKC").trim();
+  const t = String(v ?? "").normalize("NFKC").replace(/\u2019/g, "'").trim();
   if (t.length > 254) return { kind: "long" };
   const at = t.split("@").length - 1, spaced = /\s/.test(t);
-  if (at === 0) return { kind: /\be-?mail\b/i.test(t) ? "noemail" : spaced && /\b(?:at|dot)\b/i.test(t) ? "spelled" : "noat" };
-  if (at > 1) return { kind: /[\s,;/]/.test(t) ? "two" : "ats" };
+  if (at === 0) return { kind: NO_EMAIL.test(t) ? "noemail" : spaced && /\b(?:at|dot)\b/i.test(t) ? "spelled" : "noat" };
+  if (at > 1) return { kind: t.split(/[\s,;/]+/).filter(x => /[^@]@[^@]/.test(x)).length > 1 ? "two" : "ats" };
   const [local, domain] = t.split("@");
-  if (spaced) return { kind: /^\S+ at /i.test(t) ? "spelled" : "space" };
+  if (spaced) return { kind: "space" };
   if (!local) return { kind: "nolocal" };
   if (!domain) return { kind: "nodomain" };
+  if (/[,;!/'"]$/.test(domain)) return { kind: "extra" };
   if (/,/.test(domain)) return { kind: "comma" };
-  if (/[,;<>()[\]:"\\]/.test(t)) return { kind: "odd" };
-  if (/\.\./.test(t) || /^\.|\.$/.test(local) || /^[.-]|[.-]$/.test(domain)) return { kind: "dots" };
-  const parts = domain.toLowerCase().split("."), end = parts[parts.length - 1], name = parts[0];
-  if (parts.length < 2 || end.length < 2 || /\d/.test(end)) return { kind: "noend" };
+  if (/[,;<>()[\]:"\\]/.test(t) || /[^\p{L}\p{N}.-]/u.test(domain) || /^-|-$/.test(domain)) return { kind: "odd" };
+  if (/\.\./.test(t) || /^\.|\.$/.test(local) || /^\.|\.$/.test(domain)) return { kind: "dots" };
+  if (/[^\x00-\x7F]/.test(local)) return { kind: "accent" };
+  const parts = domain.toLowerCase().split("."), end = parts[parts.length - 1], name = parts[0], near = nearEnding(end);
   const typo = target => ({ kind: "typo", domain: domain.toLowerCase(), target });
+  if (parts.length < 2 || end.length < 2 || (/\d/.test(end) && !near && !/^xn--/.test(end))) return { kind: "noend" };
+  if (name === "www" && parts.length > 2) return typo(parts.slice(1).join("."));
+  // A second ending: gmail.com.com, acme.com.con.
+  if (parts.length > 2 && EMAIL_ENDS.includes(parts[parts.length - 2]) && (near || EMAIL_ENDS.includes(end))) return typo(parts.slice(0, -1).join("."));
   if (parts.length === 2) {
     for (const [host, [real, far]] of Object.entries(EMAIL_HOSTS)) {
-      const nearEnd = end === real || Object.hasOwn(EMAIL_BAD_ENDS, end) || EMAIL_NEAR_ENDS[real].test(end);
-      if (name === host && end !== real && (nearEnd || (EMAIL_WEBMAIL.test(host) && /^(?:net|org|edu)$/.test(end)))) return typo(`${host}.${real}`);
-      if (name !== host && nearEnd && !EMAIL_REAL.test(name) && editDistance(name, host) <= far) return typo(`${host}.${real}`);
+      if (name === host) {
+        if (end !== real && (near || EMAIL_REAL_ENDS.test(end) || (EMAIL_WEBMAIL.test(host) && EMAIL_ENDS.includes(end)))) return typo(`${host}.${real}`);
+      } else if ((end === real || near) && nearHost(name, host, far)) return typo(`${host}.${real}`);
     }
   }
-  if (Object.hasOwn(EMAIL_BAD_ENDS, end)) return typo([...parts.slice(0, -1), EMAIL_BAD_ENDS[end]].join("."));
+  if (near) return typo([...parts.slice(0, -1), near].join("."));
   return { kind: "" };
 }
 window.appParts++;

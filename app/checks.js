@@ -151,11 +151,11 @@ function runChecks() {
 
   // "None" is how someone with no email or phone answers on the forms that require them.
   const says = id => { const s = vis.find(x => x.id === id); return s ? notAnAnswer(s, a[id]) : false; }; // flagged below instead
-  if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim())) {
+  if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim()) && !privateKind(a.email)) { // a private number has its own flag above
     const e = emailShape(a.email);
     // It prints as typed. This tool can't tell whether an address works, only whether it looks mistyped.
-    const why = !e.kind ? "" : { typo: `The end of this email, ${e.domain}, may be a typo for ${e.target}. Check it.`,
-      noemail: "If you don't have an email address, type None.",
+    const why = !e.kind ? "" : { typo: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`,
+      noemail: sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None.",
       spelled: "Write this with an @ sign and a dot, like name@example.com.",
       noat: "This is missing the @ sign. A full email looks like name@example.com.",
       nolocal: "This is missing the part before the @. A full email looks like name@example.com.",
@@ -165,15 +165,18 @@ function runChecks() {
       ats: "This has more than one @ sign. Check it for typos.",
       space: "This has a space in it. Email addresses don't, and the form needs just the address.",
       comma: "This has a comma where a dot usually goes. Check it for typos.",
+      extra: "This has an extra character at the end. Check it for typos.",
+      odd: "This has a character email addresses don't usually have. Check it for typos.",
+      accent: "This has an accented or special letter before the @. Check it for typos.",
       dots: "This has a dot in the wrong place, like two in a row or one at the end. Check it for typos.",
       long: "This is too long to be one email address. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
     const papers = a.receiveAt === "Choice2" || a.acceptEmail === "yes" ? " You chose to get court papers at this address, so a typo could mean you miss them." : "";
     if (why) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
   }
-  // Sent through the e-filing system, a service address can be an email.
-  vis.filter(s => /^svc\dAddress$/.test(s.id) && /^\S+@\S+$/.test(String(a[s.id] ?? "").trim())).forEach(s => {
-    const e = emailShape(a[s.id]);
-    if (e.kind === "typo") flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, why: `The end of this email, ${e.domain}, may be a typo for ${e.target}. Check it.`, fix: s.id });
+  // Sent through the e-filing system, a service address can be an email. (By mail, it gets the address check's flag instead.)
+  vis.filter(s => /^svc\dAddress$/.test(s.id) && a[s.id.replace("Address", "Method")] === "Indiana E-Filing System" && !empty(a[s.id]) && !privateKind(a[s.id])).forEach(s => {
+    const emails = String(a[s.id]).trim().split(/\s+/).filter(x => x.includes("@")), e = emails.length === 1 ? emailShape(emails[0]) : {};
+    if (e.kind === "typo") flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, why: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`, fix: s.id });
   });
   // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
   [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
