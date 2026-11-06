@@ -5,7 +5,7 @@
 //
 //   node scripts/build-form-data.mjs
 //
-// No dependencies. Keys must match the `file` values in form-builder-mvp.html.
+// No dependencies. Keys must match the `file` values in app/official-forms.js.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";

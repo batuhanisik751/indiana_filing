@@ -82,6 +82,37 @@ node scripts/serve.mjs
 
 Then go to http://localhost:5190/. If that port is busy, pass another one, for example `node scripts/serve.mjs 5191`.
 
+To copy the tool somewhere, keep the `app/` and `forms/` folders next to `form-builder-mvp.html`.
+
+## Where the code is
+
+`form-builder-mvp.html` is the page itself. Its code is in `app/`, one file per topic. They are plain scripts that share one global scope and load in the order listed at the bottom of the page, so opening the page directly still works, with no server or build step. A script can use anything from an earlier one while it loads, and anything from any of them once the app is running.
+
+| File | What it holds |
+|---|---|
+| `styles.css` | The look of the whole page, in light and dark |
+| `official-forms.js` | The counties, links, official PDFs and libraries the app uses |
+| `helpers.js` | Small tools: escaping text, numbers, money, dates and case numbers |
+| `questions.js` | Every question the forms ask, with its help text |
+| `continuance-fields.js` | How the court type fits on the forms, and where continuance answers land on its PDFs |
+| `situations.js` | The four things someone can do here, and which questions and forms each one uses |
+| `form-fields.js` | Where the Appearance, Answer and fee waiver answers land on their PDFs |
+| `pdf-engine.js` | Loads the PDF tools, fits the text to the boxes and builds the filled PDF |
+| `pdf-preview.js` | The preview and the download buttons on the summary |
+| `next-steps.js` | "What to do next": the steps for each situation and their official sources |
+| `sorting.js` | The kinds of cases on the first screen and the sorting questions after them |
+| `saving.js` | The saved copy, what happens between tabs, and clearing data |
+| `state.js` | What the page is holding right now, the Get help panel, and which questions are showing |
+| `check-advice.js` | What "I'm not sure" says about where to look for an answer |
+| `check-text.js` | Checks on typed text: dates, private numbers, answers that say nothing, and phone numbers |
+| `check-address.js` | Works out what a typed address seems to be missing, on this device only |
+| `checks.js` | The score on the summary, and every flag it shows |
+| `screens.js` | The first screen, "Which one fits?", and the question screen |
+| `where.js` | "Show it on the form": where each answer prints, and the picture of the form |
+| `answers.js` | Saving an answer, pressing "I'm not sure", and going back to fix one |
+| `summary.js` | The summary screen |
+| `main.js` | Draws the current screen, handles the Back button and starts the app |
+
 ## Privacy
 
 Nothing anyone types is sent anywhere, and the PDF is filled in the browser. The page uses the device's own fonts, so opening it contacts no other site; the PDF tools load from cdnjs only when the summary first builds the form or someone opens the picture of the form on a question.
