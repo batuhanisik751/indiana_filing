@@ -1,18 +1,26 @@
 // The preview and the download buttons on the summary.
 /* ---------- preview and download ---------- */
 let pdfState = { key: null, result: null, error: false, busy: false };
+const PDF_SLOW_MS = 15000;
+let pdfSlow = false, pdfSlowTimer = null; // a stalled download takes two minutes to give up, so say something sooner
 const pdfKey = () => JSON.stringify([sitKey, visibleAnswers(), Object.keys(unsure).filter(k => unsure[k]).sort()]);
 
 function ensurePdf() {
   const key = pdfKey();
   if (pdfState.key === key) return;
   pdfState = { key, result: null, error: false, busy: true };
+  pdfSlow = false; clearTimeout(pdfSlowTimer);
+  pdfSlowTimer = setTimeout(() => {
+    if (pdfState.key !== key || !pdfState.busy) return;
+    pdfSlow = true;
+    if (mode === "summary") { keepFocus(() => renderSummary(true)); announce(`This is taking longer than usual.${pendingLoads.size ? " You can keep waiting, or stop and try again." : ""}`); }
+  }, PDF_SLOW_MS);
   (async () => {
     let result = null, error = false;
     // The form and answers as they are now: the person may start over or pick another form while the tools load.
     const sit = sitKey, ans = visibleAnswers();
     try { await loadPdfTools(OFFICIAL[SITUATIONS[sit].official.packet].file); } catch (e) { error = "load"; console.error(e); }
-    if (!error) try { result = await buildPdf(sit, ans); } catch (e) { error = "build"; console.error(e); }
+    if (!error) try { result = await buildPdf(sit, ans); } catch (e) { error = e.damagedForm ? "form" : "build"; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
     if (mode === "summary") {
@@ -117,8 +125,8 @@ function downloadPdf(bytes, name) {
 }
 
 function pdfSectionHtml(sit) {
-  if (pdfState.busy || !pdfState.key) return `<p class="note" id="pdfStatus" tabindex="-1">Filling in the official form…</p>`;
-  if (pdfState.error) return `<div class="note" role="alert">${pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
+  if (pdfState.busy || !pdfState.key) return `<p class="note" id="pdfStatus" tabindex="-1">${pdfSlow ? `Filling in the official form is taking longer than usual, so the connection may be slow.${pendingLoads.size ? ` You can keep waiting, or <button class="link" id="stopPdf">stop and try again</button>.` : ""}` : "Filling in the official form…"}</p>`;
+  if (pdfState.error) return `<div class="note" role="alert">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
     <div class="downloads">
@@ -132,8 +140,10 @@ function pdfSectionHtml(sit) {
 const previewHtml = () => (pdfState.result && !pdfState.busy && !pdfState.error ? `<h2 class="sub">Read your filled form</h2><div class="preview" id="preview"></div>` : "");
 
 function wirePdfSection(sit) {
+  const stop = document.getElementById("stopPdf");
+  if (stop) stop.onclick = () => { [...pendingLoads].forEach(give => give()); setTimeout(() => document.getElementById("retryPdf")?.focus()); };
   const retry = document.getElementById("retryPdf");
-  if (retry) retry.onclick = () => { if (pdfState.error === "build") formDataTry++; pdfState = { key: null }; ensurePdf(); renderSummary(true); document.getElementById("pdfStatus")?.focus(); };
+  if (retry) retry.onclick = () => { if (pdfState.error === "build" || pdfState.error === "form") formDataTry++; pdfState = { key: null }; ensurePdf(); renderSummary(true); document.getElementById("pdfStatus")?.focus(); };
   if (!pdfState.result) return;
   const { all, each } = pdfState.result;
   const docs = sit.official.docs.map(k => OFFICIAL[sit.official.packet].docs[k]);

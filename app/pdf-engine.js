@@ -4,17 +4,18 @@
    Fills the official PDF in the browser with pdf-lib and keeps only the
    form pages. Nothing leaves the device.
    ===================================================================== */
-const loaded = {}, loadTries = {};
+const loaded = {}, loadTries = {}, pendingLoads = new Set();
 const LOAD_TIMEOUT_MS = 120000; // the whole download, which is about 1.6 MB for the largest form
 function loadScript({ src, integrity }) {
   if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    const fail = () => { clearTimeout(timer); delete loaded[src]; loadTries[src] = (loadTries[src] || 0) + 1; s.remove(); reject(new Error("load")); };
+    const fail = () => { clearTimeout(timer); pendingLoads.delete(fail); delete loaded[src]; loadTries[src] = (loadTries[src] || 0) + 1; s.remove(); reject(new Error("load")); };
+    pendingLoads.add(fail);
     const timer = setTimeout(fail, LOAD_TIMEOUT_MS); // a stalled connection never reports an error
     // A stalled request can't be cancelled, and a new one for the same address can wait behind it, so a retry uses a new address.
     s.src = loadTries[src] ? `${src}${src.includes("?") ? "&" : "?"}retry=${loadTries[src]}` : src;
     if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
-    s.onload = () => { clearTimeout(timer); resolve(); };
+    s.onload = () => { clearTimeout(timer); pendingLoads.delete(fail); resolve(); };
     s.onerror = fail;
     document.head.appendChild(s);
   });
@@ -59,14 +60,19 @@ function makeSafe(font, report) {
     if (!ok.has(ch)) { try { font.widthOfTextAtSize(ch, 10); ok.set(ch, true); } catch { ok.set(ch, false); } }
     return ok.get(ch);
   };
-  return text => Array.from(cleanText(text).replace(/\t/g, " ")).map(ch => {
-    if (ch === "\n" || ch === "\r" || fits(ch)) return ch;
-    if (/[\u0300-\u036f]/.test(ch)) return ""; // a leftover accent mark with no letter
-    const plain = LOOKALIKE[ch] ?? ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const out = plain && plain !== ch && Array.from(plain).every(fits) ? plain : "?";
-    report(ch, out);
-    return out;
-  }).join("");
+  return text => {
+    const clean = cleanText(text).replace(/\t/g, " ");
+    // An accent the font can't put on this letter is dropped, so name the letter it was on.
+    for (const m of clean.matchAll(/\P{M}[\u0300-\u036f]+/gu)) if (!fits(m[0].slice(-1))) report(m[0], m[0].replace(/[\u0300-\u036f]+/g, ""));
+    return Array.from(clean).map(ch => {
+      if (ch === "\n" || ch === "\r" || fits(ch)) return ch;
+      if (/[\u0300-\u036f]/.test(ch)) return ""; // a leftover accent mark with no letter
+      const plain = LOOKALIKE[ch] ?? ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const out = plain && plain !== ch && Array.from(plain).every(fits) ? plain : "?";
+      report(ch, out);
+      return out;
+    }).join("");
+  };
 }
 
 // Break text into lines no wider than maxWidth, keeping the user's own line breaks.
@@ -205,7 +211,8 @@ async function buildPdf(key, a) {
   const { PDFDocument, StandardFonts } = PDFLib;
   const sit = SITUATIONS[key];
   const off = OFFICIAL[sit.official.packet];
-  const src = await PDFDocument.load(b64ToBytes(window.OFFICIAL_PDFS[off.file]));
+  let src;
+  try { src = await PDFDocument.load(b64ToBytes(window.OFFICIAL_PDFS[off.file])); } catch (e) { e.damagedForm = true; throw e; }
   const form = src.getForm();
   // The official continuance Appearance stores two boxes upside down (Case Number and County), which
   // puts wrapped text outside the box. Same box, stored the right way up.
