@@ -65,7 +65,7 @@ function privateKind(text, isAddress = false) {
     if (!marked && !nearby) continue;
     const labeled = /\b(?:number|num|nbr|no|id)\b|#/i.test(gap);
     // In an address, "Loan Servicing" or "Member Services" can be a company name before a house number or a ZIP+4.
-    if (isAddress && (/^\d{5}[ -]\d{4}$/.test(m[2]) || !(labeled || (count >= 8 && /^(?:accounts?|accts?|acc|a\/c|routing|aba)\b/i.test(m[0]))))) continue;
+    if (isAddress && (/^\d{5}[ -]\d{4}$/.test(m[2]) || !(labeled || /:\s*$/.test(gap) || (count >= 8 && !gap.trim().replace(/[,:;.-]/g, "") && /^(?:accounts?|accts?|acc|a\/c|routing|aba|checking|savings)\b/i.test(m[0]))))) continue;
     if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
     if (!labeled && count < 8 && /\b(?:is|was)\s*$/i.test(gap) && /^(?:loans?|mortgages?)/i.test(m[0])) continue; // "the loan was 150000": an amount
     if (/^(1[ -])?\d{3}[ -]\d{3}[ -]\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
@@ -129,7 +129,7 @@ function phoneShape(v) {
   const raw = String(v ?? "");
   if (raw.length > 100) return "short";
   // An extension comes after a number. Before one, "Cell #" or "Ex:" is a label, and the digits are the number itself.
-  const t = raw.trim().replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, (m, pre, at, all) => (/\d/.test(all.slice(0, at) + pre) ? pre : m))
+  const t = raw.trim().replace(/^[a-z]+\s*#?\s*\d\s*:?\s+(?=\(?\d{3})/i, "").replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, (m, pre, at, all) => (/\d/.test(all.slice(0, at) + pre) ? pre : m))
     .replace(/#\s*\d{1,6}/g, (m, at, all) => (/\d/.test(all.slice(0, at)) ? "" : m));
   if (/^(?:\+\s*[2-9]|011)/.test(t)) return "foreign"; // a country code other than the U.S.'s
   let d = digits(t);
