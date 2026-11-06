@@ -21,10 +21,10 @@ function completeness() {
 // The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
 function paragraphNumbers(v) {
   const out = new Set();
-  for (const m of String(v ?? "").matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|to|through|thru)\s*(\d+))?/gi)) {
+  for (const m of notAmounts(v).matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|to|through|thru)\s*(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
-    if (to >= from && to - from < 1000) for (let i = from; i <= to; i++) out.add(i);
+    if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);
     else { out.add(from); out.add(to); }
   }
   return out;
@@ -36,7 +36,7 @@ function rangesText(ns) {
   for (let i = 0, j; i < ns.length; i = j + 1) {
     j = i;
     while (ns[j + 1] === ns[j] + 1) j++;
-    parts.push(j - i > 1 ? `${ns[i]} through ${ns[j]}` : j > i ? `${ns[i]}, ${ns[j]}` : `${ns[i]}`);
+    if (j - i > 1) parts.push(`${ns[i]} through ${ns[j]}`); else parts.push(...ns.slice(i, j + 1));
   }
   return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
 }
@@ -219,7 +219,7 @@ function runChecks() {
     const listed = new Set(lists.flatMap(([, n]) => [...n]).filter(n => n >= 1 && n <= PARAGRAPH_MAX));
     const skipped = [];
     for (let i = 1, top = Math.max(0, ...listed); i < top; i++) if (!listed.has(i)) skipped.push(i);
-    if (skipped.length && !lists.some(([k]) => unsure[k] || REST_WORDS.test(String(a[k] ?? ""))))
+    if (skipped.length && !lists.some(([k]) => unsure[k] || onlyListWords(notAmounts(a[k]))))
       flags.push({ level: "check", title: "Paragraphs not in any list", fix: "admitted", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
         why: `${skipped.length > 1 ? `Paragraphs ${rangesText(skipped)} aren't` : `Paragraph ${skipped[0]} isn't`} in any of your lists. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't see your Complaint, so check these numbers against it.` });
   }
