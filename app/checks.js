@@ -151,7 +151,7 @@ function runChecks() {
 
   // "None" is how someone with no email or phone answers on the forms that require them.
   const says = id => { const s = vis.find(x => x.id === id); return s ? notAnAnswer(s, a[id]) : false; }; // flagged below instead
-  if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim()) && !privateKind(a.email)) { // a private number has its own flag above
+  if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim())) {
     const e = emailShape(a.email);
     // It prints as typed. This tool can't tell whether an address works, only whether it looks mistyped.
     const why = !e.kind ? "" : { typo: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`,
@@ -171,12 +171,14 @@ function runChecks() {
       dots: "This has a dot in the wrong place, like two in a row or one at the end. Check it for typos.",
       long: "This is too long to be one email address. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
     const papers = a.receiveAt === "Choice2" || a.acceptEmail === "yes" ? " You chose to get court papers at this address, so a typo could mean you miss them." : "";
-    if (why) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
+    // A private number has its own flag above. A typo in the domain still needs saying, unless saying it would repeat that number.
+    if (why && !(privateKind(a.email) && (e.kind !== "typo" || privateKind(e.domain)))) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
   }
   // Sent through the e-filing system, a service address can be an email. (By mail, it gets the address check's flag instead.)
-  vis.filter(s => /^svc\dAddress$/.test(s.id) && a[s.id.replace("Address", "Method")] === "Indiana E-Filing System" && !empty(a[s.id]) && !privateKind(a[s.id])).forEach(s => {
-    const emails = String(a[s.id]).trim().split(/\s+/).filter(x => x.includes("@")), e = emails.length === 1 ? emailShape(emails[0]) : {};
-    if (e.kind === "typo") flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, why: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`, fix: s.id });
+  vis.filter(s => /^svc\dAddress$/.test(s.id) && a[s.id.replace("Address", "Method")] === "Indiana E-Filing System" && !empty(a[s.id])).forEach(s => {
+    const emails = String(a[s.id]).trim().split(/\s+/).filter(x => x.includes("@") && x.length <= 254).map(x => x.replace(/^[<(\[,;]+|[>)\],;.]+$/g, ""));
+    const e = emails.length === 1 ? emailShape(emails[0]) : {};
+    if (e.kind === "typo" && !privateKind(e.domain)) flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, why: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`, fix: s.id });
   });
   // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
   [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
@@ -219,7 +221,7 @@ function runChecks() {
     handled.add(s.id);
     flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
       why: s.id === "courtTypeOther" && /^court[.!]*$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
-        : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
+        : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.${s.id === "email" && NO_WORDS.test(String(a[s.id]).trim()) && !NOT_KNOWN.test(String(a[s.id]).trim()) ? ` If you don't have one, ${sitKey === "feewaiver" ? "leave this blank" : "type None"}.` : ""}` });
   });
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {

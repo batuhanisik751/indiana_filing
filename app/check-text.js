@@ -192,6 +192,7 @@ const swappedPair = (a, b) => a.length === b.length && [...a].some((c, i) => i &
 function nearHost(name, host, far) {
   if (EMAIL_MISSPELLED[name] === host) return true;
   const n = squashed(name.normalize("NFD").replace(/\p{M}/gu, "")), h = squashed(host);
+  if (far > 0 && squashed(name.replace(/-/g, "").replace(/\d+$/, "").replace(/^my/, "")) === h) return true; // hot-mail, gmail1, myhotmail
   return n === h || swappedPair(n, h) || swappedPair(name, host) || (far > 0 && !EMAIL_REAL.test(name) && typingSlips(n, h) <= far);
 }
 const NO_EMAIL = /^(?:i\s+)?(?:don'?t|do\s+not|does\s*n[o']t|no|none|not|nothing|never|n\s*\/\s*a)\b/i;
@@ -200,7 +201,7 @@ function emailShape(v) {
   const t = String(v ?? "").normalize("NFKC").replace(/\u2019/g, "'").trim();
   if (t.length > 254) return { kind: "long" };
   const at = t.split("@").length - 1, spaced = /\s/.test(t);
-  if (at === 0) return { kind: NO_EMAIL.test(t) ? "noemail" : spaced && /\b(?:at|dot)\b/i.test(t) ? "spelled" : "noat" };
+  if (at === 0) return { kind: NO_EMAIL.test(t) || (/\b(?:no|none)\b/i.test(t) && !/\.\w|\bdot\b/i.test(t)) ? "noemail" : spaced && /\b(?:at|dot)\b/i.test(t) ? "spelled" : "noat" };
   if (at > 1) return { kind: t.split(/[\s,;/]+/).filter(x => /[^@]@[^@]/.test(x)).length > 1 ? "two" : "ats" };
   const [local, domain] = t.split("@");
   if (spaced) return { kind: "space" };

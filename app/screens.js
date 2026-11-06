@@ -158,7 +158,7 @@ function renderStep() {
   } else {
     const ac = { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
     // Email is a text box with the email keyboard: an email box rewrites accented domains, and they'd print that way.
-    input = `<input id="ans" type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" spellcheck="false"' : ""} aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
+    input = `<input id="ans" type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"' : ""} aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
   }
   const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
     + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "")
