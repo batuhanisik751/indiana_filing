@@ -77,3 +77,4 @@ function goFix(id, from = "vals", nth = 0) {
   lastEdited = id; fixFrom = from; fixNth = nth; followUps = []; editOriginal = null;
   cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
 }
+window.appParts++;

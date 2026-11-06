@@ -165,3 +165,4 @@ function wirePdfSection(sit) {
     if (box.isConnected) box.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
   });
 }
+window.appParts++;

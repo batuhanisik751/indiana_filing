@@ -321,3 +321,4 @@ function nextStepsHtml(key, a) {
       </li>`).join("")}
     </ol>`;
 }
+window.appParts++;

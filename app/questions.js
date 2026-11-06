@@ -311,3 +311,4 @@ const contRequestSteps = sec => [
 ];
 
 const contServiceHelp = "The form's Certificate of Service says you sent a copy to the other party and any other interested parties in this case. Their names and addresses are usually on the papers you received.";
+window.appParts++;

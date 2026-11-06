@@ -255,3 +255,4 @@ function chooseOtherForm() {
   }
   mode = "pick"; render();
 }
+window.appParts++;

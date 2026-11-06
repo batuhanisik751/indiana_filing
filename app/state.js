@@ -83,3 +83,4 @@ function shown(step) {
   if (step.type === "money") return isNum(v) ? `$${moneyOrBlank(v)}` : v;
   return v;
 }
+window.appParts++;

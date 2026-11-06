@@ -50,3 +50,4 @@ const SITUATIONS = {
     reminders: ["Indiana Legal Help says asking does not change your court date by itself: only an order signed by the judge can change a court date or time."],
   },
 };
+window.appParts++;

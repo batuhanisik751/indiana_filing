@@ -152,3 +152,4 @@ async function drawWhere(step, at = 0, speak = false) {
     };
   }
 }
+window.appParts++;

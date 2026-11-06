@@ -39,3 +39,4 @@ const FAMILY_CASES = { DC: "Domestic Relations with Children", DN: "Domestic Rel
 const NOT_CIVIL_CASES = new Set("CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV".split(" ")); // Administrative Rule 8's criminal, infraction and ordinance case types
 const CASE_CODES = new Set("AD CC CE CP CT DC DN DR EV GV MF MH MI PC PL PO RA RF RS TP TS XP CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV JC JD JM JP JQ JS JT EM ES EU GM GU TR SC CB".split(" "));
 const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0");
+window.appParts++;

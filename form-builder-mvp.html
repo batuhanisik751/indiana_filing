@@ -24,7 +24,7 @@
     <p class="need">These open in a new tab, so your answers stay on this page.</p>
   </section>
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
-  <main id="app"><p class="need">Loading the page…</p></main>
+  <main id="app"><noscript><p class="help">This tool needs JavaScript, which is turned off in this browser. Turn it on, then reload the page. The free help listed below still works.</p></noscript></main>
   <footer>
     <strong>More free help</strong>
     <ul>
@@ -41,8 +41,10 @@
      so opening this file directly still works, with no server or build step. -->
 <script>
 // Each file loads on its own, so on a bad connection one can fail or arrive cut off, and the app can't work without all of them.
-window.appLoadWatch = e => { if (e.target === window || (e.target && e.target.tagName === "SCRIPT" && /\/app\//.test(e.target.src))) window.appFileFailed = true; };
-window.addEventListener("error", window.appLoadWatch, true);
+// So each file's last line counts it in, and the app starts only if all of them got there.
+window.appParts = 0;
+window.appPartsNeeded = 21;
+document.getElementById("app").innerHTML = '<p class="need">Loading the page…</p>';
 </script>
 <script src="app/official-forms.js"></script>
 <script src="app/helpers.js"></script>
@@ -66,8 +68,7 @@ window.addEventListener("error", window.appLoadWatch, true);
 <script src="app/summary.js"></script>
 <script src="app/main.js"></script>
 <script>
-window.removeEventListener("error", window.appLoadWatch, true); // what goes wrong from here isn't about loading
-if (window.appFileFailed || /^Loading/.test(document.getElementById("app").textContent || "")) {
+if (window.appParts !== window.appPartsNeeded || /^Loading/.test(document.getElementById("app").textContent || "")) {
   window.appFileFailed = true;
   document.getElementById("app").innerHTML = '<h1>This page didn\'t finish loading</h1><p class="help" role="alert">Part of it didn\'t come through. Anything you saved is still on this device. Check your connection, then reload the page. The free help listed below still works.</p>';
 }

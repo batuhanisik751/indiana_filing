@@ -42,4 +42,5 @@ window.addEventListener("popstate", () => {
   const back = document.getElementById(mode === "summary" ? "toQuestions" : "back");
   if (back) back.click(); else syncHistory();
 });
-if (!window.appFileFailed) render();
+window.appParts++;
+if (window.appParts === window.appPartsNeeded) render();

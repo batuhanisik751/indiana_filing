@@ -323,3 +323,4 @@ function runChecks() {
   const unsureIds = new Set(flags.filter(f => f.unsure).map(f => f.fix));
   return flags.filter(f => f.unsure || !(f.blank && unsureIds.has(f.fix)));
 }
+window.appParts++;

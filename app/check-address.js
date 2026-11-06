@@ -99,3 +99,4 @@ function addressGaps(text) {
   else if (zip && state && !ZIP_PREFIXES[state].some(([lo, hi = lo]) => +zip.slice(0, 3) >= lo && +zip.slice(0, 3) <= hi)) note = "The ZIP code doesn't usually go with that state. Check both.";
   return { missing, note };
 }
+window.appParts++;

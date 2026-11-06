@@ -96,3 +96,4 @@ const FORM_NUMBER = {
   [FORM.fwAppearance]: "CCA-GF-0420-3012", [FORM.fwMotion]: "CCA-GF-0420-3006", [FORM.fwOrder]: "CCA-GF-0420-3007",
   [FORM.contMotion]: "CCA-GF-1219-3002", [FORM.contOrder]: "CCA-GF-1219-3002",
 };
+window.appParts++;

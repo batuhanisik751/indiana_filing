@@ -85,8 +85,18 @@ function readSaved() {
 // choosing the Address Confidentiality Program) is never kept on the device.
 // What a saved copy is called on the first screen and in messages.
 const savedTitle = d => d.triageOnly ? kindOf(d.triage).pick : SITUATIONS[d.sitKey].title;
+// Storage was already full when the page opened. Nothing can be written, but a copy can still be deleted,
+// and it can't keep an address this person just chose to protect, or an answer they erased.
+function tidyFullStorageCopy() {
+  if (!storageFull || !sitKey) return;
+  let old = null; try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { return; }
+  if (!old || old.sitKey !== sitKey || !old.answers) return;
+  const now = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
+  const hidden = Object.keys(PROTECTS).filter(k => now[k] === "yes").flatMap(k => PROTECTS[k]);
+  if (Object.keys(old.answers).some(k => !empty(old.answers[k]) && (hidden.includes(k) || empty(now[k])))) clearSaved();
+}
 function saveProgress() {
-  if (!savingOn()) return;
+  if (!savingOn()) { tidyFullStorageCopy(); return; }
   // A form opened with nothing in it yet doesn't count: Back from it can lead to new sorting answers.
   if (!sitKey || (mode === "triage" && !hasAnswers())) {
     // Only the sorting answers so far: keep them too, so a refresh doesn't lose them.
@@ -409,3 +419,4 @@ function setSaving(on) {
     : "Saving is off. Your answers aren't saved on this device.");
   return true;
 }
+window.appParts++;

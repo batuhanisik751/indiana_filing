@@ -91,3 +91,4 @@ function renderSummary(rerender = false) {
   pendingFocus = lastEdited && fixFrom === "flags" && !tapped ? { id: lastEdited, nth: fixNth } : null;
   lastEdited = null; fixFrom = null;
 }
+window.appParts++;

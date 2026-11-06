@@ -140,3 +140,4 @@ function phoneShape(v) {
   if (d.length > 11) return "long";
   return /\d[\s.-]*[a-z]{3,}[a-z\s.-]*$/i.test(t) && d.length + (t.match(/[a-z]/gi) || []).length >= 10 ? "letters" : "short";
 }
+window.appParts++;

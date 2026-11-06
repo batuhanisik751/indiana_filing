@@ -68,3 +68,4 @@ function unsureLink(step) {
   if (/free legal help/.test(unsureAdvice(step))) return { href: LINKS.getHelp, text: "Find free legal help" };
   return null;
 }
+window.appParts++;

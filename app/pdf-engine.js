@@ -412,3 +412,4 @@ function cleanUpAfterFlatten(doc) {
     }
   }
 }
+window.appParts++;

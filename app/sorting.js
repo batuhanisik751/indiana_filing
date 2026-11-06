@@ -226,3 +226,4 @@ function triageBack() {
   triageTouched = false;
   mode = fromNotSure ? "notsure" : "pick"; render();
 }
+window.appParts++;

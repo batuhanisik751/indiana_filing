@@ -100,3 +100,4 @@ function contServiceFields(a) {
     [{ t: "draw", page: 4, x: 461, y: 121.5, value: formDate(a.signDate) }, { t: "draw", page: 6, x: 461, y: 184.5, value: formDate(a.signDate) }]));
   return out;
 }
+window.appParts++;

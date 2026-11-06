@@ -229,3 +229,4 @@ function feeWaiverFields(a) {
   );
   return out;
 }
+window.appParts++;
