@@ -91,9 +91,14 @@ function tidyFullStorageCopy() {
   if (!storageFull || !sitKey) return;
   let old = null; try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { return; }
   if (!old || old.sitKey !== sitKey || !old.answers) return;
-  const now = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
-  const hidden = Object.keys(PROTECTS).filter(k => now[k] === "yes").flatMap(k => PROTECTS[k]);
-  if (Object.keys(old.answers).some(k => !empty(old.answers[k]) && (hidden.includes(k) || empty(now[k])))) clearSaved();
+  // A protected address goes as soon as the choice is made. An erased answer goes once it's saved: an open box can still be cancelled.
+  const choosing = mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers;
+  const hidden = Object.keys(PROTECTS).filter(k => choosing[k] === "yes").flatMap(k => PROTECTS[k]);
+  const held = { ...old.answers, ...(old.draft ? { [old.draft.id]: old.draft.value } : {}) }, editing = mode === "step" && returnToSummary && editOriginal ? editOriginal.id : null;
+  if (Object.keys(held).some(k => !empty(held[k]) && (hidden.includes(k) || (empty(answers[k]) && k !== editing)))) {
+    clearSaved();
+    announce("Storage on this device is full, so the saved copy couldn't be updated. It was deleted, so what you removed doesn't stay. Your answers are still on this page.");
+  }
 }
 function saveProgress() {
   if (!savingOn()) { tidyFullStorageCopy(); return; }

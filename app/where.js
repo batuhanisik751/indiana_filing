@@ -43,7 +43,7 @@ function whereHtml(step) {
   const roleOpen = rows.length && step.id !== "role" && steps.some(s => s.id === "role") && empty(answers.role);
   const firm = roleOpen ? whereRows(step, false) : rows, firmKeys = new Set(firm.map(place)), later = rows.filter(r => !firmKeys.has(place(r)));
   const text = rows.length && later.length
-    ? (firm.length ? `Prints on: ${firm.map(place).join(" · ")}. Once you answer who started the case, also on: ${later.map(place).join(" · ")}.` : `Once you answer who started the case, this prints on: ${later.map(place).join(" · ")}.`)
+    ? (firm.length ? `Prints on: ${firm.map(place).join(" · ")}. Once you answer who started the case, also on one of these: ${later.map(place).join(" · ")}.` : `Once you answer who started the case, this prints on one of these: ${later.map(place).join(" · ")}.`)
     : rows.length
     ? `Prints on: ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
     : "This answer doesn't print on the form itself. It decides what the form asks next, where other answers print, or what your next steps say.";

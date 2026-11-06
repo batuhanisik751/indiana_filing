@@ -21,7 +21,7 @@ function completeness() {
 // The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
 function paragraphNumbers(v) {
   const out = new Set();
-  for (const m of notAmounts(v).matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|\.{2,}|to|up to|until|through(?: and including)?|thru)\s*(\d+))?/gi)) {
+  for (const m of notAmounts(v).matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);

@@ -6,10 +6,10 @@ const empty = v => v === undefined || v === null || String(v).trim() === "";
 const digits = s => String(s ?? "").replace(/\D/g, "");
 // Amounts: whole dollars or dollars and cents ("1200", "1,200", "$12.50"). Hours: any positive number.
 const AMOUNT_RE = /^\d+(\.\d{1,2})?$/, HOURS_RE = /^\d+(\.\d+)?$/;
-// A comma or space only goes away where it groups thousands, so 12,50 and 12 50 are refused instead of read as 1250.
+// A comma only goes away where it groups thousands. So 12,50 is refused instead of read as 1250, and so is any space inside, since 500 300 could be two amounts.
 const cleanNum = v => {
   const s = String(v ?? "").trim().replace(/^\$\s*/, "").replace(/^\.(?=\d)/, "0.");
-  return (/^[1-9]\d{0,2}(?:[,\s]\d{3})+(?:\.\d*)?$/.test(s) ? s.replace(/[,\s]/g, "") : s).replace(/(\d)\.$/, "$1");
+  return (/^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d*)?$/.test(s) ? s.replace(/,/g, "") : s).replace(/(\d)\.$/, "$1");
 };
 const validNum = (step, v) => (step.type === "money" ? AMOUNT_RE : HOURS_RE).test(cleanNum(v));
 const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
