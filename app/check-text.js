@@ -97,8 +97,10 @@ const NAME_BOXES = /^(name|plaintiff|otherParty|otherPerson|svc\dName)$/;
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
   if (t && !s.noWords && (s.type === "email" || s.type === "tel")) return !SAYS_NONE.test(t) && (NO_WORDS.test(t) || NOT_KNOWN.test(t));
-  if (!t || s.noWords || !(s.type === "text" || s.type === "textarea") || CODE_BOXES.test(s.id)) return false;
+  if (!t || s.noWords || !(s.type === "text" || s.type === "textarea")) return false;
   if (NOT_KNOWN.test(t)) return true;
+  if (CODE_BOXES.test(s.id)) return false;
+  if (s.id === "courtTypeOther" && /^court$/i.test(t)) return true; // the form prints that word itself, so this box would print nothing
   // In a box the form needs, "none" or a single letter isn't an answer either. In an optional one, "None" can be.
   if (s.optional) return false;
   // Trial Rule 11.1 asks for an address "if available", so None is how someone with no address answers.

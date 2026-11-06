@@ -87,6 +87,7 @@ const BLANK_WHY = {
   reason: ["Item 3 of the Verified Motion for Continuance asks why. Indiana Legal Help's instructions say you need to show a good reason, and the court decides."],
   timeNeeded: ["Item 4 of the Verified Motion for Continuance asks how many days or weeks you need."],
 };
+const RULE8 = { href: "https://rules.incourts.gov/Content/admin/rule8/current.htm", text: "Read Administrative Rule 8" };
 function printingAnyway(s, a) {
   const typed = (PROTECTS[s.id] || []).filter(k => !empty(a[k]));
   return typed.length ? `Your ${contactWords(typed)} will print on the form. If you need ${typed.length > 1 ? "them" : "it"} kept confidential, clear ${typed.length > 1 ? "them" : "it"}. ` : "";
@@ -124,11 +125,18 @@ function runChecks() {
     if (empty(a.caseNumber)) { if (!vis.find(s => s.id === "caseNumber").optional) flags.push({ level: "missing", title: "Case number", ...blankWhy({ id: "caseNumber" }), fix: "caseNumber", blank: true }); }
     else {
       const m = caseMatch(a.caseNumber);
-      if (!m) flags.push({ level: "check", title: "Case number", why: "It doesn't look like an Indiana case number (for example 49D01-2610-CC-001234). Compare it with your papers.", fix: "caseNumber" });
-      else if (a.county && m[1] !== countyCode(a.county))
+      if (!m && !notAnAnswer(vis.find(s => s.id === "caseNumber"), a.caseNumber)) flags.push({ level: "check", title: "Case number", why: "It doesn't look like an Indiana case number (for example 49D01-2610-CC-001234). Compare it with your papers.", fix: "caseNumber" });
+      else if (m && a.county && m[1] !== countyCode(a.county))
         flags.push({ level: "check", title: "Case number", why: `The first two digits (${m[1]}) don't match ${a.county} County's number (${countyCode(a.county)}). One of them may be wrong.`, fix: "caseNumber" });
+      // Administrative Rule 8: the letter after the county number is the court. Others, like K or H, aren't one of these two choices.
+      const courtLetter = m ? a.caseNumber.trim().toUpperCase()[2] : "", letterSays = { C: "Circuit", D: "Superior" }[courtLetter];
+      if (letterSays && ["SUPERIOR", "CIRCUIT"].includes(a.courtType) && letterSays.toUpperCase() !== a.courtType)
+        flags.push({ level: "check", title: "Case number", fix: "caseNumber", link: RULE8,
+          why: `Administrative Rule 8 says the "${courtLetter}" in your case number means ${letterSays} Court, but you chose ${a.courtType === "CIRCUIT" ? "Circuit" : "Superior"} Court. One of them may be wrong. Compare them with your papers.` });
     }
     const letters = caseLetters(a), lettersFix = caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters";
+    if (/^[A-Z]{2}$/.test(letters) && !CASE_CODES.has(letters))
+      flags.push({ level: "check", title: "Case type letters", fix: lettersFix, link: RULE8, why: `${letters} isn't one of the case type codes in Administrative Rule 8. Compare it with your papers.` });
     if (fromTriage && paperOf(triage) === "notice" && CASE_CODES.has(letters) && !["SC", "EV"].includes(letters))
       flags.push({ level: "check", title: "Case type letters", why: `You said your main paper is a Notice of Claim, which the Small Claims Manual says starts a small claims case, but the case type letters are ${letters}. Compare them with your papers.`, fix: lettersFix });
     if (sitKey === "respond" && letters === "SC")
@@ -183,7 +191,8 @@ function runChecks() {
   vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
     handled.add(s.id);
     flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
-      why: `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
+      why: s.id === "courtTypeOther" && /^court$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
+        : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
   });
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
@@ -223,6 +232,9 @@ function runChecks() {
   const goneNow = clearedContact.filter(k => has(k) && empty(a[k]));
   if (goneNow.length) flags.push({ level: "check", title: "Contact details cleared", fix: goneNow[0],
     why: `Your ${contactWords(goneNow)} ${goneNow.length > 1 ? "were" : "was"} cleared to keep a protected address off this device. If you still want ${goneNow.length > 1 ? "them" : "it"} on the form, type ${goneNow.length > 1 ? "them" : "it"} again.` });
+
+  if (has("fwCaseType") && !empty(a.fwCaseType) && !saysNoAnswer(a.fwCaseType) && !CASE_CODES.has(a.fwCaseType.trim().toUpperCase()))
+    flags.push({ level: "check", title: "Case type", fix: "fwCaseType", link: RULE8, why: "The form asks for the two-letter case type from Administrative Rule 8, like PL or CT. If you don't know it, the official instructions say to leave it blank." });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
