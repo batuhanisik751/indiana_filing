@@ -49,7 +49,7 @@ function renderPick(quiet = false) {
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>${storageWorks
-        ? `${savingOn() ? "Saving is on. If this is a shared or public computer, like a library or courthouse kiosk, turn it off." : "Saving is off unless you turn it on. Turn it on only if this is your own device, not a shared or public computer like a library or courthouse kiosk."} If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened.`
+        ? `${savingOn() ? "Saving is on. If this is a shared or public computer, like a library or courthouse kiosk, turn it off." : "Saving is off unless you turn it on. Turn it on only if this is your own device, not a shared or public computer like a library or courthouse kiosk."} If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened. In a private or incognito window, they're gone when the window closes.`
         : "This browser isn't letting the page save, so your answers will be lost if you close or refresh it."}</small></span></label>`;
   const pref = document.getElementById("savePref");
   pref.disabled = !storageWorks;
@@ -62,7 +62,7 @@ function renderPick(quiet = false) {
     // Read the saved answers again when Continue is chosen, in case another tab changed them.
     document.getElementById("resume").onclick = () => {
       const now = readSaved();
-      if (now) restoreSaved(now); else { renderPick(); announce("Those saved answers are no longer on this device."); }
+      if (now) restoreSaved(now); else { renderPick(); updatePrivacyNote(); announce("Those saved answers are no longer on this device."); }
     };
     document.getElementById("discard").onclick = () => {
       if (!confirm(`Delete your saved answers for "${savedTitle(saved)}"? This also clears them in any other open tab with this form, and turns saving off. This can't be undone.`)) return;
@@ -139,7 +139,7 @@ function renderStep() {
   const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
   if (returnToSummary && (!editOriginal || editOriginal.id !== step.id))
-    editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id) };
+    { editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id) }; editErased = null; }
   let input;
   const desc = `aria-describedby="qhelp qneed"`;
   if (step.type === "choice") {

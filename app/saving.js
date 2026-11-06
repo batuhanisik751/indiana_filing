@@ -32,6 +32,7 @@ const PROTECTS = { acp: ["address"], agConfidential: ["address", "email", "phone
 const CONTACT_WORDS = { address: "address", email: "email address", phone: "phone number", fax: "fax number", acceptEmail: "answer about accepting papers by email" };
 const contactWords = ids => { const w = ids.map(k => CONTACT_WORDS[k]); return w.length > 1 ? `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}` : w[0]; };
 let clearedContact = []; // answers erased because of those, so the summary can say so
+let editErased = null;   // the question being edited, once its box has been emptied
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
@@ -137,7 +138,9 @@ function saveProgress() {
   const fromSummary = mode === "summary" || editingTriage;
   // What's in the open box replaces the old answer right away, so erased text doesn't stay on the device.
   // During an edit the old answer stays for Cancel, unless the box was emptied.
-  const emptied = mode === "step" && draft && empty(draft.value);
+  // Once it has been emptied, the old answer stays out, even as new text is typed.
+  if (mode === "step" && draft && empty(draft.value) && returnToSummary) editErased = draft.id;
+  const emptied = mode === "step" && draft && (empty(draft.value) || (returnToSummary && editErased === draft.id));
   const inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
   // What a reload won't bring back, so that page can say it's gone.
   const dropped = [...new Set([...clearedContact, ...steps.filter(s => !keptIds.has(s.id) && guarded(s.id) && !empty(answers[s.id])).map(s => s.id)])];
@@ -160,6 +163,8 @@ function saveProgress() {
   if (json === store.get(STORE_KEY)) { savedHere = true; saveOk = true; lastWritten = json; return; }
   saveOk = writeCopy(json);
   if (saveOk) savedHere = true;
+  // The write failed, so the old copy stays. It can't stay if it holds an address this person just chose to protect.
+  else if (old && old.sitKey === sitKey && steps.some(s => guarded(s.id) && !empty(old.answers?.[s.id]))) clearSaved();
 }
 // Saving this tab's answers would undo the other tab's choice to protect an address, so the question says so.
 function addressNote(old) {
@@ -243,9 +248,8 @@ function updatePrivacyNote() {
   const el = document.getElementById("privacy");
   if (!el) return;
   const working = sitKey && (mode === "step" || mode === "summary");
-  const live = sitKey && hasAnswers();
-  const notInCopy = (live || (draft && !empty(draft.value))) && !savedHere;
-  document.getElementById("saveMine").hidden = !(notInCopy && savingOn() && saveOk && (savedHereWhy === "kept" || savedHereWhy === "otherForm"));
+  const notInCopy = sitKey && holdsAnswers() && !savedHere;
+  document.getElementById("saveMine").hidden = !(notInCopy && savingOn() && saveOk && (savedHereWhy === "kept" || savedHereWhy === "otherForm" || (savedHereWhy === "replaced" && mode === "summary"))); // the summary has no next change to save it
   el.textContent = otherTab && working && savingOn() && saveOk && !notInCopy ? "This form is also open in another tab. Use one tab so your answers don't replace each other."
     : !storageWorks || ((sitKey || mode === "triage") && savingOn() && !saveOk) ? "Not saved: this browser isn't letting the page save. Nothing is sent."
     : !savingOn() ? "Not saved on this device. Nothing is sent."
@@ -365,9 +369,11 @@ window.addEventListener("pageshow", e => {
 });
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
-  const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && (hasAnswers() || (draft && !empty(draft.value)));
+  const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && holdsAnswers();
   const sortingAtRisk = mode === "triage" && triageAnswered(triage) && !(sitKey && hasAnswers()) && (!savingOn() || !saveOk || !sortingInCopy());
-  if (formAtRisk || sortingAtRisk) { e.preventDefault(); e.returnValue = ""; }
+  // A browser doesn't tell a page what's in a half-typed date, so it can't be saved. All this page can do is warn.
+  const halfDate = mode === "step" && document.getElementById("ans")?.validity?.badInput;
+  if (formAtRisk || sortingAtRisk || halfDate) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
 function setSaving(on) {

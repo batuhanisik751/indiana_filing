@@ -70,7 +70,7 @@ function renderSummary(rerender = false) {
   document.getElementById("changeForm").onclick = chooseOtherForm;
   document.getElementById("restart").onclick = () => {
     // Another tab's copy of a different form isn't this form's to delete, and saving stays on to keep it.
-    const copy = readSaved(), turnsOff = savingOn() && !(copy && copy.sitKey && copy.sitKey !== sitKey);
+    const copy = readSaved(), turnsOff = (savingOn() || storageFull) && !(copy && copy.sitKey && copy.sitKey !== sitKey);
     if (!confirm(`Start over? This clears every answer you have entered for "${sit.title}", here and in any other open tab with this form, including any saved on this device${turnsOff ? ", and turns saving off" : ""}.`)) return;
     clearFormEverywhere(sitKey); if (turnsOff) savingOffForNext(); resetAnswers(); mode = "pick"; render();
     announce(turnsOff ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
