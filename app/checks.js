@@ -109,12 +109,12 @@ function runChecks() {
   const handled = new Set();
 
   // These print on a public form, so they come first.
-  vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel").forEach(s => {
+  vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel" || s.type === "email").forEach(s => {
     const v = String(a[s.id] ?? "");
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
     // A good or foreign phone number isn't an account number, however long.
     const kind = s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
-      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) ? " " : t)), false)
+      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) && !/^(?:ssn?|soc)-/i.test(t) ? " " : t)), false)
       : privateKind(v, /address/i.test(s.id));
     if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5,
       why: `${PRIVATE_WHAT[kind]} It will print on the form until you remove it. Access to Court Records Rule 5 says to take these out of court papers unless the case needs them. If yours does, the rule requires filing it on green paper (or as a confidential document if e-filed), plus a copy that leaves it out and an ACR Form.` });
@@ -235,6 +235,10 @@ function runChecks() {
 
   if (has("fwCaseType") && !empty(a.fwCaseType) && !saysNoAnswer(a.fwCaseType) && !CASE_CODES.has(a.fwCaseType.trim().toUpperCase()))
     flags.push({ level: "check", title: "Case type", fix: "fwCaseType", link: RULE8, why: "The form asks for the two-letter case type from Administrative Rule 8, like PL or CT. If you don't know it, the official instructions say to leave it blank." });
+
+  // A signing or service date this far off is usually a mistyped year. It prints as typed.
+  vis.filter(s => (s.id === "signDate" || /^svc\dDate$/.test(s.id)) && isDay(a[s.id]) && Math.abs(new Date(`${a[s.id]}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) > 180 * 864e5).forEach(s =>
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than six months from today. Check the year.` }));
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
