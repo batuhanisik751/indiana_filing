@@ -12,12 +12,11 @@ function markUnsure(step) {
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   const wasYes = answers[step.id] === "yes";
   readInput(step);
-  if (!empty(answers[step.id]) && !confirm("Clear your answer to this question and mark it \"I'm not sure\"?")) return;
   // Someone who said their address is protected may still need that: what they typed before doesn't come back by itself.
-  if (wasYes || answers[step.id] === "yes") {
-    if (step.id === "acp") delete answers.address;
-    if (step.id === "agConfidential") ["address", "email", "phone", "fax", "acceptEmail"].forEach(k => delete answers[k]);
-  }
+  const protects = wasYes || answers[step.id] === "yes" ? PROTECTS[step.id] || [] : [], clears = protects.filter(k => !empty(answers[k]));
+  if (!empty(answers[step.id]) && !confirm(`Clear your answer to this question and mark it "I'm not sure"?${clears.length ? ` This also clears the ${contactWords(clears)} you typed, so a protected address can't come back by itself. You can type ${clears.length > 1 ? "them" : "it"} again.` : ""}`)) return;
+  protects.forEach(k => delete answers[k]);
+  clearedContact = [...new Set([...clearedContact.filter(k => k !== step.id), ...clears])];
   answers[step.id] = "";
   unsure[step.id] = true;
   justMarked = true;
@@ -57,6 +56,7 @@ function save(step) {
   // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
   if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);
+  clearedContact = clearedContact.filter(k => k !== step.id);
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {

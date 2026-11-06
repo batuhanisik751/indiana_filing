@@ -27,6 +27,11 @@ const storageFull = !storageWorks && store.get(PREF_KEY) === "on";
 // With saving off, nothing is kept: a copy found when the page opens (for example one saved
 // before saving became opt-in) is deleted.
 if (!savingOn() && !storageFull) store.del(STORE_KEY);
+// What each "keep my address confidential" answer keeps off the device, and how to name it.
+const PROTECTS = { acp: ["address"], agConfidential: ["address", "email", "phone", "fax", "acceptEmail"] };
+const CONTACT_WORDS = { address: "address", email: "email address", phone: "phone number", fax: "fax number", acceptEmail: "answer about accepting papers by email" };
+const contactWords = ids => { const w = ids.map(k => CONTACT_WORDS[k]); return w.length > 1 ? `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}` : w[0]; };
+let clearedContact = []; // answers erased because of those, so the summary can say so
 let saveOk = true;      // did the last save work?
 let savedHere = true;   // is this page's work in the saved copy (another tab may have deleted it)?
 let lastSavingOn = null; // the saving setting this page last knew (set at start-up)
@@ -121,7 +126,7 @@ function saveProgress() {
   const visIds = new Set(shownNow.map(s => s.id));
   // A choice that isn't saved yet can't lose the answers it would hide: Cancel after a reload brings them back.
   // A protected address is the exception. It leaves the copy as soon as the choice is made.
-  const guarded = id => (withDraft.acp === "yes" && id === "address") || (withDraft.agConfidential === "yes" && ["address", "email", "phone", "fax", "acceptEmail"].includes(id));
+  const guarded = id => (withDraft.acp === "yes" && PROTECTS.acp.includes(id)) || (withDraft.agConfidential === "yes" && PROTECTS.agConfidential.includes(id));
   // During an edit the original answer counts too, even after a reload: Cancel puts it back.
   const beforeEdit = returnToSummary && editOriginal ? { ...answers, [editOriginal.id]: editOriginal.value } : answers;
   const keptNow = steps.filter(s => visIds.has(s.id) || ((!s.showIf || s.showIf(answers) || s.showIf(beforeEdit)) && !guarded(s.id)));
@@ -134,7 +139,9 @@ function saveProgress() {
   // During an edit the old answer stays for Cancel, unless the box was emptied.
   const emptied = mode === "step" && draft && empty(draft.value);
   const inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
-  const data = { v: 1, sitKey, answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
+  // What a reload won't bring back, so that page can say it's gone.
+  const dropped = [...new Set([...clearedContact, ...steps.filter(s => !keptIds.has(s.id) && guarded(s.id) && !empty(answers[s.id])).map(s => s.id)])];
+  const data = { v: 1, sitKey, ...(dropped.length ? { cleared: dropped } : {}), answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, ...(empty(editOriginal.value) ? {} : { erased: true }) } : editOriginal } : null };
@@ -204,6 +211,7 @@ function restoreSaved(d, keep) {
   }
   triageHist = []; triageFromSummary = false; triageBeforeEdit = null;
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
+  clearedContact = Array.isArray(d.cleared) ? d.cleared.filter(k => Object.hasOwn(CONTACT_WORDS, k) && steps.some(s => s.id === k)) : [];
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
   if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) {

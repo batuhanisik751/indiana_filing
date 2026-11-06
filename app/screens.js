@@ -135,6 +135,7 @@ function renderStep() {
   if (lastProgress.sit === sitKey && cur > lastProgress.cur) pct = Math.max(pct, lastProgress.pct);
   lastProgress = { sit: sitKey, cur, pct };
   const v = answers[step.id] ?? "";
+  const goneHere = returnToSummary && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
   if (returnToSummary && (!editOriginal || editOriginal.id !== step.id))
@@ -177,6 +178,8 @@ function renderStep() {
     </div>
     ${returnToSummary ? `<p class="need">${editOriginal?.erased
       ? `The answer you erased before reloading isn't kept. Cancel ${cancelGoes} and leaves this blank.`
+      : goneHere.length
+      ? `Your ${contactWords(goneHere)} ${goneHere.length > 1 ? "weren't" : "wasn't"} kept when this page reloaded, because this choice keeps ${goneHere.length > 1 ? "them" : "it"} off the device. Cancel puts this answer back, but you'd need to type ${goneHere.length > 1 ? "them" : "it"} again.`
       : followUps.includes(step.id) && !empty(v)
       ? "Your last change stays. Cancel keeps the answer shown here."
       : followUps.includes(step.id)

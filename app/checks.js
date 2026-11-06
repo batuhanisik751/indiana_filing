@@ -215,6 +215,11 @@ function runChecks() {
     flags.push({ level: "check", title: "Your defenses", fix: "defenses", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
       why: "Indiana Legal Help's Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case. This tool can't tell you which ones apply. You can ask free legal help about that. Typing None clears this flag, and None prints on the form." });
 
+  // Contact details erased to protect an address. Some of them can be left blank, so nothing else would mention them.
+  const goneNow = clearedContact.filter(k => has(k) && empty(a[k]));
+  if (goneNow.length) flags.push({ level: "check", title: "Contact details cleared", fix: goneNow[0],
+    why: `Your ${contactWords(goneNow)} ${goneNow.length > 1 ? "were" : "was"} cleared to keep a protected address off this device. If you still want ${goneNow.length > 1 ? "them" : "it"} on the form, type ${goneNow.length > 1 ? "them" : "it"} again.` });
+
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
