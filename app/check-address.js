@@ -49,7 +49,7 @@ function noCityIn(rest) {
 function hasStreetIn(rest) {
   // The number in "County Road 500 E" or "Highway 31" names the road. It isn't a house number.
   const plain = rest.replace(/\b(?:apt|apartment|unit|ste|suite|lot|bldg|building|fl|floor|rm|room)\b\.?\s*#?\s*[\w-]+/gi, " ").replace(/#\s*[\w-]+/g, " ").replace(/\b\d+(?:st|nd|rd|th)\b/gi, " ")
-    .replace(/(^|,\s*)(?:county (?:road|rd)|cr|state (?:road|rd|route)|sr|us(?: highway| hwy)?|highway|hwy)\s+\d+\w*/gi, "$1 ");
+    .replace(/(^|,\s*)(?:county (?:road|rd)|cr|state (?:road|rd|route)|sr|us(?: highway| hwy)?|highway|hwy)\s+\d+\w*/gi, "$1 ").replace(/(^|,\s*)(?:i-\s*|[nsew]\s+)\d+\w*(?:\s+[nsew]\b)?/gi, "$1 ");
   // "PO Box A" has its letter, and "PO Box" alone has nothing to deliver to.
   return /\d/.test(plain) || /\b(?:box\s*#?\s*[a-z]\b|gen(?:eral|\.)? del(?:ivery|\.)?|apo|fpo|dpo|courthouse|square|plaza|city hall|government center|county building|city-county building)(?:\b|$)/i.test(rest)
     || /(?:^|,\s*)(?:one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(rest);

@@ -42,7 +42,7 @@ function contAppearanceFields(a) {
       [{ t: "text", name: "Case Type Letters", value: caseLetters(a) }]),
     f(FORM.appearance, "6. Related cases", a.related === "yes" ? "Yes" : a.related === "no" ? "No other related cases" : "", "related",
       a.related ? [{ t: "radio", name: "Related Cases", option: a.related === "yes" ? "Choice1" : "Choice2" }] : []),
-    ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers", [{ t: "lines", page: 4, x0: 108, x1: 540.1, ys: [701.8], layouts: ABOVE_RULE_LAYOUTS, spacesOnly: "commas", value: a.relatedNumbers }])] : []),
+    ...(a.related === "yes" ? [f(FORM.appearance, "6. Related case numbers", a.relatedNumbers, "relatedNumbers", [{ t: "lines", page: 4, x0: 108, x1: 540.1, ys: [701.8], layouts: ABOVE_RULE_LAYOUTS.slice(0, 2), spacesOnly: "commas", value: a.relatedNumbers }])] : []),
     f(FORM.appearance, "7. Local rule information", a.localRule === "yes" ? "Provided below" : a.localRule === "none" ? "Not aware of any" : "", "localRule",
       a.localRule ? [{ t: "radio", name: "Local Rules", option: a.localRule === "yes" ? "Choice2" : "Choice1" }] : []),
     ...(a.localRule === "yes" ? [f(FORM.appearance, "7. Information required by local rule", a.localRuleText, "localRuleText", [{ t: "text", name: "Local Rule", value: a.localRuleText }])] : []),

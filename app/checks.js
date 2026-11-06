@@ -114,7 +114,7 @@ function runChecks() {
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
     // A good or foreign phone number isn't an account number, however long.
     const kind = s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
-      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) && !/^(?:ssn?|soc)-/i.test(t) ? " " : t)), false)
+      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) && !/(?:^|-)\d{3}-\d{2}-\d{4}$/.test(t) ? " " : t)), false)
       : privateKind(v, /address/i.test(s.id));
     if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5,
       why: `${PRIVATE_WHAT[kind]} It will print on the form until you remove it. Access to Court Records Rule 5 says to take these out of court papers unless the case needs them. If yours does, the rule requires filing it on green paper (or as a confidential document if e-filed), plus a copy that leaves it out and an ACR Form.` });
@@ -137,7 +137,7 @@ function runChecks() {
     const letters = caseLetters(a), lettersFix = caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters";
     if (NOT_CIVIL_CASES.has(letters))
       flags.push({ level: "check", title: "Case type letters", fix: lettersFix, link: RULE8, why: `This tool's forms are for civil cases, but Administrative Rule 8 lists ${letters} as a criminal, infraction or ordinance case type. Compare it with your papers. You can ask free legal help what you need.` });
-    if (/^[A-Z]{2}$/.test(letters) && !CASE_CODES.has(letters))
+    if (/^[A-Z][A-Z0-9]$/.test(letters) && !CASE_CODES.has(letters))
       flags.push({ level: "check", title: "Case type letters", fix: lettersFix, link: RULE8, why: `${letters} isn't one of the case type codes in Administrative Rule 8. Compare it with your papers.` });
     if (fromTriage && paperOf(triage) === "notice" && CASE_CODES.has(letters) && !["SC", "EV"].includes(letters))
       flags.push({ level: "check", title: "Case type letters", why: `You said your main paper is a Notice of Claim, which the Small Claims Manual says starts a small claims case, but the case type letters are ${letters}. Compare them with your papers.`, fix: lettersFix });
@@ -187,13 +187,13 @@ function runChecks() {
     flags.push({ level: "check", title: "Case type letters", fix: "caseTypeLetters", blank: true, link: { href: LINKS.continuanceInstructions, text: "Read the continuance instructions" },
       why: "Item 5 of the Appearance asks for the two letters in your case number that show the case type, and it will print empty. Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, but don't mention this item. The letters are on your court papers or at mycase.in.gov." });
   // The case type is two letters, like CC or SC.
-  if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z]{2}$/i.test(a.caseTypeLetters.trim()))
+  if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z][A-Z0-9]$/i.test(a.caseTypeLetters.trim()))
     flags.push({ level: "check", title: "Case type letters", why: "The form asks for the two letters that show the case type, like CC or SC. Check this against your case number.", fix: "caseTypeLetters" });
   // "I'm not sure" typed into a box would print on the form. The button is what flags it instead.
   vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
     handled.add(s.id);
     flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
-      why: s.id === "courtTypeOther" && /^court$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
+      why: s.id === "courtTypeOther" && /^court[.!]*$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
         : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.` });
   });
   // Amounts that aren't numbers can't go on the form.
@@ -238,9 +238,12 @@ function runChecks() {
   if (has("fwCaseType") && !empty(a.fwCaseType) && !saysNoAnswer(a.fwCaseType) && !CASE_CODES.has(a.fwCaseType.trim().toUpperCase()))
     flags.push({ level: "check", title: "Case type", fix: "fwCaseType", link: RULE8, why: "The form asks for the two-letter case type from Administrative Rule 8, like PL or CT. If you don't know it, the official instructions say to leave it blank." });
 
-  // A signing or service date this far off is usually a mistyped year. It prints as typed.
-  vis.filter(s => (s.id === "signDate" || /^svc\dDate$/.test(s.id)) && isDay(a[s.id]) && Math.abs(new Date(`${a[s.id]}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) > 180 * 864e5).forEach(s =>
-    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than six months from today. Check the year.` }));
+  // A date this far off is usually a mistyped year. It prints as typed. A hearing that has passed has its own flag.
+  const daysOff = v => (new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5;
+  vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || (s.id === "hearingDate" && daysOff(a[s.id]) > 180))).forEach(s =>
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than 180 days from today. Check the year.` }));
+  if (isDay(a.spokeDate) && has("spokeDate") && daysOff(a.spokeDate) > 0 && daysOff(a.spokeDate) <= 180)
+    flags.push({ level: "check", title: "Date you spoke to the other party", fix: "spokeDate", why: `${formDate(a.spokeDate)} is in the future, but item 6 of this sworn form says this conversation already happened. Check the date.` });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
@@ -276,6 +279,10 @@ function runChecks() {
       if (a.related === "yes" && empty(a[`rel${i}Caption`]) && !empty(a[`rel${i}Number`]))
         flags.push({ level: "check", title: `Related case ${i} caption`, why: `You gave a case number for related case ${i} but no caption (case name), so the number prints next to a blank line.`, fix: `rel${i}Caption` });
     });
+    if (has("monthlyHours") && toNum(a.monthlyHours) > 744)
+      flags.push({ level: "check", title: "Hours worked per month", fix: "monthlyHours", why: "A month has at most 744 hours, and this number goes into the wages on this sworn form. Check it." });
+    if (toNum(a.hourlyRate) >= 200)
+      flags.push({ level: "check", title: "Wages per hour", fix: "hourlyRate", why: `$${money(toNum(a.hourlyRate))} an hour is unusually high, and it goes on this sworn form. Check this number, including the decimal point.` });
     if (!anyAmount(a, EARNED_IDS))
       flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
     if (!anyAmount(a, EXPENSE_IDS))

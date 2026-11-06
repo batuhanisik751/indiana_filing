@@ -77,7 +77,7 @@ const CLERKS = {
   "Pulaski": { address: ["117 East Main Street", "Winamac, IN 46996"], phone: "574-946-3313" },
   "Putnam": { address: ["One Courthouse Square", "Greencastle, IN 46135"], phone: "765-653-2648" },
   "Randolph": { address: ["100 S. Main Street, Room 201", "Winchester, IN 47394"], phone: "765-584-4214" },
-  "Ripley": { address: ["PO Box 177", "Versailles, IN 47042"], phone: "812-689-6115", mailing: true, note: "The Clerk’s Office is in the Ripley County Courthouse.", court: null },
+  "Ripley": { address: ["PO Box 177", "Versailles, IN 47042"], phone: "812-689-6115", mailing: true, note: "The Clerk’s Office is in the Ripley County Courthouse.", court: null, poOnly: "Circuit and Superior Courts" },
   "Rush": { address: ["101 E. 2nd Street, Room 209", "Rushville, IN 46173"], phone: "765-932-2086" },
   "St. Joseph": { address: ["101 South Main Street", "South Bend, IN 46601"], phone: "574-235-9635" },
   "Scott": { address: ["One East McClain Avenue", "Scottsburg, IN 47170"], phone: "812-752-8420" },
@@ -226,7 +226,7 @@ function nextSteps(key, a) {
         "Indiana Legal Help says to bring the forms to the court where they need to be filed.",
         !clerk ? "" : clerk.mailing
           ? `The Indiana court directory gives a mailing address for the ${a.county} County Clerk's Office: ${clerk.address.join(", ")}.${clerk.note ? ` It also says: "${clerk.note}"` : ""} Phone: ${clerk.phone}.${
-              clerk.court ? ` It lists ${clerk.court}.` : clerk.court === null ? ` It lists only P.O. boxes for ${a.county} County's courts, so you may want to call the clerk's office to ask where to bring your forms.` : ""}`
+              clerk.court ? ` It lists ${clerk.court}.` : clerk.court === null ? ` It lists only P.O. boxes for ${a.county} County's ${clerk.poOnly || "courts"}, so you may want to call the clerk's office to ask where to bring your forms.` : ""}`
           : `The Indiana court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}.`,
         a.county === "Marion" ? `The directory also lists Marion County's nine township small claims courts: ${MARION_SMALL_CLAIMS.map(([n, ad, ph]) => `${n}, ${ad} (${ph})`).join("; ")}.` : "",
         "Indiana Legal Help says courts differ on copies: some courts require you to bring one, two or three copies of each document, and some prefer you not bring any, so you may want to contact the court first.",

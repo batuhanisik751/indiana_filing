@@ -65,7 +65,7 @@ function privateKind(text, isAddress = false) {
     if (!marked && !nearby) continue;
     const labeled = /\b(?:number|num|nbr|no|id)\b|#/i.test(gap);
     // In an address, "Loan Servicing" or "Member Services" can be a company name before a house number or a ZIP+4.
-    if (isAddress && (/^\d{5}[ -]\d{4}$/.test(m[2]) || !(labeled || /:\s*$/.test(gap) || (count >= 8 && !gap.trim().replace(/[,:;.-]/g, "") && /^(?:accounts?|accts?|acc|a\/c|routing|aba|checking|savings)\b/i.test(m[0]))))) continue;
+    if (isAddress && (/^\d{5}[ -]\d{4}$/.test(m[2]) || !(labeled || /:\s*$/.test(gap) || (count >= 8 && !gap.trim().replace(/[,:;.-]/g, ""))))) continue;
     if (/\b(?:ends?|ending|last|final)\b/i.test(gap) || (!labeled && /\b(?:balance|amount|total|owed?|paid|payment|due)\b/i.test(gap))) continue;
     if (!labeled && count < 8 && /\b(?:is|was)\s*$/i.test(gap) && /^(?:loans?|mortgages?)/i.test(m[0])) continue; // "the loan was 150000": an amount
     if (/^(1[ -])?\d{3}[ -]\d{3}[ -]\d{4}$|^\d{4}-\d{2}-\d{2}$|^\d{1,2}[- ]\d{1,2}[- ]\d{2,4}$|^\d{1,2}[- ](19|20)\d\d$|^(19|20)\d\d[ -](?:(19|20)\d\d|\d\d)$/.test(m[2])) continue; // a phone number, date or span of years
@@ -100,7 +100,7 @@ function notAnAnswer(s, v) {
   if (!t || s.noWords || !(s.type === "text" || s.type === "textarea")) return false;
   if (NOT_KNOWN.test(t)) return true;
   if (CODE_BOXES.test(s.id)) return false;
-  if (s.id === "courtTypeOther" && /^court$/i.test(t)) return true; // the form prints that word itself, so this box would print nothing
+  if (s.id === "courtTypeOther" && /^court[.!]*$/i.test(t)) return true; // the form prints that word itself, so this box would print nothing
   // In a box the form needs, "none" or a single letter isn't an answer either. In an optional one, "None" can be.
   if (s.optional) return false;
   // Trial Rule 11.1 asks for an address "if available", so None is how someone with no address answers.

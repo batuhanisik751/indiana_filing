@@ -39,14 +39,17 @@ function whereRows(step, guessRole = true) {
 function whereHtml(step) {
   if (whereForm !== sitKey) whereOpen = false; // another form's preview is another download, so it waits to be asked for
   const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3, place = r => `${shortForm(r.form)}: ${r.label}`;
-  // Nothing here prints until that's answered, and then only one of these does.
-  const roleOpen = rows.length && step.id !== "role" && steps.some(s => s.id === "role") && empty(answers.role) && !whereRows(step, false).length;
-  const text = rows.length
-    ? `${roleOpen ? "Once you answer who started the case, this prints on:" : "Prints on:"} ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
+  // With who started the case unknown, some of these places depend on that answer.
+  const roleOpen = rows.length && step.id !== "role" && steps.some(s => s.id === "role") && empty(answers.role);
+  const firm = roleOpen ? whereRows(step, false) : rows, firmKeys = new Set(firm.map(place)), later = rows.filter(r => !firmKeys.has(place(r)));
+  const text = rows.length && later.length
+    ? (firm.length ? `Prints on: ${firm.map(place).join(" · ")}. Once you answer who started the case, also on: ${later.map(place).join(" · ")}.` : `Once you answer who started the case, this prints on: ${later.map(place).join(" · ")}.`)
+    : rows.length
+    ? `Prints on: ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
     : "This answer doesn't print on the form itself. It decides what the form asks next, where other answers print, or what your next steps say.";
   return `<div class="where">
       <p class="need" id="whereText">${esc(text)}</p>
-      ${rows.length > MAX ? `<details class="wheremore"><summary>Show the other ${rows.length - MAX}</summary><p class="need">${esc(rows.slice(MAX).map(place).join(" · "))}</p></details>` : ""}
+      ${rows.length > MAX && !later.length ? `<details class="wheremore"><summary>Show the other ${rows.length - MAX}</summary><p class="need">${esc(rows.slice(MAX).map(place).join(" · "))}</p></details>` : ""}
       <p class="need wherenav">
         ${rows.length ? `<button class="link" id="whereToggle" aria-expanded="${whereOpen}" aria-controls="wherePreview">${whereOpen ? "Hide the form" : "Show it on the form"}</button>` : ""}
         <a id="whereBlank" href="${OFFICIAL[official.packet].source}" target="_blank" rel="noopener">Blank official form (PDF)</a>
