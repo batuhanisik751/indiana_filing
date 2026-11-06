@@ -4,14 +4,15 @@
    Fills the official PDF in the browser with pdf-lib and keeps only the
    form pages. Nothing leaves the device.
    ===================================================================== */
-const loaded = {};
+const loaded = {}, loadTries = {};
 const LOAD_TIMEOUT_MS = 120000; // the whole download, which is about 1.6 MB for the largest form
 function loadScript({ src, integrity }) {
   if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    const fail = () => { clearTimeout(timer); delete loaded[src]; s.remove(); reject(new Error("load")); };
+    const fail = () => { clearTimeout(timer); delete loaded[src]; loadTries[src] = (loadTries[src] || 0) + 1; s.remove(); reject(new Error("load")); };
     const timer = setTimeout(fail, LOAD_TIMEOUT_MS); // a stalled connection never reports an error
-    s.src = src;
+    // A stalled request can't be cancelled, and a new one for the same address can wait behind it, so a retry uses a new address.
+    s.src = loadTries[src] ? `${src}${src.includes("?") ? "&" : "?"}retry=${loadTries[src]}` : src;
     if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
     s.onload = () => { clearTimeout(timer); resolve(); };
     s.onerror = fail;
