@@ -135,6 +135,8 @@ function runChecks() {
           why: `Administrative Rule 8 says the "${courtLetter}" in your case number means ${letterSays} Court, but you chose ${a.courtType === "CIRCUIT" ? "Circuit" : "Superior"} Court. One of them may be wrong. Compare them with your papers.` });
     }
     const letters = caseLetters(a), lettersFix = caseMatch(a.caseNumber) ? "caseNumber" : "caseTypeLetters";
+    if (NOT_CIVIL_CASES.has(letters))
+      flags.push({ level: "check", title: "Case type letters", fix: lettersFix, link: RULE8, why: `This tool's forms are for civil cases, but Administrative Rule 8 lists ${letters} as a criminal, infraction or ordinance case type. Compare it with your papers. You can ask free legal help what you need.` });
     if (/^[A-Z]{2}$/.test(letters) && !CASE_CODES.has(letters))
       flags.push({ level: "check", title: "Case type letters", fix: lettersFix, link: RULE8, why: `${letters} isn't one of the case type codes in Administrative Rule 8. Compare it with your papers.` });
     if (fromTriage && paperOf(triage) === "notice" && CASE_CODES.has(letters) && !["SC", "EV"].includes(letters))

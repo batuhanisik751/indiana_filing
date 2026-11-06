@@ -32,9 +32,10 @@ const pastLimit = (v, limit) => !!limit && isDay(v) && v > limit.date;
 
 // Indiana case numbers look like 49D01-2610-CC-001234: county number, court,
 // year+month, two-letter case type, sequence number.
-const CASE_RE = /^(\d{2})[A-Z]\d{2}-\d{4}-([A-Z]{2})-\d{6}$/;
+const CASE_RE = /^(\d{2})[A-Z]\d{2}-\d{4}-([A-Z][A-Z0-9])-\d{6}$/; // two characters: Administrative Rule 8 has F1 to F6
 const caseMatch = cn => String(cn ?? "").trim().toUpperCase().match(CASE_RE);
 // Administrative Rule 8's case type codes. Anything else typed in that box, like "none" or "small claims", decides nothing.
 const FAMILY_CASES = { DC: "Domestic Relations with Children", DN: "Domestic Relations No Children", DR: "Domestic Relation", JP: "Juvenile Paternity" }; // Administrative Rule 8's names
+const NOT_CIVIL_CASES = new Set("CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV".split(" ")); // Administrative Rule 8's criminal, infraction and ordinance case types
 const CASE_CODES = new Set("AD CC CE CP CT DC DN DR EV GV MF MH MI PC PL PO RA RF RS TP TS XP CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV JC JD JM JP JQ JS JT EM ES EU GM GU TR SC CB".split(" "));
 const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0");

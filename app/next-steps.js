@@ -265,16 +265,18 @@ function nextSteps(key, a) {
   // hearing itself can mean. Trial Rule 55 is the closest, so the tool quotes it, says what it doesn't cover, and
   // points to who can answer. The plain words for a default are how other states' court self-help pages explain it.
   const whoToAsk = "Indiana's court staff page says staff can explain and answer questions about how the court works, but cannot give legal advice. You can ask free legal help what missing a hearing could mean for your case.";
-  const starterRule = `Indiana's Trial Rule 41(E) says that when there has been a "failure to comply with these rules" the court shall order a hearing about dismissing the case, and that it dismisses the case if the person who started it doesn't show "sufficient cause." Trial Rule 55 says a party who has "failed to plead or otherwise comply with these rules" may be defaulted by the court, including on a counterclaim, which can mean losing that claim without the court hearing your side. These rules don't name missing a hearing specifically. ${whoToAsk}`;
-  const defaultRule = `Indiana's Trial Rule 55 says a person who has "failed to plead or otherwise comply with these rules" may be defaulted by the court, which can mean the other side wins without the court hearing your side. The rule doesn't name hearings specifically. ${whoToAsk}`;
+  const starterRule = `Indiana's Trial Rule 41(E) says that when there has been a "failure to comply with these rules" the court shall order a hearing about dismissing the case, and that it dismisses the case if the person who started it doesn't show "sufficient cause." Trial Rule 41(B) says that, unless the court's order says otherwise, that dismissal "operates as an adjudication upon the merits," which can mean you can't file the same case again. Trial Rule 55 says a party who has "failed to plead or otherwise comply with these rules" may be defaulted by the court, including on a counterclaim, which can mean losing that claim without the court hearing your side. These rules don't name missing a hearing specifically. ${whoToAsk}`;
+  const defaultRule = `Indiana's Trial Rule 55 says a person who has "failed to plead or otherwise comply with these rules" may be defaulted by the court, which can mean the other side wins without the court hearing your side. The rule doesn't name missing a hearing specifically. ${whoToAsk}`;
+  const notCivil = NOT_CIVIL_CASES.has(letters); // the Trial Rules below are about civil cases
   const noSourceFact = eviction === true || smallClaims ? ""
+    : notCivil ? whoToAsk
     : notSmallClaims && eviction === false ? defaultRule
     : `In other kinds of cases, ${defaultRule}`;
   // Someone who started the case: the eviction sentence is about the other side, so only the court matters.
-  const starterFact = smallClaims ? "" : notSmallClaims ? starterRule
+  const starterFact = smallClaims ? "" : notCivil ? whoToAsk : notSmallClaims ? starterRule
     : `If your case isn't in small claims court, ${starterRule}`;
   const scLinks = [SOURCES.smallClaims, SOURCES.sc10, ...(a.county === "Marion" ? [SOURCES.sc1] : [])];
-  const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] : [])];
+  const missLinks = [...(missFact ? [SOURCES.evictionFaq] : []), ...(noSourceFact ? [...(notCivil ? [] : [SOURCES.tr55]), SOURCES.courtStaff, SOURCES.getHelp] : [])];
   const defaultFact = notSmallClaims ? "" : `${ifSC}, Small Claims Rule 10(B) says that if the defendant (the person being sued) fails to appear at the time and place on the notice of claim, or on a continued date, "the court may enter a default judgment against him." The Small Claims Manual defines that as a decision for the plaintiff when the defendant fails to appear in court. So if that's you, missing court can mean losing without the court hearing your side.${marionNote}`;
   const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case. Small Claims Rule 10(A) adds that if a counterclaim has been filed (a claim back against the person suing), "the court may grant judgment for the defendant" after first making an inquiry, so you could lose on that claim without the court hearing your side.${marionNote}`;
   const dismissFact = notSmallClaims ? "" : dismissText;
@@ -286,7 +288,7 @@ function nextSteps(key, a) {
     title: "If you don't go to court",
     // The person who started the case: the eviction sentence is about the other side, so it never applies here.
     body: a.role === "me" ? [dismissFact, starterFact].filter(Boolean).join(" ") : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
-    links: [...(a.role === "me" ? (starterFact ? [SOURCES.tr41, SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? scLinks : [])] });
+    links: [...(a.role === "me" ? (starterFact ? [...(notCivil ? [] : [SOURCES.tr41, SOURCES.tr55]), SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? scLinks : [])] });
   // Small Claims Rule 4(C): someone being sued can ask for a jury, with a short deadline.
   if ((key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) && !notSmallClaims) out.push({
     title: "If you want a jury trial",
@@ -295,7 +297,7 @@ function nextSteps(key, a) {
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
     body: `${dismissText} In other kinds of cases, ${starterRule}`,
-    links: [SOURCES.smallClaims, SOURCES.sc10, SOURCES.tr41, SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] });
+    links: [...scLinks, SOURCES.tr41, SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] });
 
   // After a money judgment. Indiana Legal Help covers wage garnishment, and not these hearings. Indiana Legal Services' guide speaks to the
   // person who owes; the Small Claims Manual covers it from the winner's side. For people being sued, not for a
