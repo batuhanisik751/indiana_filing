@@ -11,12 +11,12 @@ const sampleAnswer = s => (s.type === "date" ? "2031-01-15" : s.type === "money"
 function whereRows(step) {
   const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select").map(s => [s.id, sampleAnswer(s)]));
   Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
-  const given = !empty(answers[step.id]);
+  const chosen = draft && draft.id === step.id ? draft.value : answers[step.id], given = !empty(chosen); // the choice on screen counts before it's saved
   // A choice not made yet could print any of its options. One that's made prints only that one.
   // (A real case number, because that's what fills in the case type letters too.)
-  const tries = given ? [answers[step.id]] : step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [step.options[0]] : [step.id === "caseNumber" ? "49D01-2610-CC-000000" : sampleAnswer(step)];
+  const tries = given ? [chosen] : step.type === "choice" ? step.options.map(o => o[0]) : step.type === "select" ? [step.options[0]] : [step.id === "caseNumber" ? "49D01-2610-CC-000000" : sampleAnswer(step)];
   // A blank box isn't a place this answer prints, and neither is a box that stays unticked because of it.
-  const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && step.type !== "choice");
+  const prints = o => (!("value" in o) || !empty(o.value)) && !(o.t === "check" && !o.on && (step.type !== "choice" || given)) && !(o.t === "drop" && /^_+$/.test(o.option));
   const rows = new Map();
   // Who started the case decides which box an answer prints in. Marked "I'm not sure", it could be either.
   const roles = step.id !== "role" && steps.some(s => s.id === "role") && empty(filled.role) ? [{ role: "other" }, { role: "me" }] : [{}];
@@ -31,22 +31,26 @@ function whereRows(step) {
     const key = `${r.form}|${r.label}`;
     if (rows.has(key)) rows.get(key).pdf.push(...pdf); else rows.set(key, { form: r.form, label: r.label, pdf, worked });
   }
+  // The continuance's Order repeats the names in its distribution list, from the same PDF fields as the top of the form.
+  if (sitKey === "continuance" && [...rows.values()].some(r => r.pdf.some(o => o.name === "Petitioner" || o.name === "Respondent"))) rows.set("order names", { form: FORM.contOrder, label: "Distribution: names", pdf: [], worked: false });
   const all = [...rows.values()].sort((x, y) => x.worked - y.worked);
   return all.some(r => r.pdf.length) ? all : []; // a row with no place on the page, like "Anyone else to send a copy to"
 }
 function whereHtml(step) {
   if (whereForm !== sitKey) whereOpen = false; // another form's preview is another download, so it waits to be asked for
-  const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3;
+  const { official } = SITUATIONS[sitKey], rows = whereRows(step), MAX = 3, place = r => `${shortForm(r.form)}: ${r.label}`;
   const text = rows.length
-    ? `Prints on: ${rows.slice(0, MAX).map(r => `${shortForm(r.form)}: ${r.label}`).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
+    ? `Prints on: ${rows.slice(0, MAX).map(place).join(" · ")}${rows.length > MAX ? `, and ${rows.length - MAX} more` : ""}.`
     : "This answer doesn't print on the form itself. It decides what the form asks next, where other answers print, or what your next steps say.";
   return `<div class="where">
       <p class="need" id="whereText">${esc(text)}</p>
+      ${rows.length > MAX ? `<details class="wheremore"><summary>Show the other ${rows.length - MAX}</summary><p class="need">${esc(rows.slice(MAX).map(place).join(" · "))}</p></details>` : ""}
       <p class="need wherenav">
         ${rows.length ? `<button class="link" id="whereToggle" aria-expanded="${whereOpen}" aria-controls="wherePreview">${whereOpen ? "Hide the form" : "Show it on the form"}</button>` : ""}
         <a id="whereBlank" href="${OFFICIAL[official.packet].source}" target="_blank" rel="noopener">Blank official form (PDF)</a>
         <a href="${official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a>
       </p>
+      ${official.pageNote ? `<p class="draftnote">${esc(official.pageNote)}</p>` : ""}
       ${rows.length ? `<p class="draftnote" id="whereSize"${whereOpen ? " hidden" : ""}>Showing it downloads up to 3 MB the first time.</p><div id="wherePreview"${whereOpen ? "" : " hidden"}></div>` : ""}
     </div>`;
 }
@@ -81,7 +85,8 @@ async function whereSpots(step, doc) {
     if (!list.some(r => within(rect, r))) spots.set(page, [...list.filter(r => !within(r, rect)), rect]);
   };
   for (const o of ops) {
-    if (o.name) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (a.fieldName === o.name) add(page, a.rect);
+    // One radio button's box, not all of its group's.
+    if (o.name) for (const page of pages) for (const a of await whereFields(doc, off.file, page)) if (a.fieldName === o.name && (o.t !== "radio" || a.buttonValue === o.option)) add(page, a.rect);
     if (o.t === "draw") add(o.page, [o.x - 1, o.y - 3, o.x + (o.w || 90), o.y + 11]);
     if (o.t === "lines") {
       const left = Math.min(...[o.x0].flat()), low = Math.min(...o.ys);

@@ -23,7 +23,8 @@ const SITUATIONS = {
     title: "Appearance",
     sections: ["Your case", "About you", "How the court reaches you", "Sending a copy", "Signing"],
     steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...serviceSteps(3), ...signSteps(4, SIGN_HELP.court)],
-    official: { packet: "answerPacket", docs: ["appearance"], page: LINKS.answerTopic }, // this Appearance comes from the Answer packet (see forms/README.md)
+    official: { packet: "answerPacket", docs: ["appearance"], page: LINKS.answerTopic, // this Appearance comes from the Answer packet (see forms/README.md)
+      pageNote: "That page is about the Answer. The Appearance is part of its PDF, on pages 5 and 6." },
     fields: a => [...captionFields(a), ...appearanceFields(a), ...serviceFields(a, false), ...signatureFields(a, "appearance")],
     reminders: [],
   },

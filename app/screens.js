@@ -222,6 +222,7 @@ function renderStep() {
     draft = { id: step.id, value: i.value };
     const wasOk = saveOk; saveProgress(); updatePrivacyNote();
     if (wasOk && !saveOk) announce("Your answers can't be saved on this device right now.");
+    if (i.type === "radio") { app.querySelector(".where").outerHTML = whereHtml(step); wireWhere(step); } // this choice can change where things print
   }));
   app.querySelectorAll("input, select").forEach(i => i.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.repeat || e.isComposing) return;
