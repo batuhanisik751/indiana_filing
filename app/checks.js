@@ -87,6 +87,10 @@ const BLANK_WHY = {
   reason: ["Item 3 of the Verified Motion for Continuance asks why. Indiana Legal Help's instructions say you need to show a good reason, and the court decides."],
   timeNeeded: ["Item 4 of the Verified Motion for Continuance asks how many days or weeks you need."],
 };
+function printingAnyway(s, a) {
+  const typed = (PROTECTS[s.id] || []).filter(k => !empty(a[k]));
+  return typed.length ? `Your ${contactWords(typed)} will print on the form. If you need ${typed.length > 1 ? "them" : "it"} kept confidential, clear ${typed.length > 1 ? "them" : "it"}. ` : "";
+}
 function blankWhy(s) {
   // Someone in the Address Confidentiality Program: the rule's exception is the part that may apply to them.
   const exception = answers.acp === "yes" && (s.id === "phone" || s.id === "email") ? ' The rule makes an exception where this is "protected from public access" or may be "withheld or replaced by a public mailing address."' : "";
@@ -288,9 +292,9 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: unsureLink(s) || blankWhy(s).link,
-      // A question the form needs keeps the reason it matters, when that reason is a rule.
-      why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).link ? `${blankWhy(s).why} ` : ""}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
+    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: blankWhy(s).link || unsureLink(s),
+      // A question the form needs keeps the reason it matters, and the rule that gives it. A question that protects an address says what it isn't protecting yet.
+      why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).why !== "This is blank." ? `${blankWhy(s).why} ` : ""}${printingAnyway(s, a)}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
 
   // Everything else that is required but blank.

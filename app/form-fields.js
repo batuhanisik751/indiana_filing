@@ -116,7 +116,8 @@ function signatureFields(a, key) {
     "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${a.name}` })) : []), quietChars: true }];
 }
 
-const wages = a => toNum(a.hourlyRate) * toNum(a.monthlyHours);
+// To the cent, half a cent up, so the total matches adding up the printed lines.
+const wages = a => Math.round(Math.round(toNum(a.hourlyRate) * 100) * toNum(a.monthlyHours)) / 100;
 const incomeTotal = a => wages(a) + INCOME.reduce((s, [k]) => s + toNum(a[k]), 0);
 const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
 const INCOME_IDS = ["hourlyRate", "monthlyHours", ...INCOME.map(x => x[0])], EXPENSE_IDS = EXPENSES.map(x => x[0]);
@@ -128,7 +129,8 @@ const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && 
 const totalRow = (form, label, total, ids, a, names, noneText, waiting = "", waitingOn = null) => {
   const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
   const open = marked || none || !!waiting;
-  return { from: ids, ...f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), waiting ? waitingOn : ids[0],
+  const firstMarked = marked ? ids.find(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k])) : null;
+  return { from: ids, ...f(form, label, marked ? "Left blank until you answer the questions marked \"I'm not sure\"" : waiting || (none ? noneText : `$${money(total)}`), firstMarked || (waiting ? waitingOn : ids[0]),
     names.map(name => ({ t: "text", name, value: open ? "" : money(total) }))) };
 };
 const amountRow = (form, label, k, a, name) =>
