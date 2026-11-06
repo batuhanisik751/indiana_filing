@@ -240,8 +240,8 @@ function runChecks() {
 
   // A date this far off is usually a mistyped year. It prints as typed. A hearing that has passed has its own flag.
   const daysOff = v => (new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5;
-  vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || (s.id === "hearingDate" && daysOff(a[s.id]) > 180))).forEach(s =>
-    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than 180 days from today. Check the year.` }));
+  vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || (s.id === "hearingDate" && daysOff(a[s.id]) > 365))).forEach(s =>
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than ${s.id === "hearingDate" ? "a year" : "180 days"} from today. Check the year.` }));
   if (isDay(a.spokeDate) && has("spokeDate") && daysOff(a.spokeDate) > 0 && daysOff(a.spokeDate) <= 180)
     flags.push({ level: "check", title: "Date you spoke to the other party", fix: "spokeDate", why: `${formDate(a.spokeDate)} is in the future, but item 6 of this sworn form says this conversation already happened. Check the date.` });
 
@@ -281,7 +281,7 @@ function runChecks() {
     });
     if (has("monthlyHours") && toNum(a.monthlyHours) > 744)
       flags.push({ level: "check", title: "Hours worked per month", fix: "monthlyHours", why: "A month has at most 744 hours, and this number goes into the wages on this sworn form. Check it." });
-    if (toNum(a.hourlyRate) >= 200)
+    if (toNum(a.hourlyRate) >= 100)
       flags.push({ level: "check", title: "Wages per hour", fix: "hourlyRate", why: `$${money(toNum(a.hourlyRate))} an hour is unusually high, and it goes on this sworn form. Check this number, including the decimal point.` });
     if (!anyAmount(a, EARNED_IDS))
       flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
