@@ -114,11 +114,11 @@ function notAnAnswer(s, v) {
 // "None" can be right for one of the Answer's three lists, but not for all of them.
 const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)) && !NOT_KNOWN.test(String(v).trim()); // "None of them", "no fixed address"
 // What a list needs to name any paragraphs: a number, or only words like "all" or "the first three". "The other side is lying" has those words too, in a sentence.
-const LIST_NAMES = /^(?:all|each|every|everything|entire|whole|rest|remaining|others?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last)$/i;
-const LIST_GLUE = /^(?:and|or|the|of|to|through|thru|paragraphs?|paras?|numbers?|nos?|in|my|them|it|its|complaint|else|except|but|above|below|these|those|are|is|true|false|correct|wrong)$/i;
+const LIST_NAMES = /^(?:all|each|every|everything|entire|whole|rest|remaining|others?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|ii|iii|iv|vi|vii|viii|ix)$/i;
+const LIST_GLUE = /^(?:and|or|the|of|to|through|thru|paragraphs?|paras?|numbers?|nos?|in|my|them|it|its|complaint|else|except|but|above|below|these|those|are|is|not|any|listed|mentioned|admitted|denied|admit|deny|i|they|true|false|correct|wrong)$/i;
 const onlyListWords = v => { const w = String(v ?? "").match(/[\p{L}']+/gu) || []; return w.some(x => LIST_NAMES.test(x)) && w.every(x => LIST_NAMES.test(x) || LIST_GLUE.test(x)); };
-const notAmounts = v => String(v ?? "").replace(/\$\s*[\d,.]+|\bpages?\s*\d+/gi, " "); // "$500" and "page 12" aren't paragraph numbers
-const namesParagraphs = v => /\d/.test(notAmounts(v)) || onlyListWords(v);
+const notAmounts = v => String(v ?? "").replace(/\$\s*[\d,.]+|\b\d[\d,.]*\s*(?:dollars?|bucks|usd)\b|\bpages?\s*\d+|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b|\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\b/gi, " "); // "$500", "page 12", "3/15/2024" and "5pm" aren't paragraph numbers
+const namesParagraphs = v => [...paragraphNumbers(v)].some(n => n >= 1 && n <= PARAGRAPH_MAX) || onlyListWords(v); // "paid in 2019" has no paragraph in it
 const PARAGRAPH_MAX = 500;
 const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !saysNoList(a[s.id]) && namesParagraphs(a[s.id]);

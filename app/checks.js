@@ -21,7 +21,7 @@ function completeness() {
 // The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
 function paragraphNumbers(v) {
   const out = new Set();
-  for (const m of notAmounts(v).matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|to|through|thru)\s*(\d+))?/gi)) {
+  for (const m of notAmounts(v).matchAll(/(\d+)(?:\s*(?:[-\u2013\u2014]|\.{2,}|to|up to|until|through(?: and including)?|thru)\s*(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);
@@ -209,7 +209,7 @@ function runChecks() {
   // A real list next to one that names no paragraphs: what was typed still prints.
   if (sitKey === "respond" && vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a)))
     vis.filter(s => PARAGRAPH_IDS.test(s.id) && !empty(a[s.id]) && !saysNoList(a[s.id]) && !namesParagraphs(a[s.id])).forEach(s =>
-      flags.push({ level: "check", title: s.label, why: "This list has no paragraph numbers in it, and what you typed will print on the form. If you don't have any to list here, clear it.", fix: s.id }));
+      flags.push({ level: "check", title: s.label, why: "This list doesn't seem to name any paragraph numbers, and what you typed will print on the form. Check that it says what you mean.", fix: s.id }));
 
   if (sitKey === "respond") {
     const lists = ["admitted", "denied", "notEnough"].map(k => [k, paragraphNumbers(a[k])]);
