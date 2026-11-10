@@ -1,0 +1,12 @@
+{
+  "name": "indiana-filing-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tests for the Indiana Court Form Helper, run in real Chromium. See ../README.md.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
