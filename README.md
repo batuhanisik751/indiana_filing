@@ -94,7 +94,17 @@ To copy the tool somewhere, keep the `app/` and `forms/` folders next to `form-b
 cd tests && npm install && npx playwright install chromium && npm test
 ```
 
-To test a hosted copy instead of the local file, give its address, for example `BASE_URL=https://indiana-filing.vercel.app/ npm test`. That also checks the site serves every file and asks search engines not to list it.
+`tests/features/` has one file per feature, 10 or more tests each, with the edge cases named "edge:" (for example `07-email-check.test.mjs`). To run only those, or only one feature:
+
+```bash
+cd tests && npm run features
+```
+
+```bash
+cd tests && node --test features/07-email-check.test.mjs
+```
+
+To test a hosted copy instead of the local file, give its address, for example `BASE_URL=https://indiana-court-form-helper.vercel.app/ npm test`. That also checks the site serves every file and asks search engines not to list it.
 
 ## Where the code is
 

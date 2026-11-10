@@ -109,3 +109,31 @@ export async function pdfText(p) {
 // The summary's flags, as text, and the Missing count against the score.
 export const flags = p => p.evaluate(() => runChecks().map(f => `${f.level}|${f.fix}|${f.title}|${f.why}`));
 export const scoreMatchesFlags = p => p.evaluate(() => { const s = completeness(); return s.total - s.filled === runChecks().filter(f => f.level === "missing").length; });
+
+// ---------- for the feature tests ----------
+// Back to a clean first screen in the same page (storage stays, so saving tests use their own page).
+export async function reset(p) { await p.goto(p.url().startsWith("http://app.test") ? "http://app.test/form-builder-mvp.html" : APP); await p.waitForSelector("#app h1"); }
+// Puts answers straight into a form and shows its summary, for checks that don't need the whole walk.
+// Date questions not given get a date counted from today, as in walk().
+export const inject = (p, form, answers = {}, unsure = {}) => p.evaluate(([form, answers, unsure, ahead, given]) => {
+  for (const s of SITUATIONS[form].steps()) if (s.type === "date" && !given.includes(s.id)) {
+    const d = new Date(); d.setDate(d.getDate() + (ahead[s.id] ?? 0)); answers[s.id] = d.toISOString().slice(0, 10);
+  }
+  window.__set = { form, answers, unsure };
+  // Through eval, because the page's own variables are top-level lets.
+  globalThis.eval("resetAnswers(); sitKey = __set.form; steps = SITUATIONS[sitKey].steps(); answers = __set.answers; unsure = __set.unsure; mode = 'summary'; render();");
+}, [form, { ...VALUES, ...answers }, unsure, DAYS_AHEAD, Object.keys(answers)]);
+// Every flag for one question, as "level|title|why".
+export const flagsFor = (p, id) => p.evaluate(id => runChecks().filter(f => f.fix === id).map(f => `${f.level}|${f.title}|${f.why}`), id);
+// Where each answer goes: [label, value printed, question] for every row of the form's fields.
+export const fieldRows = p => p.evaluate(() => SITUATIONS[sitKey].fields(visibleAnswers()).map(r => [r.label, String(r.value ?? ""), r.step]));
+// Goes straight to one question of the form being filled.
+export const jump = (p, id) => p.evaluate(id => { const i = visible().findIndex(s => s.id === id); if (i < 0) throw new Error(`no question ${id}`); cur = i; mode = "step"; returnToSummary = false; render(); }, id);
+// Answers the question on screen.
+export async function answer(p, value) {
+  const s = await p.evaluate(() => (({ type }) => ({ type }))(visible()[cur]));
+  if (s.type === "choice") await p.locator(`input[name=ans][value="${value}"]`).check({ force: true });
+  else if (s.type === "select") await p.selectOption("#ans", value);
+  else await p.fill("#ans", value);
+  await p.click("#next");
+}

@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Tests for the Indiana Court Form Helper, run in real Chromium. See ../README.md.",
   "scripts": {
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1",
+    "features": "node --test --test-concurrency=1 \"features/*.test.mjs\""
   },
   "devDependencies": {
     "playwright": "1.63.0"
