@@ -24,6 +24,8 @@ function renderSummary(rerender = false) {
     <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
     <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
+    <div class="sumgrid">
+    <div class="sumreview">
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
       <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : failed ? "We couldn't make your filled form." : "Checking your filled form…"}</strong>
       ${ready ? "Read it over once more before you file it yourself." : flags.length ? `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.${checking ? " Still checking the filled form…" : failed ? " The checks on the filled form didn't finish." : ""}` : failed ? "The checks on the filled form didn't finish. See below." : pdfSlow ? "This is taking longer than usual." : "This takes a few seconds."}
@@ -37,15 +39,19 @@ function renderSummary(rerender = false) {
     ${fromTriage && triageAnswered(triage) ? `<div class="note">You started from "${esc(kindOf(triage).pick)}." ${triageVisible().filter(s => triage[s.id]).map(s =>
       `${esc(s.label)}: ${esc((s.options.find(o => o[0] === triage[s.id]) || [, triage[s.id]])[1])}.`).join(" ")}
       <button class="link" id="editTriage">Change these answers</button></div>` : ""}
+    </div>
 
+    <div class="sumform">
     <h2 class="sub">Your filled form</h2>
     ${pdfSectionHtml(sit)}
     ${nextStepsHtml(sitKey, a)}
     ${previewHtml()}
+    </div>
+    </div>
 
     <h2 class="sub">What goes on your official forms</h2>
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank. <a id="summaryBlank" href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">Blank official forms (PDF)</a> · <a href="${sit.official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a></p>
-    ${groups.map(g => `
+    <div class="formgrid">${groups.map(g => `
       <section class="formcard">
         <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
         <dl class="vals">${g.items.map(x => `
@@ -53,7 +59,7 @@ function renderSummary(rerender = false) {
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
           ${x.step && visIds.has(x.step) ? `<button class="link edit" data-fix="${x.step}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
         </dl>
-      </section>`).join("")}
+      </section>`).join("")}</div>
 
     <div class="nav">
       <button class="ghost" id="toQuestions">Back to questions</button>

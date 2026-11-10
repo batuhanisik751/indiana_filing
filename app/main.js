@@ -11,6 +11,7 @@ function render() {
   // Get help sits above the screen. Left open, a phone's next question starts far below the fold.
   if (!helpPanel.hidden) { helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false"); }
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
+  app.dataset.screen = mode; // lets the stylesheet lay out each screen its own way on wide screens
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
   justMarked = false;
   markNewTabLinks();

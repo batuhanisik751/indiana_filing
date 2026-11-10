@@ -35,14 +35,19 @@ function renderPick(quiet = false) {
       <span>${esc(savedTitle(saved))}, saved on this device ${esc(new Date(saved.savedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}.</span>
       <div class="nav"><button class="primary" id="resume">Continue</button><button class="ghost" id="discard">Delete saved answers</button></div>
     </div>` : ""}
-    <h1 tabindex="-1">What is your case about?</h1>
-    <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
-    ${Object.entries(CASE_KINDS).map(([k, c]) => `<button class="pick" data-kind="${k}"><strong>${esc(c.pick)}</strong><span>${esc(c.blurb)}</span></button>`).join("")}
-    <button class="pick more" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Not sure which one fits? Start here. You can also pick a form directly or see other kinds of cases.</span></button>
+    <div class="hero">
+      <div class="hero-text">
+        <h1 tabindex="-1">What is your case about?</h1>
+        <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
+    </div>
+    ${Object.entries(CASE_KINDS).map(([k, c]) => `<button class="pick has-ic" data-kind="${k}"><span class="pick-ic" aria-hidden="true">${icon(KIND_ICONS[k])}</span><strong>${esc(c.pick)}</strong><span>${esc(c.blurb)}</span></button>`).join("")}
+    <button class="pick more has-ic" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><span class="pick-ic" aria-hidden="true">${icon("dots")}</span><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Not sure which one fits? Start here. You can also pick a form directly or see other kinds of cases.</span></button>
     <div class="morebox" id="moreChoices" ${pickMore ? "" : "hidden"}>
       <h2 class="sub">Pick a form directly</h2>
-      ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick" data-k="${k}"><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
-      <button class="pick" id="notSure"><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
+      ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick has-ic" data-k="${k}"><span class="pick-ic" aria-hidden="true">${icon(SITUATION_ICONS[k])}</span><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
+      <button class="pick has-ic" id="notSure"><span class="pick-ic" aria-hidden="true">${icon("question")}</span><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
       <h2 class="sub">Other kinds of cases</h2>
       <p class="help">This tool can't fill these forms yet. Indiana Legal Help's pages have the official forms and instructions. For protection orders, the Indiana courts' page says trained advocates can help prepare and file a request.</p>
       <ul class="facts">${OTHER_CASES.map(([href, text]) => `<li><a href="${href}" target="_blank" rel="noopener">${esc(text)}</a></li>`).join("")}</ul>
@@ -167,6 +172,8 @@ function renderStep() {
   const cameBack = followUps.includes(step.id) && vis.some(s => s.id !== step.id && followUps.includes(s.id) && !empty(answers[s.id]));
   const cancelGoes = cameBack ? "moves on to the next earlier answer" : "goes back to the summary";
   app.innerHTML = `
+    <div class="stepgrid">
+    <div class="qmain">
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
@@ -190,8 +197,24 @@ function renderStep() {
       : "Cancel goes back to the summary without changing this answer."}</p>` : ""}
     <button class="ghost unsure" id="unsure" aria-describedby="unsureHelp">I'm not sure</button>
     <p class="need" id="unsureHelp">${unsure[step.id] && empty(v) ? `You marked this "I'm not sure." ${esc(unsureAdvice(step))}${unsureLink(step) ? ` <a href="${unsureLink(step).href}" target="_blank" rel="noopener">${esc(unsureLink(step).text)}</a>.` : ""} ${unsureNext(step, "step")}` : "Not sure? Choose \"I'm not sure\" and it will be flagged at the end."}</p>
-    ${whereHtml(step)}
-    ${returnToSummary ? "" : `<p class="need"><button class="link" id="changeForm">Choose a different form</button></p>`}`;
+    </div>
+    <div class="qside">
+      <div class="sidecard progress-card">
+        <p class="sidecard-title">${icon("doc")}${esc(sit.title)}</p>
+        <ol class="rail" aria-label="Sections of this form">${sit.sections.map((name, i) => {
+          // Each section jumps to its first question. Not while editing one answer from the summary: that ends with Save or Cancel.
+          const here = i === step.sec ? ' aria-current="step"' : "", jump = !returnToSummary && vis.some(s => s.sec === i);
+          const inner = `<span class="rail-ic" aria-hidden="true">${icon(SECTION_ICONS[name])}</span><span>${jump ? '<span class="sr-only">Go to </span>' : ""}${esc(name)}</span>`;
+          return `<li class="${i < step.sec ? "done" : i === step.sec ? "current" : ""}">${jump ? `<button type="button" class="railbtn" data-sec="${i}"${here}>${inner}</button>` : `<span class="railitem"${here}>${inner}</span>`}</li>`;
+        }).join("")}</ol>
+      </div>
+      <div class="sidecard where-card">
+        <p class="sidecard-title">${icon("court")}On the official form</p>
+        ${whereHtml(step)}
+      </div>
+      ${returnToSummary ? "" : `<p class="need"><button class="link" id="changeForm">Choose a different form</button></p>`}
+    </div>
+    </div>`;
   wireWhere(step);
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
@@ -216,6 +239,14 @@ function renderStep() {
     }
     cur--; render();
   };
+  // A section tile in the progress panel: keep what was typed (as Back does), then go to that section's first question.
+  app.querySelectorAll(".rail [data-sec]").forEach(b => b.onclick = () => {
+    readInput(step);
+    if (!empty(answers[step.id])) delete unsure[step.id];
+    const to = visible().findIndex(s => s.sec === +b.dataset.sec); // after reading the box: a choice can show or hide questions
+    if (to < 0) return;
+    cur = to; render();
+  });
   const other = document.getElementById("changeForm");
   if (other) other.onclick = () => { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; chooseOtherForm(); };
   document.getElementById("next").onclick = () => save(step);

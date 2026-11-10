@@ -10,7 +10,7 @@
 <div class="wrap">
   <header class="top">
     <div class="toprow">
-      <span class="brand">Indiana Court Form Helper</span>
+      <span class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 9.5 12 4l9 5.5"/><path d="M4 21h16M5 18h14M6.5 10.5v7M10 10.5v7M14 10.5v7M17.5 10.5v7"/></svg></span>Indiana Court Form Helper</span>
       <button class="helpbtn" id="helpBtn" type="button" aria-expanded="false" aria-controls="helpPanel">Get help</button>
     </div>
     <div class="saverow">
@@ -26,6 +26,7 @@
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <main id="app"><noscript><p class="help">This tool needs JavaScript, which is turned off in this browser. Turn it on, then reload the page. The free help listed below still works.</p></noscript></main>
   <footer>
+    <div class="foothelp">
     <strong>More free help</strong>
     <ul>
       <li><a href="https://indianalegalhelp.org/when-is-the-legal-help-desk-available-and-what-issues-does-it-cover/" target="_blank" rel="noopener">Indiana Legal Help Desk</a>: weekdays 10am to 2pm ET, call, text, chat or email with housing legal navigators. It currently focuses on housing issues like eviction, and you reach it through the chat bubble on IndianaLegalHelp.org (Indiana Legal Help)</li>
@@ -34,7 +35,8 @@
       <li><a href="https://www.in.gov/courts/selfservice/unrepresented/help" target="_blank" rel="noopener">What court staff can help with</a> (Indiana courts)</li>
       <li><a href="https://www.in.gov/courts/selfservice/" target="_blank" rel="noopener">Indiana courts' Self-Service Legal Center</a></li>
     </ul>
-    Fills official Indiana court forms approved by the Coalition for Court Access, published on <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">IndianaLegalHelp.org</a>. This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</footer>
+    </div>
+    <p class="footnote">Fills official Indiana court forms approved by the Coalition for Court Access, published on <a href="https://indianalegalhelp.org" target="_blank" rel="noopener">IndianaLegalHelp.org</a>. This tool explains what each question means. It does not give legal advice, does not suggest what to write, and does not file anything with the court. MVP prototype, Team 5, AI for Impact.</p></footer>
 </div>
 
 <!-- The app, in the order it has to load. These are plain scripts sharing one global scope, not modules,
@@ -43,11 +45,12 @@
 // Each file loads on its own, so on a bad connection one can fail or arrive cut off, and the app can't work without all of them.
 // So each file's last line counts it in, and the app starts only if all of them got there.
 window.appParts = 0;
-window.appPartsNeeded = 21;
+window.appPartsNeeded = 22;
 document.getElementById("app").innerHTML = '<p class="need">Loading the page…</p>';
 </script>
 <script src="app/official-forms.js"></script>
 <script src="app/helpers.js"></script>
+<script src="app/art.js"></script>
 <script src="app/questions.js"></script>
 <script src="app/continuance-fields.js"></script>
 <script src="app/situations.js"></script>
