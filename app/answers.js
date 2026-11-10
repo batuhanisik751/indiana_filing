@@ -47,6 +47,11 @@ function save(step) {
   readInput(step);
   const v = answers[step.id];
   if (String(v ?? "").length > ANSWER_MAX) return refuse(`This is too long: ${String(v).length.toLocaleString("en-US")} characters. Keep it under ${ANSWER_MAX.toLocaleString("en-US")}.`);
+  // An email that can't work is stopped here, not only flagged at the end. "None" and a blank box still go on.
+  if (step.type === "email" && !empty(v) && !SAYS_NONE.test(String(v).trim()) && !notAnAnswer(step, v)) {
+    const e = emailShape(v);
+    if (EMAIL_CANT_WORK.has(e.kind)) return refuse(`${emailWhy(e)} ${sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None."}`);
+  }
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
   if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);

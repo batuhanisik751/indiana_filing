@@ -101,6 +101,30 @@ function blankWhy(s) {
   return rule ? { why: why + exception, link: RULES[rule] } : { why };
 }
 
+// What an email's shape means, in plain words: on the summary, and on the question itself for shapes that can't work.
+function emailWhy(e) {
+  if (!e.kind) return "";
+  return { typo: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`,
+    noemail: sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None.",
+    spelled: "Write this with an @ sign and a dot, like name@example.com.",
+    noat: "This is missing the @ sign. A full email looks like name@example.com.",
+    nolocal: "This is missing the part before the @. A full email looks like name@example.com.",
+    nodomain: "This is missing the part after the @. A full email looks like name@example.com.",
+    noend: "This seems to be missing the end of the address, like .com.",
+    two: "This looks like more than one email address. The form has room for one.",
+    ats: "This has more than one @ sign. Check it for typos.",
+    space: "This has a space in it. Email addresses don't, and the form needs just the address.",
+    comma: "This has a comma where a dot usually goes. Check it for typos.",
+    extra: "This has an extra character at the end. Check it for typos.",
+    odd: "This has a character email addresses don't usually have. Check it for typos.",
+    accent: "This has an accented or special letter before the @. Check it for typos.",
+    dots: "This has a dot in the wrong place, like two in a row or one at the end. Check it for typos.",
+    long: "This is too long to be one email address. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
+}
+// Shapes no working email address has. These are stopped when Continue is pressed, because the court would send papers nowhere.
+// A likely typo, an accented letter or an unusual character can still be right, so those are only flagged at the end.
+const EMAIL_CANT_WORK = new Set(["noat", "spelled", "nolocal", "nodomain", "noend", "dots", "ats", "two", "space", "comma", "extra", "long"]);
+
 function runChecks() {
   const a = visibleAnswers();
   const vis = visible();
@@ -154,22 +178,7 @@ function runChecks() {
   if (has("email") && !empty(a.email) && !says("email") && !SAYS_NONE.test(a.email.trim())) {
     const e = emailShape(a.email);
     // It prints as typed. This tool can't tell whether an address works, only whether it looks mistyped.
-    const why = !e.kind ? "" : { typo: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`,
-      noemail: sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None.",
-      spelled: "Write this with an @ sign and a dot, like name@example.com.",
-      noat: "This is missing the @ sign. A full email looks like name@example.com.",
-      nolocal: "This is missing the part before the @. A full email looks like name@example.com.",
-      nodomain: "This is missing the part after the @. A full email looks like name@example.com.",
-      noend: "This seems to be missing the end of the address, like .com.",
-      two: "This looks like more than one email address. The form has room for one.",
-      ats: "This has more than one @ sign. Check it for typos.",
-      space: "This has a space in it. Email addresses don't, and the form needs just the address.",
-      comma: "This has a comma where a dot usually goes. Check it for typos.",
-      extra: "This has an extra character at the end. Check it for typos.",
-      odd: "This has a character email addresses don't usually have. Check it for typos.",
-      accent: "This has an accented or special letter before the @. Check it for typos.",
-      dots: "This has a dot in the wrong place, like two in a row or one at the end. Check it for typos.",
-      long: "This is too long to be one email address. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
+    const why = emailWhy(e);
     const papers = a.receiveAt === "Choice2" || a.acceptEmail === "yes" ? " You chose to get court papers at this address, so a typo could mean you miss them." : "";
     // A private number has its own flag above. A typo in the domain still needs saying, unless saying it would repeat that number.
     if (why && !(privateKind(a.email) && (e.kind !== "typo" || privateKind(e.domain)))) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
@@ -179,6 +188,8 @@ function runChecks() {
     const emails = String(a[s.id]).trim().split(/\s+/).filter(x => x.includes("@") && x.length <= 254).map(x => x.replace(/^[<(\[,;]+|[>)\],;.]+$/g, ""));
     const e = emails.length === 1 ? emailShape(emails[0]) : {};
     if (e.kind === "typo" && !privateKind(e.domain)) flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, why: `The end of this email, ${e.domain}, may be a typo for ${e.target}. If it's right, you can leave it.`, fix: s.id });
+    else if (EMAIL_CANT_WORK.has(e.kind) && !privateKind(emails[0])) flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, fix: s.id,
+      why: `${emailWhy(e)} You chose to send this copy through the E-Filing System, which sends it to an email address.` });
   });
   // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
   [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
