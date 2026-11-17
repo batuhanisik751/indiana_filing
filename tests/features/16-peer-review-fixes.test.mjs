@@ -200,7 +200,8 @@ describe("Fix 4: More opens on tap, or on hover on a computer, and holds backgro
   const openNow = () => more().evaluate(d => d.open);
   test("a long explanation keeps its instructions on screen, and its background is behind More", async () => {
     await inject(p, "continuance"); await jump(p, "caseNumber");
-    assert.equal(await p.textContent("#qhelp"), "Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers. This question is optional.");
+    assert.ok((await p.textContent("#qhelp")).startsWith("Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers. If you don't have them, you can look up your case online or ask the clerk's office. This question is optional."));
+    assert.doesNotMatch(await p.textContent("#qhelp"), /court staff/, "the background is only behind More");
     assert.equal(await openNow(), false);
     assert.match(await p.textContent("#qmore"), /court staff will complete the court information and your case number/);
   });
@@ -512,5 +513,28 @@ describe("Fix 7B: the fee waiver asks which kinds of income and expenses apply, 
     await p.evaluate(() => { document.querySelector('details[data-more="answers"]').open = true; });
     const r = await p.$$eval("dl.vals > div", ds => ds.filter(d => d.querySelector("dt").textContent === "Kinds of income").map(d => [d.querySelector("dd").textContent, d.querySelector("[data-fix]")?.dataset.fix]));
     assert.deepEqual(r, [["Wages from work, SSI/SSD benefits", "incomeKinds"]]);
+  });
+});
+
+describe("Fix 8: the case number question says where to look it up", () => {
+  const link = () => p.locator("#qhelp a");
+  test("the question itself says to look it up at mycase.in.gov or ask the clerk, with a link", async () => {
+    await reset(p); await pick(p, "appearance");
+    assert.equal(await step(p), "caseNumber");
+    assert.match(await p.textContent("#qhelp"), /If you don't have them, you can look up your case online or ask the clerk's office\./);
+    assert.equal(await link().getAttribute("href"), "https://mycase.in.gov/");
+    assert.equal(await link().getAttribute("target"), "_blank");
+  });
+  test("edge: it's there before pressing I'm not sure, on every form with a case number", async () => {
+    for (const form of ["respond", "appearance", "continuance"]) {
+      await reset(p); await pick(p, form);
+      assert.equal(await p.evaluate(() => unsure.caseNumber), undefined, form);
+      assert.match(await link().textContent(), /^Look up your case at mycase\.in\.gov/, form);
+    }
+  });
+  test("edge: I'm not sure still gives the same advice afterwards", async () => {
+    await reset(p); await pick(p, "appearance");
+    await p.click("#unsure"); await jump(p, "caseNumber");
+    assert.match(await p.textContent("#unsureHelp"), /look up your case at mycase\.in\.gov, or ask the clerk's office/);
   });
 });

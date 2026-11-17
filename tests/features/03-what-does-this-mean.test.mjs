@@ -19,7 +19,7 @@ describe("3. What does this mean?", () => {
   test("the explanation shows under the question", async () => {
     await pick(p, "appearance");
     const help = await p.evaluate(() => visible()[cur].help);
-    assert.equal(await p.textContent("#qhelp"), help);
+    assert.ok((await p.textContent("#qhelp")).startsWith(help), "the explanation, then any link"); // a link after it is fine
   });
   test("each question says whether it's needed or optional", async () => {
     await pick(p, "appearance"); await walk(p, "fax");

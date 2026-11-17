@@ -9,7 +9,8 @@
 const caseSteps = sec => [
   { id: "caseNumber", sec, type: "text", label: "Case number", upper: true,
     q: "What is your case number?",
-    help: "Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers." },
+    help: "Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers. If you don't have them, you can look up your case online or ask the clerk's office.",
+    link: { href: "https://mycase.in.gov/", text: "Look up your case at mycase.in.gov" } },
   // A full case number already names the county and court, so one confirmation replaces those two questions.
   // A step's derive() is its answer while it's hidden, and editVia is the question that changes it.
   { id: "caseConfirm", sec, type: "choice", label: "County and court in your case number", optional: true,
