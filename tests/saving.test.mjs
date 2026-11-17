@@ -1,7 +1,7 @@
 // Saving on this device: off unless turned on, kept across a reload, and never keeping what it shouldn't.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, site, close, pick, walk, step, SAVED, SAVING } from "./lib.mjs";
+import { fresh, site, close, pick, walk, step, SAVED, SAVING, editAnswer } from "./lib.mjs";
 
 after(close);
 const stored = (p, key = SAVED) => p.evaluate(k => localStorage.getItem(k), key);
@@ -37,7 +37,7 @@ test("choosing the Address Confidentiality Program takes the home address out of
   await pick(p, "appearance");
   await walk(p, "summary", { address: "1 Secret Home St, Fort Wayne, IN 46802" });
   assert.match(await stored(p), /Secret Home/);
-  await p.click('dl.vals [data-fix="acp"]');
+  await editAnswer(p, "acp");
   await p.locator('input[name=ans][value="yes"]').check({ force: true });
   assert.doesNotMatch(await stored(p), /Secret Home/, "before Continue is even pressed");
   await p.context().close();

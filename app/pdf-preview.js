@@ -140,7 +140,9 @@ function pdfSectionHtml(sit) {
     <p class="draftnote">On a shared or public computer? When you're done, delete the downloaded PDF from the computer and choose "Clear my data" at the top of this page.</p>`;
 }
 // The pages themselves come after the next steps, so those aren't thousands of pixels below the download.
-const previewHtml = () => (pdfState.result && !pdfState.busy && !pdfState.error ? `<h2 class="sub">Read your filled form</h2><div class="preview" id="preview"></div>` : "");
+// They start closed, and are drawn only when opened: drawing them downloads the PDF viewer.
+const previewHtml = () => (pdfState.result && !pdfState.busy && !pdfState.error
+  ? `<h2 class="sub">Read your filled form</h2>${moreHtml('<div class="preview" id="preview"></div>', "Show the pages", "preview", { cls: "section" })}` : "");
 
 function wirePdfSection(sit) {
   const stop = document.getElementById("stopPdf");
@@ -157,15 +159,20 @@ function wirePdfSection(sit) {
     // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
     downloadPdf(d.bytes, `${sitKey === "respond" ? "" : `${sit.title} `}${d.name} ${d.number || ""}`);
   });
-  // E15: draw into this summary's preview box only, and only once.
-  const box = document.getElementById("preview");
-  const token = box.dataset.token = String(Math.random());
-  loadPreviewTools().then(() => {
-    if (!box.isConnected || box.dataset.token !== token) return;
-    return renderPreview(all, box);
-  }).catch(e => {
-    console.error(e);
-    if (box.isConnected) box.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
-  });
+  // E15: draw into this summary's preview box only, and only once, when its section is open.
+  const box = document.getElementById("preview"), section = box.closest("details");
+  const draw = () => {
+    if (box.dataset.token) return;
+    const token = box.dataset.token = String(Math.random());
+    loadPreviewTools().then(() => {
+      if (!box.isConnected || box.dataset.token !== token) return;
+      return renderPreview(all, box);
+    }).catch(e => {
+      console.error(e);
+      if (box.isConnected) box.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
+    });
+  };
+  if (!section || section.open) draw();
+  else section.addEventListener("toggle", () => { if (section.open) draw(); });
 }
 window.appParts++;

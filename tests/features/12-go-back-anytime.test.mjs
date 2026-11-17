@@ -1,13 +1,13 @@
 // Feature 12: earlier answers can be changed from any step, including the summary, and the person returns to where they were.
 import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, reset, pick, walk, step, inject, fieldRows } from "../lib.mjs";
+import { fresh, close, reset, pick, walk, step, inject, fieldRows, editAnswer } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
 beforeEach(() => reset(p));
 after(close);
-const edit = id => p.click(`dl.vals [data-fix="${id}"]`);
+const edit = id => editAnswer(p, id);
 
 describe("12. Go back anytime", () => {
   test("Back goes to the previous question with its answer still there", async () => {

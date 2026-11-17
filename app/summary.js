@@ -46,6 +46,8 @@ function renderSummary(rerender = false) {
   fields.forEach(x => { let g = groups.find(g => g.form === x.form); if (!g) groups.push(g = { form: x.form, items: [] }); g.items.push(x); });
   const visIds = new Set(visible().map(s => s.id));
 
+  // Back from an Edit in the list of every answer: the list is open again, so focus can return to that row.
+  if (lastEdited && fixFrom === "vals") openMore.add("answers");
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
     <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
@@ -74,7 +76,7 @@ function renderSummary(rerender = false) {
 
     <h2 class="sub">What goes on your official forms</h2>
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank. <a id="summaryBlank" href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">Blank official forms (PDF)</a> · <a href="${sit.official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a></p>
-    <div class="formgrid">${groups.map(g => `
+    ${moreHtml(`<div class="formgrid">${groups.map(g => `
       <section class="formcard">
         <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
         <dl class="vals">${g.items.map(x => `
@@ -82,7 +84,7 @@ function renderSummary(rerender = false) {
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
           ${x.step && visIds.has(x.step) ? `<button class="link edit" data-fix="${x.step}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
         </dl>
-      </section>`).join("")}</div>
+      </section>`).join("")}</div>`, "Show every answer, with Edit links", "answers", { cls: "section" })}
 
     <div class="nav">
       <button class="ghost" id="toQuestions">Back to questions</button>

@@ -2,7 +2,7 @@
 // is flagged at the end (it may be right), a blank email is flagged because the form requires one, and someone with no email can say so.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, reset, pick, walk, jump, inject, flagsFor, fieldRows, step } from "../lib.mjs";
+import { fresh, close, reset, pick, walk, jump, inject, flagsFor, fieldRows, step, editAnswer } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -82,7 +82,7 @@ describe("7. Email check", () => {
   });
   test("edge: an edit from the summary is stopped the same way, and Cancel keeps the address that was there", async () => {
     await inject(p, "appearance");
-    await p.click('dl.vals [data-fix="email"]'); await typeEmail("@northeastern.");
+    await editAnswer(p, "email"); await typeEmail("@northeastern.");
     assert.equal(await step(p), "email");
     await p.click("#back");
     assert.equal(await p.evaluate(() => answers.email), "pat@example.com");

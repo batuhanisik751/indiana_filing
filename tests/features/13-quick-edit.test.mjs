@@ -2,13 +2,13 @@
 // (Edits open the question itself, then return to the summary. Nothing is typed onto the PDF directly.)
 import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, reset, step, inject, flagsFor, fieldRows, pdfText } from "../lib.mjs";
+import { fresh, close, reset, step, inject, flagsFor, fieldRows, pdfText, editAnswer } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
 beforeEach(() => reset(p));
 after(close);
-const edit = id => p.click(`dl.vals [data-fix="${id}"]`);
+const edit = id => editAnswer(p, id);
 const change = async (id, value) => { await edit(id); await p.fill("#ans", value); await p.click("#next"); };
 const score = async () => (await p.textContent(".barlabel")).match(/(\d+) of (\d+)/).slice(1).map(Number);
 

@@ -137,3 +137,9 @@ export async function answer(p, value) {
   else await p.fill("#ans", value);
   await p.click("#next");
 }
+
+// Edit one answer from the summary's list of every answer, which starts closed.
+export async function editAnswer(p, id) {
+  await p.evaluate(() => { const d = document.querySelector('details[data-more="answers"]'); if (d) d.open = true; });
+  await p.click(`dl.vals [data-fix="${id}"]`);
+}

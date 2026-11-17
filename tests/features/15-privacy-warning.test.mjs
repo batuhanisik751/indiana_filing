@@ -2,7 +2,7 @@
 // citing Access to Court Records Rule 5.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, flagsFor, fieldRows } from "../lib.mjs";
+import { fresh, close, inject, flagsFor, fieldRows, editAnswer } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -51,7 +51,7 @@ describe("15. Privacy warning", () => {
     const f = await privateFlags("defenses", "SSN 123-45-6789");
     assert.match(f[0], /It will print on the form until you remove it\./);
     assert.ok((await fieldRows(p)).some(([, v]) => v.includes("123-45-6789")));
-    await p.click('dl.vals [data-fix="defenses"]'); await p.fill("#ans", "I paid this debt in full."); await p.click("#next");
+    await editAnswer(p, "defenses"); await p.fill("#ans", "I paid this debt in full."); await p.click("#next");
     assert.deepEqual((await flagsFor(p, "defenses")).filter(f => /Private information/.test(f)), []);
   });
 });

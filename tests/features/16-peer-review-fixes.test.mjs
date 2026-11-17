@@ -141,3 +141,56 @@ describe("Fix 2: each flag is one line, Missing first, with the reason on tap", 
     assert.equal(await step(p), "phone");
   });
 });
+
+describe("Fix 3: the two views of the form start closed", () => {
+  const pdfDone = () => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  const sec = key => p.locator(`details.more.section[data-more="${key}"]`);
+  // Each test starts from a summary with every section closed, as a person first sees it.
+  const start = async (form, more) => { await inject(p, form, more); await p.evaluate(() => { openMore.clear(); document.querySelectorAll("details.more").forEach(d => { d.open = false; }); }); await p.waitForTimeout(50); };
+  test("the pages of the filled form start closed, and aren't drawn until opened", async () => {
+    await start("respond"); await pdfDone(); await p.waitForTimeout(500);
+    assert.equal(await sec("preview").getAttribute("open"), null);
+    assert.equal(await p.locator("#preview canvas").count(), 0, "nothing drawn, and the PDF viewer isn't needed yet");
+    await sec("preview").locator("summary").click();
+    await p.waitForSelector("#preview canvas", { timeout: 120000 });
+  });
+  test("the list of every answer starts closed, and opens with an Edit link for every question", async () => {
+    await start("appearance");
+    assert.equal(await sec("answers").getAttribute("open"), null);
+    assert.equal(await p.locator("dl.vals .edit").first().isVisible(), false);
+    await sec("answers").locator("summary").click();
+    const missing = await p.evaluate(() => visible().filter(s => { const b = document.querySelector(`dl.vals [data-fix="${s.id}"]`); return !b || !b.checkVisibility(); }).map(s => s.id));
+    assert.deepEqual(missing, []);
+  });
+  test("closed, the summary is thousands of pixels shorter", async () => {
+    await start("respond"); await pdfDone();
+    const closed = await p.evaluate(() => document.documentElement.scrollHeight);
+    await p.evaluate(() => document.querySelectorAll("details.more.section").forEach(d => { d.open = true; }));
+    await p.waitForSelector("#preview canvas", { timeout: 120000 }); await p.waitForTimeout(1500);
+    const open = await p.evaluate(() => document.documentElement.scrollHeight);
+    assert.ok(open - closed > 2000, `${closed} closed, ${open} open`);
+  });
+  test("edge: after an Edit from the list, the list is open again, with focus on that row", async () => {
+    await start("appearance");
+    await sec("answers").locator("summary").click();
+    await p.click('dl.vals [data-fix="phone"]'); await p.fill("#ans", "317-555-0111"); await p.click("#next");
+    assert.equal(await sec("answers").getAttribute("open"), "");
+    assert.equal(await p.evaluate(() => document.activeElement.matches('dl.vals [data-fix="phone"]')), true);
+  });
+  test("edge: a section left open stays open when the summary redraws, and its pages are drawn again", async () => {
+    await start("respond"); await pdfDone();
+    await sec("preview").locator("summary").click();
+    await p.waitForSelector("#preview canvas", { timeout: 120000 });
+    await p.evaluate(() => keepFocus(() => renderSummary(true)));
+    assert.equal(await sec("preview").getAttribute("open"), "");
+    await p.waitForSelector("#preview canvas", { timeout: 120000 });
+  });
+  test("edge: starting over closes them again", async () => {
+    await start("respond"); await pdfDone();
+    await p.evaluate(() => document.querySelectorAll("details.more.section").forEach(d => { d.open = true; }));
+    await p.waitForTimeout(100);
+    await p.click("#restart"); // Start over, confirmed
+    await inject(p, "appearance");
+    assert.equal(await p.locator("details.more.section[open]").count(), 0);
+  });
+});
