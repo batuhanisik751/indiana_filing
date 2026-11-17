@@ -210,7 +210,13 @@ dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
   .pvbody { padding: .5rem; }
 }
 footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
-footer .foothelp strong { display: block; color: var(--ink); margin-bottom: .25rem; }
+details.foothelp { align-self: start; }
+details.foothelp > summary { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; list-style: none; color: var(--ink); font-weight: 700; font-size: .95rem; }
+details.foothelp > summary::-webkit-details-marker { display: none; }
+details.foothelp > summary::after { content: "›"; color: var(--accent); transition: transform .15s; }
+details.foothelp[open] > summary::after { transform: rotate(90deg); }
+details.foothelp > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+details.foothelp ul { margin-top: .25rem; }
 .footnote { margin: 0; }
 
 /* ---------- look: cards, icons and pictures ---------- */

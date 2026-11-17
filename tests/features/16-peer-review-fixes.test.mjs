@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText, scoreMatchesFlags } from "../lib.mjs";
+import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText, scoreMatchesFlags, launch, APP } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -586,5 +586,30 @@ describe("Fix 9: the logo and name go to the first screen, keeping the answers",
     await p.click('.pick[data-kind="debt"]'); assert.equal(await step(p), "triage");
     await home();
     assert.equal(await step(p), "pick");
+  });
+});
+
+describe("Fix 10: \"More free help\" at the bottom is one line until opened", () => {
+  test("it's one line, closed, on every screen", async () => {
+    await reset(p);
+    const h = await p.$eval("#footHelp", d => [d.open, Math.round(d.getBoundingClientRect().height)]);
+    assert.equal(h[0], false); assert.ok(h[1] <= 50, `${h[1]} pixels tall`);
+    await pick(p, "appearance"); assert.equal(await p.$eval("#footHelp", d => d.open), false);
+  });
+  test("opened, it lists the same five places as Get help", async () => {
+    await reset(p);
+    await p.click("#footHelp > summary");
+    const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = await p.$$eval("#helpPanel a", a => a.map(x => x.href));
+    assert.equal(foot.length, 5);
+    assert.deepEqual([...foot].sort(), [...panel].sort());
+  });
+  test("edge: with JavaScript off, it still opens, and the page says where to find it", async () => {
+    const ctx = await (await launch()).newContext({ javaScriptEnabled: false }); // the shared browser, so nothing is left running
+    const page = await ctx.newPage();
+    await page.goto(APP);
+    assert.match(await page.textContent("main"), /open "More free help\."/);
+    await page.click("#footHelp > summary");
+    assert.equal(await page.locator("#footHelp a").first().isVisible(), true);
+    await ctx.close();
   });
 });
