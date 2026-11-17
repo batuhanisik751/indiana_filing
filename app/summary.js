@@ -1,10 +1,36 @@
 // The summary screen.
 const sameTitle = (flags, x) => flags.filter(y => y.title === x.title).length;
+// The first sentence of a flag's reason, and the rest. A period in "U.S.", "St. Joseph" or an initial doesn't end it.
+function splitWhy(why) {
+  const t = String(why ?? "");
+  for (const m of t.matchAll(/\.(["\u201D\u2019]?)\s+(?=["\u201C(]?[A-Z])/g)) {
+    if (/(?:\b(?:St|Mr|Mrs|Ms|Dr|No|Jr|Sr|Inc|Co|vs|v|a\.m|p\.m)|\b[A-Z]\.[A-Z]|\b[A-Z])\.$/.test(t.slice(0, m.index + 1))) continue;
+    return [t.slice(0, m.index + 1 + m[1].length), t.slice(m.index + m[0].length)];
+  }
+  return [t, ""];
+}
+// Private information first (it prints on a public form), then what's missing, then what to double-check.
+const flagRank = x => /^Private information/.test(x.title) ? 0 : x.level === "missing" ? 1 : 2;
+// One line per flag. A missing answer shows its title, and why it's needed opens on tap. A check also shows the first
+// sentence of its reason, since that says what to look at, and the rest opens on tap.
+function flagHtml(x, i, flags) {
+  const link = x.link ? ` <a href="${x.link.href}" target="_blank" rel="noopener">${esc(x.link.text)}</a>` : "";
+  const [lead, rest] = x.level === "missing" ? ["", x.why] : splitWhy(x.why);
+  const nth = flags.filter(y => y.title === x.title && y.fix === x.fix).indexOf(x);
+  const title = `<span class="ftitle">${esc(x.title)}</span>${lead ? `<small id="whyA${i}">${esc(lead)}</small>` : ""}`;
+  const more = rest || link;
+  const text = more ? moreHtml(`${esc(rest)}${link}`, "", `flag:${x.fix || ""}:${x.title}:${nth}`, { cls: "flagwhy", summaryHtml: title, bodyId: `whyB${i}` }) : title;
+  const desc = [lead ? `whyA${i}` : "", more ? `whyB${i}` : ""].filter(Boolean).join(" ");
+  return `
+      <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
+      <span class="flagtext">${text}</span>
+      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}"${desc ? ` aria-describedby="${desc}"` : ""}>Fix</button>` : ""}</li>`;
+}
 function renderSummary(rerender = false) {
   const sit = SITUATIONS[sitKey];
   const a = visibleAnswers();
   ensurePdf();
-  const flags = [...runChecks(), ...pdfFlags()];
+  const flags = [...runChecks(), ...pdfFlags()].sort((x, y) => flagRank(x) - flagRank(y)); // a stable sort: the checks' own order stays within each group
   const missing = flags.filter(x => x.level === "missing").length;
   const checking = pdfState.busy || !pdfState.key; // the PDF's own checks aren't in yet
   const failed = !!pdfState.error; // the PDF's own checks never ran
@@ -30,10 +56,7 @@ function renderSummary(rerender = false) {
       <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : failed ? "We couldn't make your filled form." : "Checking your filled form…"}</strong>
       ${ready ? "Read it over once more before you file it yourself." : flags.length ? `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.${checking ? " Still checking the filled form…" : failed ? " The checks on the filled form didn't finish." : ""}` : failed ? "The checks on the filled form didn't finish. See below." : pdfSlow ? "This is taking longer than usual." : "This takes a few seconds."}
     </div>
-    ${flags.length ? `<ul class="flags">${flags.map((x, i) => `
-      <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
-      <span class="flagtext">${esc(x.title)}<small id="why${i}">${esc(x.why)}${x.link ? ` <a href="${x.link.href}" target="_blank" rel="noopener">${esc(x.link.text)}</a>` : ""}</small></span>
-      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}" aria-describedby="why${i}">Fix</button>` : ""}</li>`).join("")}</ul>` : ""}
+    ${flags.length ? `<ul class="flags">${flags.map((x, i) => flagHtml(x, i, flags)).join("")}</ul>` : ""}
     ${flags.some(x => x.level === "missing" && T31_ITEMS.test(x.fix)) ? `<div class="note">If you have to file before you have all the information Trial Rule 3.1 requires, that rule says to file the Appearance with what you have and add the rest when you get it. <a href="${RULES.tr31.href}" target="_blank" rel="noopener">${esc(RULES.tr31.text)}</a></div>` : ""}
     ${sit.reminders.map(r => `<div class="note">${esc(r)}</div>`).join("")}
     ${fromTriage && triageAnswered(triage) ? `<div class="note">You started from "${esc(kindOf(triage).pick)}." ${triageVisible().filter(s => triage[s.id]).map(s =>

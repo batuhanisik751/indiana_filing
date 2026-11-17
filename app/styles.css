@@ -123,6 +123,14 @@ ul.flags li button { flex: none; margin-left: auto; }
 .tag.check { color: var(--check); background: var(--check-bg); }
 .tag.ok { color: var(--ok); background: var(--ok-bg); }
 .flagtext small { display: block; color: var(--muted); font-size: .9rem; }
+.flagtext .ftitle { display: block; }
+/* A flag's title is its own "More": tap it for the rest of the reason. */
+ul.flags details.flagwhy { margin: 0; }
+ul.flags details.flagwhy > summary { display: block; min-height: 0; padding: .1rem 0; color: var(--ink); font-weight: 400; font-size: inherit; text-decoration: none; }
+ul.flags details.flagwhy > summary::after { content: none; }
+ul.flags details.flagwhy > summary .ftitle::after { content: "›"; display: inline-block; margin-left: .4rem; color: var(--accent); font-weight: 700; transition: transform .15s; }
+ul.flags details.flagwhy[open] > summary .ftitle::after { transform: rotate(90deg); }
+ul.flags details.flagwhy .morebody { font-size: .9rem; color: var(--muted); margin: .3rem 0 .1rem; }
 
 .formcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin: .75rem 0; }
 .formcard h3 { font-size: 1rem; margin: 0 0 .5rem; }
@@ -230,6 +238,7 @@ ol.rail li.current .rail-ic { background: var(--accent); color: var(--accent-ink
 @media (max-width: 440px) { .logo { display: none; } } /* keeps the name and Get help on one line on a phone */
 @media (prefers-reduced-motion: reduce) {
   details.more > summary::after { transition: none; }
+  ul.flags details.flagwhy > summary .ftitle::after { transition: none; }
   .pick { transition: none; }
   .pick:hover { transform: none; }
   .bar > span { transition: none; }

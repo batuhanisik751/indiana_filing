@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject } from "../lib.mjs";
+import { fresh, close, inject, step } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -69,5 +69,75 @@ describe("Fix 1: \"What to do next\" is one line per step, with the rest behind 
     const shown = await p.evaluate(() => document.querySelector("ol.steps").innerText);
     assert.match(shown, /The court date you entered, 01\/02\/2020, has already passed/);
     assert.match(shown, /Your case type is SC \(small claims\), where Answers are not usually filed\./);
+  });
+});
+
+describe("Fix 2: each flag is one line, Missing first, with the reason on tap", () => {
+  const row = id => p.locator(`ul.flags li:has([data-fix="${id}"])`).first();
+  const shown = loc => loc.evaluate(e => e.innerText);
+  test("a missing answer is one line, its title, and why it's needed opens on tap", async () => {
+    await inject(p, "appearance", { phone: "" });
+    const r = row("phone");
+    assert.equal((await shown(r)).replace(/\s+/g, " ").trim(), "Missing Phone number Fix");
+    await r.locator("summary").click();
+    assert.match(await shown(r), /The official form says a phone number is required/);
+  });
+  test("a check shows its title and the first sentence of its reason, and the rest opens on tap", async () => {
+    await inject(p, "appearance", { email: "pat@gmial.com" });
+    const r = row("email");
+    const before = await shown(r);
+    assert.match(before, /The end of this email, gmial\.com, may be a typo for gmail\.com\./);
+    assert.doesNotMatch(before, /If it's right/);
+    await r.locator("summary").click();
+    assert.match(await shown(r), /If it's right, you can leave it\./);
+  });
+  test("private-information warnings come first, then missing answers, then the rest", async () => {
+    await inject(p, "respond", { email: "pat@gmial.com", phone: "", signDate: "", defenses: "My SSN is 123-45-6789." });
+    const order = await p.$$eval("ul.flags li", lis => lis.map(li => (/^Private information/.test(li.querySelector(".ftitle").textContent) ? 0 : li.querySelector(".tag.missing") ? 1 : 2)));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b));
+    assert.deepEqual([order[0], order.includes(1), order.at(-1)], [0, true, 2]);
+  });
+  test("edge: someone who skipped most questions gets a short list", async () => {
+    await inject(p, "respond");
+    await p.evaluate(() => { globalThis.eval("answers = { county: 'Allen', name: 'Pat Example', acp: 'no' }; unsure = { caseNumber: true };"); renderSummary(true); });
+    const [n, h] = await p.$eval("ul.flags", ul => [ul.children.length, ul.getBoundingClientRect().height]);
+    assert.ok(n >= 15, `${n} flags`);
+    assert.ok(h / n < 75, `${Math.round(h / n)} pixels a flag`);
+  });
+  test("edge: the first sentence ends at a real sentence end, not in U.S., St. Joseph, an initial or a quote", async () => {
+    const out = await p.evaluate(() => [
+      "This doesn't look like a real U.S. phone number. Check it for typos.",
+      "The first two digits (02) don't match St. Joseph County's number (71). One of them may be wrong.",
+      "You marked this \"I'm not sure.\" Then come back and answer it.",
+      "Served on J. Smith by mail. Check the name.",
+      "No second sentence here",
+    ].map(splitWhy));
+    assert.deepEqual(out, [
+      ["This doesn't look like a real U.S. phone number.", "Check it for typos."],
+      ["The first two digits (02) don't match St. Joseph County's number (71).", "One of them may be wrong."],
+      ["You marked this \"I'm not sure.\"", "Then come back and answer it."],
+      ["Served on J. Smith by mail.", "Check the name."],
+      ["No second sentence here", ""],
+    ]);
+  });
+  test("edge: screen readers still hear the whole reason from each Fix button", async () => {
+    await inject(p, "respond", { email: "pat@gmial.com", phone: "", defenses: "My SSN is 123-45-6789." });
+    const bad = await p.evaluate(() => {
+      const flags = [...runChecks(), ...pdfFlags()];
+      return [...document.querySelectorAll("ul.flags button[data-fix]")].filter(b => {
+        const said = (b.getAttribute("aria-describedby") || "").split(" ").map(id => document.getElementById(id)?.textContent || "").join(" ").replace(/\s+/g, " ").trim();
+        const f = flags.find(x => x.fix === b.dataset.fix && said.startsWith(x.why.split(" ").slice(0, 4).join(" ")));
+        return !f || !said.startsWith(f.why.replace(/\s+/g, " ").trim());
+      }).map(b => b.dataset.fix);
+    });
+    assert.deepEqual(bad, []);
+  });
+  test("edge: an opened reason stays open when the summary redraws, and Fix still opens the question", async () => {
+    await inject(p, "appearance", { phone: "" });
+    await row("phone").locator("summary").click();
+    await p.evaluate(() => keepFocus(() => renderSummary(true)));
+    assert.equal(await row("phone").locator("details[open]").count(), 1);
+    await row("phone").locator("[data-fix]").click();
+    assert.equal(await step(p), "phone");
   });
 });

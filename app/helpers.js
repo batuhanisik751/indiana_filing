@@ -46,11 +46,12 @@ const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0
 // "More": extra detail that starts closed and opens on tap. A real <details>, so keyboards and screen readers can use it.
 // With a key, it stays open when the page redraws (the summary does, when its PDF check finishes).
 const openMore = new Set();
-function moreHtml(inner, label = "More", key = "") {
+// opts.summaryHtml replaces the label with markup the caller has already escaped; opts.cls adds a class.
+function moreHtml(inner, label = "More", key = "", opts = {}) {
   // The one on the page now, if any, says whether it's open: the toggle event that records it can come a moment later.
   const now = key && document.querySelector(`details.more[data-more="${CSS.escape(key)}"]`);
   const open = key && (now ? now.open : openMore.has(key));
-  return `<details class="more"${key ? ` data-more="${esc(key)}"` : ""}${open ? " open" : ""}><summary>${esc(label)}</summary><div class="morebody">${inner}</div></details>`;
+  return `<details class="more${opts.cls ? ` ${opts.cls}` : ""}"${key ? ` data-more="${esc(key)}"` : ""}${open ? " open" : ""}><summary>${opts.summaryHtml || esc(label)}</summary><div class="morebody"${opts.bodyId ? ` id="${opts.bodyId}"` : ""}>${inner}</div></details>`;
 }
 document.addEventListener("toggle", e => {
   const d = e.target;
