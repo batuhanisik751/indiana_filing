@@ -538,3 +538,53 @@ describe("Fix 8: the case number question says where to look it up", () => {
     assert.match(await p.textContent("#unsureHelp"), /look up your case at mycase\.in\.gov, or ask the clerk's office/);
   });
 });
+
+describe("Fix 9: the logo and name go to the first screen, keeping the answers", () => {
+  const home = () => p.click("#homeBtn");
+  test("from a question, it goes to the first screen, and Go back returns to that question", async () => {
+    await reset(p); await pick(p, "appearance"); await walk(p, "name");
+    await home();
+    assert.equal(await step(p), "pick");
+    await p.click("#backToWork");
+    assert.equal(await step(p), "name");
+  });
+  test("what was typed in the open question is kept", async () => {
+    await reset(p); await pick(p, "appearance"); await walk(p, "name");
+    await p.fill("#ans", "Pat Typed"); await home();
+    assert.equal(await p.evaluate(() => answers.name), "Pat Typed");
+    await p.click("#backToWork");
+    assert.equal(await p.inputValue("#ans"), "Pat Typed");
+  });
+  test("its name for screen readers starts with what it shows", async () => {
+    await reset(p);
+    assert.equal(await p.getByRole("button", { name: "Indiana Court Form Helper: go to the first screen" }).count(), 1);
+  });
+  test("edge: from the summary, Go back returns to the summary", async () => {
+    await inject(p, "appearance"); await home();
+    assert.equal(await step(p), "pick");
+    await p.click("#backToWork");
+    assert.equal(await step(p), "summary");
+  });
+  test("edge: during an edit from the summary, the edit is cancelled and the old answer kept", async () => {
+    await inject(p, "appearance");
+    await editAnswer(p, "name"); await p.fill("#ans", "Not Kept"); await home();
+    assert.equal(await step(p), "pick");
+    assert.equal(await p.evaluate(() => [answers.name, returnToSummary].join("|")), "Pat Example|false");
+    await p.click("#backToWork");
+    assert.equal(await step(p), "summary");
+  });
+  test("edge: the browser's Back button from there returns to the answers", async () => {
+    await reset(p); await pick(p, "appearance"); await walk(p, "phone");
+    await home();
+    await p.evaluate(() => history.back());
+    await p.waitForFunction(() => mode === "step");
+    assert.equal(await step(p), "phone");
+  });
+  test("edge: on the first screen it stays put, and in the middle of the sorting questions it goes back to the start", async () => {
+    await reset(p); await home();
+    assert.equal(await step(p), "pick");
+    await p.click('.pick[data-kind="debt"]'); assert.equal(await step(p), "triage");
+    await home();
+    assert.equal(await step(p), "pick");
+  });
+});

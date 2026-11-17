@@ -291,6 +291,15 @@ function readInput(step) {
   answers[step.id] = val;
 }
 
+// The logo and name go to the first screen from anywhere. As with "Choose a different form", the answers stay, and
+// "Go back" (or the browser's Back) returns to them. An edit from the summary is cancelled first, as Cancel would.
+document.getElementById("homeBtn").onclick = () => {
+  if (mode === "pick") { app.querySelector("h1")?.focus(); return; }
+  for (let i = 0; mode === "step" && returnToSummary && i < 20; i++) document.getElementById("back").click();
+  if (mode === "step") { const step = visible()[cur]; if (step) { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; } }
+  chooseOtherForm();
+};
+
 // The first screen, in one step from any question: the answers stay until another form is chosen, and Go back returns here.
 function chooseOtherForm() {
   if (hasAnswers()) {
