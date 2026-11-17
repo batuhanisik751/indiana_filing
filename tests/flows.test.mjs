@@ -95,3 +95,9 @@ test("phone width: no sideways scrolling on a question or the summary", async ()
   assert.equal(await wide(), false, "the summary");
   await p.context().close();
 });
+
+test("the footer says the tool is not an official court website", async () => {
+  const p = await fresh();
+  assert.match(await p.textContent("footer .footnote"), /It is not an official court website\./);
+  await p.context().close();
+});
