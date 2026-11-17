@@ -173,16 +173,16 @@ function nextSteps(key, a) {
   // Someone being sued who isn't filling out the Answer still has to know it may be due.
   if ((key === "appearance" || (key === "continuance" && a.role !== "me")) && !smallClaims) out.push({
     title: "Check whether an Answer is due",
-    short: "These forms don't answer the complaint: if you got a Complaint, an Answer is generally due within twenty days of receiving it, and this tool can fill it out too.",
+    short: "These forms don't answer the complaint. Indiana Legal Help says an Answer is generally due within twenty days of receiving a Complaint, and this tool can fill it out too.",
     body: "These forms don't answer the complaint. Indiana Legal Help says an Appearance tells the court who you are and how the court and others can contact you. If you got a Complaint, its Answer instructions say you generally have twenty days to file your Answer once you've received the complaint, and it says the court might decide the case without you if you don't file an Answer when you're required to. It also says Answers are not usually filed in small claims court or family court. This tool can fill out the Answer too: choose \"I'm being sued and need to respond to the complaint.\"",
     links: [SOURCES.answerInstructions, SOURCES.answerTopic, SOURCES.respond] });
 
-  const typeNote = caseLetters(a) === "SC" ? " Your case type is SC (small claims), where Answers are not usually filed."
-    : caseLetters(a) === "EV" ? " Your case type is EV (eviction): if your case is in small claims court, Answers are not usually filed there."
-    : FAMILY_CASES[caseLetters(a)] ? ` Your case type is ${caseLetters(a)} (${FAMILY_CASES[caseLetters(a)]}), and Answers are not usually filed in family court.` : "";
+  const typeNote = caseLetters(a) === "SC" ? " Your case type is SC (small claims), and Indiana Legal Help says Answers are not usually filed there."
+    : caseLetters(a) === "EV" ? " Your case type is EV (eviction), and Indiana Legal Help says that if your case is in small claims court, Answers are not usually filed there."
+    : FAMILY_CASES[caseLetters(a)] ? ` Your case type is ${caseLetters(a)} (${FAMILY_CASES[caseLetters(a)]}), and Indiana Legal Help says Answers are not usually filed in family court.` : "";
   if (key === "respond") out.push({
     title: "Check your deadline",
-    short: `You generally have twenty days from receiving the complaint to file your Answer.${typeNote}`,
+    short: `Indiana Legal Help says you generally have twenty days from receiving the complaint to file your Answer.${typeNote}`,
     body: `Indiana Legal Help's Answer instructions say you generally have twenty days to file your Answer once you've received the complaint. Indiana Legal Help also says the court might decide the case without you if you don't file an Answer when you're required to.${
       caseLetters(a) === "SC" ? " Your case type is SC (small claims). Indiana Legal Help says Answers are not usually filed in small claims court."
       : caseLetters(a) === "EV" ? " Your case type is EV (eviction). If your case is in small claims court, Indiana Legal Help says Answers are not usually filed there."
@@ -192,20 +192,20 @@ function nextSteps(key, a) {
   if (key === "continuance") out.push({
     title: "Your court date stays the same until the judge signs an order",
     short: hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed: check it against your papers.`
-      : `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Only an order signed by the judge can change it, so plan to be in court until one does.`,
+      : `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change it.`,
     body: `${hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed. Check it against your papers. ` : a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
     links: [SOURCES.newDate, SOURCES.contInstructions, SOURCES.mycase] });
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
-    short: "The fee to start a civil case is $157, or $185 with sheriff service. This asks the judge to let you file without paying it up front, or to pay only part of it.",
+    short: "Indiana Legal Help says the fee to start a civil case is $157, or $185 with sheriff service. This asks the judge to let you file without paying it up front, or to pay only part of it.",
     body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order is the judge's decision on your request: its instructions have you fill in only the top section and your name and address. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
     links: [SOURCES.feeFaq, SOURCES.feeWaiverInstructions, SOURCES.inPerson] });
 
   // 2. Signing.
   if (!efile && !paper) out.push({
     title: "Signing",
-    short: "If you e-file, the forms are signed \"/s/\" and your name. If you file at the courthouse, print them and sign by hand.",
+    short: "If you e-file, this tool signs the forms \"/s/\" and your name. If you file at the courthouse, Indiana Legal Help says forms must be signed before they are filed.",
     body: `You haven't chosen how you'll file yet. If you e-file, the E-Filing User Guide allows e-filed documents to be signed with "/s/" and your name, and this tool adds that when you choose e-filing. If you file at the courthouse, print the forms and sign ${lines}: Indiana Legal Help says forms must be signed before they are filed.`,
     links: [SOURCES.efileGuide, SOURCES.inPerson] });
   else out.push(efile
@@ -214,7 +214,7 @@ function nextSteps(key, a) {
           ? "Your name is blank, so there's no signature on the form yet. Add your name, and the form will be signed with \"/s/\" and your name, which the E-Filing User Guide allows for e-filed documents."
           : `Your forms are signed with "/s/ ${a.name}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`,
         links: [SOURCES.efileGuide] }
-    : { title: "Sign by hand", body: `Print the forms and sign ${lines}. Indiana Legal Help says forms must be signed before they are filed.`, links: [SOURCES.inPerson] });
+    : { title: "Sign by hand", body: `Indiana Legal Help says forms must be signed before they are filed. Filing on paper, ${lines} ${lines === "the signature line" ? "is" : "are"} left for you to sign by hand after you print.`, links: [SOURCES.inPerson] });
 
   // 3. How to file: the e-filing site, or the county clerk's office.
   if (mayEfile) {
@@ -233,9 +233,9 @@ function nextSteps(key, a) {
   }
   if (mayPaper) {
     out.push({ title: paper ? "File at the courthouse" : "If you file at the courthouse",
-      short: !clerk ? "Bring the forms to the court where they need to be filed, and ask first how many copies to bring."
-        : clerk.mailing ? `Bring the forms to the court where they need to be filed. You can call the ${a.county} County Clerk's Office at ${clerk.phone}.`
-        : `Bring the forms to the court. The directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}.`,
+      short: `Indiana Legal Help says to bring the forms to the court where they need to be filed.${!clerk ? " It says courts differ on how many copies to bring."
+        : clerk.mailing ? ` The court directory lists the ${a.county} County Clerk's Office phone as ${clerk.phone}.`
+        : ` The court directory lists the ${a.county} County Clerk's Office at ${clerk.address.join(", ")}, phone ${clerk.phone}.`}`,
       body: [
         "Indiana Legal Help says to bring the forms to the court where they need to be filed.",
         !clerk ? "" : clerk.mailing
@@ -251,19 +251,19 @@ function nextSteps(key, a) {
   // 4. Fees and the fee waiver option.
   if (key !== "feewaiver") out.push({
     title: "Filing fee",
-    short: "A filing fee is usually charged only when a case starts. If you're asked for one you can't afford, you can ask the court to waive it.",
+    short: "Indiana Legal Help says a filing fee is usually charged only when a case starts, and that a fee waiver asks the court not to charge a fee you can't afford.",
     body: `Indiana Legal Help says a filing fee is generally charged only when a case is started, so it is not usually charged every time a document is filed. If you're asked to pay a fee you can't afford, Indiana Legal Help says a filing fee waiver asks the court to waive (not charge) the fee because you cannot afford to pay it, and its filing fee page points to the fee waiver instructions and form on its "How to File Forms with the Court in Person" page (family law cases have their own form).${mayEfile ? " If you e-file, the E-Filing User Guide says you should set up a waiver payment account with your e-filing provider, and that using it for filings that have no fee, like most appellate filings, and in cases where you've been granted pauper status (fees waived) helps make sure fees aren't charged when they aren't due." : ""}`,
     links: [SOURCES.feeFaq, SOURCES.inPerson, ...(mayEfile ? [SOURCES.efileGuide, SOURCES.waiverAccount] : [])] });
 
   // 5. Serving the other side.
   if (key === "feewaiver") out.push({
     title: "Serving the other side",
-    short: "The fee waiver forms need no service, but the forms that start your case do. Call the clerk or court first to ask about your options and what they cost.",
+    short: "The fee waiver forms say there is no other party to serve. For the forms that start your case, Indiana Legal Help says to ask the clerk or court about the options and what they cost.",
     body: `The fee waiver forms themselves say there is no other party to serve. The forms that start your case are different: Indiana Legal Help's Service FAQ says that when a court case begins, it's important for both sides to know about it and receive official forms, which is called service of process. It says to call the clerk or court first and ask what your service options are and what each one costs. For when you know the person's address, it describes sheriff service, certified mail sent by the clerk, and a private process server, and it also covers what to do if you don't know the address. Indiana Legal Help says the fee to start a case with sheriff service is $185.${mayEfile ? " If you e-file, the E-Filing User Guide says to follow Trial Rule 86(B)(2) when serving a filing that starts a case. That rule says you also file completed summonses designating the manner of service, and that you are responsible for service of process, except that when fees and court costs are waived and the clerk has received the required notice that you are entitled to the waiver, the clerk serves the complaint and summonses." : ""}`,
     links: [SOURCES.serviceFaq, SOURCES.feeFaq, ...(mayEfile ? [SOURCES.efileGuide, SOURCES.tr86] : [])] });
   else out.push({
     title: "Send a copy to the other side",
-    short: "You must give a copy of every form you file to everyone else in the case. The Certificate of Service on your form says who, how and when.",
+    short: "Indiana Legal Help says you must give a copy of every form you file to everyone else in the case. The Certificate of Service on your form says who, how and when.",
     body: `Indiana Legal Help's instructions say you are required to give a copy of every form you file to every other person involved in the case. They list three ways: First Class U.S. mail (which they describe as paying to have the clerk send the forms by certified mail), Hand Delivery (paying a sheriff or private company to deliver them), and Indiana's E-Filing System. Indiana Legal Help's Service FAQ, for a case that is already open, also describes First Class U.S. Mail as putting the forms in an envelope with enough stamps, and lists sheriff service, certified mail and a private process server. The Certificate of Service on your form lists who you're sending a copy to, how and when.${mayEfile ? " If you e-file, the E-Filing User Guide says that when you e-file, you must serve electronically any party or attorney who has a service contact listed in the case or on the Public Service List, and that self-represented litigants who haven't attached themselves as a service contact must be served conventionally." : ""}`,
     links: [key === "continuance" ? SOURCES.contInstructions : SOURCES.answerInstructions, SOURCES.serviceFaq, ...(mayEfile ? [SOURCES.efileGuide] : [])] });
 
@@ -297,16 +297,29 @@ function nextSteps(key, a) {
   const defaultFact = notSmallClaims ? "" : `${ifSC}, Small Claims Rule 10(B) says that if the defendant (the person being sued) fails to appear at the time and place on the notice of claim, or on a continued date, "the court may enter a default judgment against him." The Small Claims Manual defines that as a decision for the plaintiff when the defendant fails to appear in court. So if that's you, missing court can mean losing without the court hearing your side.${marionNote}`;
   const dismissText = `${ifSC}, the Small Claims Manual says that if the plaintiff (the person suing) fails to appear, the court may dismiss the claim without prejudice, which means the plaintiff can refile by paying another filing fee, and that a second failure to appear may mean it is dismissed with prejudice, which prevents further action in the case. Small Claims Rule 10(A) adds that if a counterclaim has been filed (a claim back against the person suing), "the court may grant judgment for the defendant" after first making an inquiry, so you could lose on that claim without the court hearing your side.${marionNote}`;
   const dismissFact = notSmallClaims ? "" : dismissText;
+  // What missing a hearing can mean, in the one-line steps, only as far as the sources go: Indiana Legal Help's Eviction
+  // FAQ for evictions, Small Claims Rule 10(B) and the Small Claims Manual for small claims. Elsewhere the rules don't
+  // name missing a hearing, and the line says so. None of them says it's automatic: the court "can" or "may".
+  const missLine = notCivil ? "You can ask free legal help what missing a hearing could mean for your case."
+    : eviction === true ? "Indiana Legal Help says that if you don't show up to your hearing, the court can rule against you without hearing your side."
+    : smallClaims ? "In small claims court, Small Claims Rule 10(B) says the court may enter a default judgment against a defendant who doesn't appear."
+    : !notSmallClaims ? "In an eviction or small claims case, the official sources say missing it can mean losing without the court hearing your side."
+    : "The court rules this tool cites don't name missing a hearing for your kind of case. More has what they do say.";
+  // For the person who started the case.
+  const starterLine = notCivil ? "You can ask free legal help what missing a hearing could mean for your case."
+    : smallClaims ? "In small claims court, the Small Claims Manual says the court may dismiss the claim if the person who started it doesn't appear."
+    : notSmallClaims ? "The court rules this tool cites don't name missing a hearing for the person who started a case. More has what they do say."
+    : "In small claims court, the Small Claims Manual says the court may dismiss the claim if the person who started it doesn't appear. More has the rules for other courts.";
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
-    short: hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed: check your papers or mycase.in.gov for the next one.`
-      : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. Only an order signed by the judge can change it, so plan to be there.`
-      : "Check your papers or mycase.in.gov for your court date. Only an order signed by the judge can change it.",
+    short: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. The next one is on your papers or at mycase.in.gov.`
+      : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. Indiana Legal Help says only an order signed by the judge can change it.`
+      : "Your court date is on your papers or at mycase.in.gov."} ${missLine}`,
     body: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. Check your papers for your next court date, or look it up at mycase.in.gov. ` : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
     links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? scLinks : [])] });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
-    short: "What can happen if you miss court depends on your kind of case.",
+    short: a.role === "me" ? starterLine : missLine,
     // The person who started the case: the eviction sentence is about the other side, so it never applies here.
     body: a.role === "me" ? [dismissFact, starterFact].filter(Boolean).join(" ") : [missFact, defaultFact, noSourceFact].filter(Boolean).join(" "),
     links: [...(a.role === "me" ? (starterFact ? [...(notCivil ? [] : [SOURCES.tr41, SOURCES.tr55]), SOURCES.courtStaff, SOURCES.getHelp] : []) : missLinks), ...(defaultFact ? scLinks : [])] });
@@ -318,7 +331,7 @@ function nextSteps(key, a) {
     links: [SOURCES.sc4, SOURCES.getHelp] });
   if (key === "feewaiver") out.push({
     title: "If the court sets a hearing",
-    short: "What can happen if you miss a hearing depends on your kind of case.",
+    short: starterLine,
     body: `${dismissText} In other kinds of cases, ${starterRule}`,
     links: [...scLinks, SOURCES.tr41, SOURCES.tr55, SOURCES.courtStaff, SOURCES.getHelp] });
 
@@ -327,11 +340,11 @@ function nextSteps(key, a) {
   // case the person started.
   if (key === "respond" || key === "appearance" || (key === "continuance" && a.role !== "me")) out.push({
     title: "If the court decides you owe money",
-    short: "You can't be jailed just for not paying a judgment debt, but if you're ordered to a hearing about your income or property, you must go, even if you have none.",
+    short: "Indiana Legal Services says a court can't jail you for not paying a judgment debt, but that you must go to a hearing about your income or property if ordered to, even if you have none.",
     body: "Indiana Legal Help says: \"Wage garnishment is when money is taken directly from your paycheck to pay a debt you owe.\" It has a form to ask the court to lower your wage garnishment if it's causing financial hardship. Indiana Legal Services, a nonprofit law firm that gives free civil legal help to eligible low-income people, says proceedings supplemental hearings are held after a court has granted a money judgment against you, to find out if you have any income or property that can be taken to pay it. It says you must go to court if you get an order to appear, even if you have no income or property. It says that if you are notified of the hearing and don't go, the party who was awarded the judgment (the judgment creditor) can ask the court to set a \"rule to show cause\" hearing, where you are ordered to explain why you missed it, and if you also miss that one, the court may issue a warrant for your arrest (called a writ or body attachment). It also says a court may not put you in jail or punish you in any other way for not paying on a judgment debt. The Small Claims Manual also says that if a debtor served with notice of this hearing doesn't attend, the court may set a show cause hearing, and it defines a body attachment as an order of arrest issued when a party doesn't appear at that hearing.",
     links: [SOURCES.proSup, SOURCES.smallClaims, SOURCES.debt, SOURCES.garnishment] });
 
-  out.push({ title: "Get free help", short: "Find free and low-cost legal help near you by ZIP code or county.", body: `Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. ${HELP_DESK}`, links: [SOURCES.getHelp, SOURCES.helpDesk] });
+  out.push({ title: "Get free help", short: "Indiana Legal Help's site lets you find free and low-cost legal help near you by ZIP code or county.", body: `Indiana Legal Help's site lets you find free and low-cost legal help near you by entering your ZIP code or county. ${HELP_DESK}`, links: [SOURCES.getHelp, SOURCES.helpDesk] });
   return out;
 }
 
