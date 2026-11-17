@@ -597,11 +597,11 @@ describe("Fix 10: \"More free help\" at the bottom is one line until opened", ()
     assert.equal(h[0], false); assert.ok(h[1] <= 50, `${h[1]} pixels tall`);
     await pick(p, "appearance"); assert.equal(await p.$eval("#footHelp", d => d.open), false);
   });
-  test("opened, it lists the same five places as Get help", async () => {
+  test("opened, it lists the same places as Get help", async () => {
     await reset(p);
     await p.click("#footHelp > summary");
     const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = await p.$$eval("#helpPanel a", a => a.map(x => x.href));
-    assert.equal(foot.length, 5);
+    assert.equal(foot.length, 6);
     assert.deepEqual([...foot].sort(), [...panel].sort());
   });
   test("edge: with JavaScript off, it still opens, and the page says where to find it", async () => {
