@@ -149,6 +149,15 @@ p.srcs { font-size: .85rem; }
 ol.steps li { margin: 0 0 1rem; }
 ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }
+/* "More": a closed <details> that opens on tap. */
+details.more { margin: .15rem 0 0; }
+details.more > summary { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: .2rem 0; cursor: pointer; list-style: none; color: var(--accent); font-weight: 700; font-size: .9rem; text-decoration: underline; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::after { content: "›"; display: inline-block; text-decoration: none; transition: transform .15s; }
+details.more[open] > summary::after { transform: rotate(90deg); }
+details.more > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+details.more .morebody { border-left: 3px solid var(--line); padding: .1rem 0 .1rem .8rem; margin: .1rem 0 .4rem; }
+details.more .morebody p:first-child { margin-top: 0; }
 .downloads { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; margin: .5rem 0 1rem; }
 .downloads button { width: 100%; }
 .where { margin-top: 1rem; }
@@ -220,6 +229,7 @@ ol.rail li.current .rail-ic { background: var(--accent); color: var(--accent-ink
 
 @media (max-width: 440px) { .logo { display: none; } } /* keeps the name and Get help on one line on a phone */
 @media (prefers-reduced-motion: reduce) {
+  details.more > summary::after { transition: none; }
   .pick { transition: none; }
   .pick:hover { transform: none; }
   .bar > span { transition: none; }

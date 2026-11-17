@@ -49,6 +49,9 @@ function keepFocus(redraw) {
       const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `${box}${attr === "href" ? "a" : ""}[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
       const i = [...app.querySelectorAll(sel)].indexOf(el);
       find = () => app.querySelectorAll(sel)[i];
+    } else if (el.matches("details[data-more] > summary")) {
+      const key = el.parentElement.dataset.more;
+      find = () => app.querySelector(`details[data-more="${CSS.escape(key)}"] > summary`);
     } else if (el.matches("h1, .status")) find = () => app.querySelector(el.matches("h1") ? "h1" : ".status");
   }
   const anchor = el && el !== document.body && app.contains(el) ? el : null;

@@ -43,4 +43,17 @@ const FAMILY_CASES = { DC: "Domestic Relations with Children", DN: "Domestic Rel
 const NOT_CIVIL_CASES = new Set("CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV".split(" ")); // Administrative Rule 8's criminal, infraction and ordinance case types
 const CASE_CODES = new Set("AD CC CE CP CT DC DN DR EV GV MF MH MI PC PL PO RA RF RS TP TS XP CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV JC JD JM JP JQ JS JT EM ES EU GM GU TR SC CB".split(" "));
 const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0");
+// "More": extra detail that starts closed and opens on tap. A real <details>, so keyboards and screen readers can use it.
+// With a key, it stays open when the page redraws (the summary does, when its PDF check finishes).
+const openMore = new Set();
+function moreHtml(inner, label = "More", key = "") {
+  // The one on the page now, if any, says whether it's open: the toggle event that records it can come a moment later.
+  const now = key && document.querySelector(`details.more[data-more="${CSS.escape(key)}"]`);
+  const open = key && (now ? now.open : openMore.has(key));
+  return `<details class="more"${key ? ` data-more="${esc(key)}"` : ""}${open ? " open" : ""}><summary>${esc(label)}</summary><div class="morebody">${inner}</div></details>`;
+}
+document.addEventListener("toggle", e => {
+  const d = e.target;
+  if (d.matches && d.matches("details.more[data-more]")) { if (d.open) openMore.add(d.dataset.more); else openMore.delete(d.dataset.more); }
+}, true);
 window.appParts++;
