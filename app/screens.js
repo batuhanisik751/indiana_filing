@@ -167,13 +167,16 @@ function renderStep() {
   } else if (step.type === "select") {
     input = `<select id="ans" aria-labelledby="q" ${desc}><option value="">Choose a county</option>${step.options.map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
   } else if (step.type === "textarea") {
-    input = `<textarea id="ans" class="${step.short ? "short" : ""}" aria-labelledby="q" ${desc}>${esc(v)}</textarea>`;
+    // Only the person's own mailing address offers the phone's saved address. Not someone else's, and not the
+    // Address Confidentiality Program's substitute, which must not be the home address.
+    input = `<textarea id="ans" class="${step.short ? "short" : ""}" aria-labelledby="q" ${desc} autocomplete="${step.id === "address" ? "street-address" : "off"}">${esc(v)}</textarea>`;
   } else if (step.type === "money") {
     input = `<div class="money"><span aria-hidden="true">$</span><input id="ans" type="text" inputmode="decimal" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="off"></div>`;
   } else if (step.type === "number") {
     input = `<input id="ans" type="text" inputmode="decimal" aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="off">`;
   } else {
-    const ac = { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
+    // The phone's own saved details, for the person's own boxes only: a fax box isn't their phone number.
+    const ac = step.id === "fax" ? "off" : { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
     // Email is a text box with the email keyboard: an email box rewrites accented domains, and they'd print that way.
     input = `<input id="ans" type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"' : ""} aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
   }
