@@ -98,6 +98,10 @@ input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visib
 .takes { display: block; color: var(--muted); font-size: .9rem; }
 .pick .takes { margin-top: .45rem; padding-top: .45rem; border-top: 1px solid var(--line); color: var(--ink); }
 p.takes { margin: -.75rem 0 1.25rem; }
+p.takes + p.takes { margin-top: -.75rem; }
+p.takes button.link { font-size: inherit; padding: .4rem 0; }
+#moreTitle:focus { outline: none; }
+#moreTitle:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .pick:hover { border-color: var(--accent); }
 .pick.more { border-style: dashed; }
 .pick .chev { display: inline-block; margin-left: .3rem; }

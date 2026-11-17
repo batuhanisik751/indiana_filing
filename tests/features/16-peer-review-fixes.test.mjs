@@ -613,3 +613,30 @@ describe("Fix 10: \"More free help\" at the bottom is one line until opened", ()
     await ctx.close();
   });
 });
+
+describe("Fix 11: \"My situation is different\" can be reached from above the cards", () => {
+  test("a line above the cards links to the other choices", async () => {
+    await reset(p);
+    const [link, firstCard] = await p.evaluate(() => [document.getElementById("moreJump").getBoundingClientRect().top, document.querySelector(".pick[data-kind]").getBoundingClientRect().top]);
+    assert.ok(link < firstCard);
+    assert.equal(await p.textContent("#moreJump"), "See other choices");
+  });
+  test("it opens the other choices and moves focus to them", async () => {
+    await reset(p);
+    await p.click("#moreJump");
+    assert.equal(await p.locator("#moreChoices").isVisible(), true);
+    assert.equal(await p.getAttribute("#moreToggle", "aria-expanded"), "true");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "moreTitle");
+  });
+  test("edge: if they're already open, it doesn't close them", async () => {
+    await reset(p);
+    await p.click("#moreToggle"); await p.click("#moreJump");
+    assert.equal(await p.locator("#moreChoices").isVisible(), true);
+  });
+  test("edge: on a phone the line shows without scrolling", async () => {
+    const q = await fresh({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const [bottom, h] = await q.evaluate(() => [document.getElementById("moreJump").getBoundingClientRect().bottom, window.innerHeight]);
+    assert.ok(bottom < h, `${Math.round(bottom)} of ${h}`);
+    await q.context().close();
+  });
+});

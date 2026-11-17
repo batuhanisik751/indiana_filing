@@ -40,13 +40,14 @@ function renderPick(quiet = false) {
         <h1 tabindex="-1">What is your case about?</h1>
         <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
         <p class="takes">Each form is ${takesRange()[0]} to ${takesRange()[1]} questions. Have any court papers you got with you: the court, the case number and the other side's name are on them.</p>
+        <p class="takes">Not listed here, or not sure which fits? <button class="link" id="moreJump" aria-controls="moreChoices">See other choices</button></p>
       </div>
       <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
     </div>
     ${Object.entries(CASE_KINDS).map(([k, c]) => `<button class="pick has-ic" data-kind="${k}"><span class="pick-ic" aria-hidden="true">${icon(KIND_ICONS[k])}</span><strong>${esc(c.pick)}</strong><span>${esc(c.blurb)}</span></button>`).join("")}
     <button class="pick more has-ic" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><span class="pick-ic" aria-hidden="true">${icon("dots")}</span><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Not sure which one fits? Start here. You can also pick a form directly or see other kinds of cases.</span></button>
     <div class="morebox" id="moreChoices" ${pickMore ? "" : "hidden"}>
-      <h2 class="sub">Pick a form directly</h2>
+      <h2 class="sub" id="moreTitle" tabindex="-1">Pick a form directly</h2>
       ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick has-ic" data-k="${k}"><span class="pick-ic" aria-hidden="true">${icon(SITUATION_ICONS[k])}</span><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span>${takesHtml(k)}</button>`).join("")}
       <button class="pick has-ic" id="notSure"><span class="pick-ic" aria-hidden="true">${icon("question")}</span><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
       <h2 class="sub">Other kinds of cases</h2>
@@ -86,6 +87,12 @@ function renderPick(quiet = false) {
   };
   const more = document.getElementById("moreChoices"), toggle = document.getElementById("moreToggle");
   toggle.onclick = () => { pickMore = !pickMore; toggle.setAttribute("aria-expanded", String(pickMore)); more.hidden = !pickMore; };
+  // The same choices as "My situation is different", from above the cards: opened (never closed), shown and focused.
+  document.getElementById("moreJump").onclick = () => {
+    if (!pickMore) toggle.click();
+    const title = document.getElementById("moreTitle");
+    title.scrollIntoView({ block: "start" }); title.focus({ preventScroll: true });
+  };
   document.getElementById("notSure").onclick = () => { mode = "notsure"; render(); };
   app.querySelectorAll(".pick[data-kind]").forEach(b => b.onclick = () => {
     if (sitKey && hasAnswers()) setSortingAside(); // the form's stay until a form is chosen
