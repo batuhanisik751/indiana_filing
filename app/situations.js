@@ -11,6 +11,7 @@ const SITUATIONS = {
     pick: "I'm being sued and need to respond to the complaint",
     blurb: "Fills the official Appearance and Answer forms. Indiana Legal Help says Answers are not usually filed in small claims court.",
     title: "Appearance and Answer",
+    bring: "Have the Complaint you received: the Answer goes through its numbered paragraphs.",
     sections: ["Your case", "About you", "How the court reaches you", "Your answer", "Sending a copy", "Signing"],
     steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...answerSteps(3), ...serviceSteps(4), ...signSteps(5, SIGN_HELP.court)],
     official: { packet: "answerPacket", docs: ["appearance", "answer"], page: LINKS.answerTopic },
@@ -21,6 +22,7 @@ const SITUATIONS = {
     pick: "I'm being sued and want to tell the court I'm representing myself",
     blurb: "Fills the official Appearance form, which gives the court and the other side your contact information.",
     title: "Appearance",
+    bring: "Have the court papers you received.",
     sections: ["Your case", "About you", "How the court reaches you", "Sending a copy", "Signing"],
     steps: () => [...caseSteps(0), ...youSteps(1), ...contactSteps(2), ...serviceSteps(3), ...signSteps(4, SIGN_HELP.court)],
     official: { packet: "answerPacket", docs: ["appearance"], page: LINKS.answerTopic, // this Appearance comes from the Answer packet (see forms/README.md)
@@ -32,6 +34,7 @@ const SITUATIONS = {
     pick: "I'm starting a case and can't afford the filing fee",
     blurb: "Fills the official fee waiver forms. Indiana Legal Help says filing fees are generally charged only when a case is started. Not for family law cases, which have their own form.",
     title: "Fee waiver",
+    bring: "Have your household's monthly income and expenses, and how much you have in the bank.",
     sections: ["Your case", "About you", "Your household", "Income", "Expenses", "Signing"],
     steps: () => [...fwCaseSteps(0), ...fwYouSteps(1), ...fwHouseholdSteps(2), ...fwIncomeSteps(3), ...fwExpenseSteps(4), ...signSteps(5, SIGN_HELP.feewaiver)],
     official: { packet: "feeWaiverPacket", docs: ["appearance", "motion", "order"], page: LINKS.fileInPerson },
@@ -42,6 +45,7 @@ const SITUATIONS = {
     pick: "I need to ask the court to move my hearing date",
     blurb: "Fills the official Appearance and Verified Motion for Continuance, plus the Order the judge signs if the request is granted.",
     title: "Continuance",
+    bring: "Have the papers with your hearing date and case number.",
     sections: ["Your case", "About you", "How the court reaches you", "Your request", "Sending a copy", "Signing"],
     steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp, contRelatedMore), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp, { href: LINKS.continuanceInstructions, text: "Read the full definitions (page 3 of the continuance instructions)" }), ...signSteps(5, SIGN_HELP.court)],
     official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"], page: LINKS.continuance },
@@ -50,4 +54,8 @@ const SITUATIONS = {
     reminders: ["Indiana Legal Help says asking does not change your court date by itself: only an order signed by the judge can change a court date or time."],
   },
 };
+// What starting a form takes: the questions it starts with (some answers add a few), and what to have with you.
+const questionCount = key => SITUATIONS[key].steps().filter(s => !s.showIf || s.showIf({})).length;
+const takesHtml = key => `<small class="takes">About ${questionCount(key)} questions. ${esc(SITUATIONS[key].bring)}</small>`;
+const takesRange = () => { const n = Object.keys(SITUATIONS).map(questionCount); return [Math.min(...n), Math.max(...n)]; };
 window.appParts++;

@@ -190,7 +190,7 @@ function renderTriage() {
     <ul class="facts">${r.facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
     <p class="srcs">${r.sources.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}</p>
     ${r.choices.length ? `<h2 class="sub">Choose what you want to do</h2>
-      ${r.choices.map(([k, label, blurb]) => `<button class="pick" data-start="${k}"><strong>${esc(label)}</strong><span>${esc(blurb)}</span></button>`).join("")}` : ""}
+      ${r.choices.map(([k, label, blurb]) => `<button class="pick" data-start="${k}"><strong>${esc(label)}</strong><span>${esc(blurb)}</span>${takesHtml(k)}</button>`).join("")}` : ""}
     ${r.papers ? `<h2 class="sub">Found the title?</h2>
       ${r.papers.map(([k, label]) => `<button class="pick" data-paper="${k}"><strong>${esc(label)}</strong></button>`).join("")}
       <button class="pick" id="allChoices"><strong>See all the choices</strong><span>Go back to the first screen.</span></button>` : ""}

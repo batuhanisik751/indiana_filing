@@ -39,6 +39,7 @@ function renderPick(quiet = false) {
       <div class="hero-text">
         <h1 tabindex="-1">What is your case about?</h1>
         <p class="help">Pick the one that fits. We'll ask about your papers, show which official forms fit, then fill them in one question at a time.</p>
+        <p class="takes">Each form is ${takesRange()[0]} to ${takesRange()[1]} questions. Have any court papers you got with you: the court, the case number and the other side's name are on them.</p>
       </div>
       <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
     </div>
@@ -46,7 +47,7 @@ function renderPick(quiet = false) {
     <button class="pick more has-ic" id="moreToggle" aria-expanded="${pickMore}" aria-controls="moreChoices"><span class="pick-ic" aria-hidden="true">${icon("dots")}</span><strong>My situation is different<span class="chev" aria-hidden="true">›</span></strong><span>Not sure which one fits? Start here. You can also pick a form directly or see other kinds of cases.</span></button>
     <div class="morebox" id="moreChoices" ${pickMore ? "" : "hidden"}>
       <h2 class="sub">Pick a form directly</h2>
-      ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick has-ic" data-k="${k}"><span class="pick-ic" aria-hidden="true">${icon(SITUATION_ICONS[k])}</span><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span></button>`).join("")}
+      ${Object.entries(SITUATIONS).map(([k, s]) => `<button class="pick has-ic" data-k="${k}"><span class="pick-ic" aria-hidden="true">${icon(SITUATION_ICONS[k])}</span><strong>${esc(s.pick)}</strong><span>${esc(s.blurb)}</span>${takesHtml(k)}</button>`).join("")}
       <button class="pick has-ic" id="notSure"><span class="pick-ic" aria-hidden="true">${icon("question")}</span><strong>I'm not sure which one fits</strong><span>See which choice matches the papers you have, or find help.</span></button>
       <h2 class="sub">Other kinds of cases</h2>
       <p class="help">This tool can't fill these forms yet. Indiana Legal Help's pages have the official forms and instructions. For protection orders, the Indiana courts' page says trained advocates can help prepare and file a request.</p>

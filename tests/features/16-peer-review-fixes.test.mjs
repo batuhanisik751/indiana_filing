@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, step, pick, walk, jump } from "../lib.mjs";
+import { fresh, close, inject, step, pick, walk, jump, reset } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -326,5 +326,46 @@ describe("Fix 5: Enlarge shows a page of the form at full width", () => {
     assert.match(await p.textContent("#pvTitle"), /Appearance .*page \d+ of \d+, with the place for this answer highlighted/);
     await p.click("#pvClose");
     assert.equal(await p.evaluate(() => document.activeElement.id), "whereBig");
+  });
+});
+
+describe("Fix 6: it says up front how many questions a form has and what to have with you", () => {
+  const counts = () => p.evaluate(() => Object.fromEntries(Object.keys(SITUATIONS).map(k => [k, questionCount(k)])));
+  test("the first screen gives the range of questions and says to have any court papers with you", async () => {
+    await reset(p);
+    const n = Object.values(await counts());
+    assert.equal(await p.textContent(".hero p.takes"), `Each form is ${Math.min(...n)} to ${Math.max(...n)} questions. Have any court papers you got with you: the court, the case number and the other side's name are on them.`);
+  });
+  test("each form's card says about how many questions it has and what to have with you", async () => {
+    await reset(p); await p.click("#moreToggle");
+    const c = await counts();
+    for (const k of Object.keys(c)) assert.match(await p.textContent(`.pick[data-k="${k}"] .takes`), new RegExp(`^About ${c[k]} questions\\. Have `), k);
+  });
+  test("the forms offered after the sorting questions say the same", async () => {
+    await reset(p);
+    await p.click('.pick[data-kind="debt"]');
+    await p.locator('input[name=ans][value="complaint"]').check({ force: true }); await p.click("#next");
+    assert.equal(await p.textContent('[data-start="respond"] .takes'), `About ${(await counts()).respond} questions. Have the Complaint you received: the Answer goes through its numbered paragraphs.`);
+  });
+  test("edge: the count is what each form really starts with", async () => {
+    for (const [k, n] of Object.entries(await counts())) {
+      await reset(p); await pick(p, k);
+      assert.equal((await p.textContent(".barlabel")).match(/of (\d+)/)[1], String(n), k);
+    }
+  });
+  test("edge: the fee waiver asks for income and expenses, not court papers", async () => {
+    await reset(p); await p.click("#moreToggle");
+    const t = await p.textContent('.pick[data-k="feewaiver"] .takes');
+    assert.match(t, /monthly income and expenses/); assert.doesNotMatch(t, /court papers|Complaint/);
+  });
+  test("edge: the line fits the card's layout on a phone and a laptop", async () => {
+    for (const width of [390, 1280]) {
+      const q = await fresh({ viewport: { width, height: 900 } });
+      await q.click("#moreToggle");
+      const [card, line] = await q.evaluate(() => { const b = document.querySelector('.pick[data-k="respond"]'); return [b.getBoundingClientRect(), b.querySelector(".takes").getBoundingClientRect()].map(r => [r.left, r.right]); });
+      assert.ok(line[0] >= card[0] && line[1] <= card[1] + 0.5, `${width}: ${line} inside ${card}`);
+      assert.equal(await q.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${width}: no sideways scroll`);
+      await q.context().close();
+    }
   });
 });

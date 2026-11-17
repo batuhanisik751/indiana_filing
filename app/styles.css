@@ -91,6 +91,10 @@ input:not([type=radio]):not([type=checkbox]):focus-visible, textarea:focus-visib
 .pick { display: block; width: 100%; text-align: left; background: var(--surface); color: var(--ink); border: 2px solid var(--edge); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: .75rem; font-weight: 400; }
 .pick strong { display: block; font-size: 1.1rem; }
 .pick span { color: var(--muted); font-size: .95rem; }
+/* How many questions a form has, and what to have with you. */
+.takes { display: block; color: var(--muted); font-size: .9rem; }
+.pick .takes { margin-top: .45rem; padding-top: .45rem; border-top: 1px solid var(--line); color: var(--ink); }
+p.takes { margin: -.75rem 0 1.25rem; }
 .pick:hover { border-color: var(--accent); }
 .pick.more { border-style: dashed; }
 .pick .chev { display: inline-block; margin-left: .3rem; }
@@ -220,7 +224,7 @@ ol.steps li::marker { color: var(--accent); font-weight: 700; }
 
 /* A choice with a picture: the picture on the left, or on top in the wide grid. */
 .pick.has-ic { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .9rem; align-items: start; }
-.pick.has-ic > strong, .pick.has-ic > span:not(.pick-ic) { grid-column: 2; }
+.pick.has-ic > strong, .pick.has-ic > span:not(.pick-ic), .pick.has-ic > .takes { grid-column: 2; }
 .pick .pick-ic { grid-column: 1; grid-row: 1 / span 2; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
 
 /* The first screen's drawing. */
@@ -283,7 +287,7 @@ ol.rail li.current .rail-ic { background: var(--accent); color: var(--accent-ink
   #app[data-screen="pick"] > *, .morebox > * { grid-column: 1 / -1; }
   #app[data-screen="pick"] > .pick, .morebox > .pick { grid-column: auto; margin: 0; }
   .pick.has-ic { grid-template-columns: minmax(0, 1fr); padding: 1.25rem 1.3rem; }
-  .pick.has-ic > strong, .pick.has-ic > span:not(.pick-ic) { grid-column: 1; }
+  .pick.has-ic > strong, .pick.has-ic > span:not(.pick-ic), .pick.has-ic > .takes { grid-column: 1; }
   .pick .pick-ic { grid-row: auto; margin-bottom: .9rem; width: 3rem; height: 3rem; }
   .morebox { margin: 0; }
   .morebox h2.sub:first-child { margin-top: 1rem; }
