@@ -43,7 +43,7 @@ const SITUATIONS = {
     blurb: "Fills the official Appearance and Verified Motion for Continuance, plus the Order the judge signs if the request is granted.",
     title: "Continuance",
     sections: ["Your case", "About you", "How the court reaches you", "Your request", "Sending a copy", "Signing"],
-    steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp, { href: LINKS.continuanceInstructions, text: "Read the full definitions (page 3 of the continuance instructions)" }), ...signSteps(5, SIGN_HELP.court)],
+    steps: () => [...contCaseSteps(0), ...youSteps(1), ...contactSteps(2, contRelatedHelp, contRelatedMore), ...contRequestSteps(3), ...serviceSteps(4, contServiceHelp, { href: LINKS.continuanceInstructions, text: "Read the full definitions (page 3 of the continuance instructions)" }), ...signSteps(5, SIGN_HELP.court)],
     official: { packet: "continuancePacket", docs: ["appearance", "motion", "order"], page: LINKS.continuance },
     formNumbers: { [FORM.appearance]: "CCA-GF-1219-3000" },
     fields: a => [...contCaptionFields(a), ...contAppearanceFields(a), ...contMotionFields(a), ...contServiceFields(a), ...contOrderFields(a), ...signatureFields(a, "continuance")],

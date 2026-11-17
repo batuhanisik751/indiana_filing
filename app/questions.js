@@ -27,7 +27,8 @@ const caseSteps = sec => [
     help: "The official form asks for the two letters in your case number that show the case type, like CC (civil collection) or PL (civil plenary). We fill this in for you when the case number is complete." },
   { id: "courtDate", sec, type: "date", label: "Your next court date", optional: true,
     q: "When is your next court date, if you have one?",
-    help: "It's on your court papers, or you can look it up at mycase.in.gov. Indiana's court staff page says staff can also tell you when your next hearing is. It doesn't go on the form; it goes in your next steps. Leave this blank if you don't have one yet." },
+    help: "It's on your court papers, or you can look it up at mycase.in.gov. Leave this blank if you don't have one yet.",
+    more: "Indiana's court staff page says staff can also tell you when your next hearing is. It doesn't go on the form; it goes in your next steps." },
   { id: "plaintiff", sec, type: "text", label: "Plaintiff",
     q: "Who is suing you?",
     help: "This is the plaintiff: the person or company that started the case. Copy the name exactly as it appears on your papers." },
@@ -62,16 +63,18 @@ const youSteps = sec => [
     help: "Leave this blank if you don't have one." },
 ];
 
-const relatedHelp = "Indiana Legal Help's Answer instructions say related cases can be other cases with the same parties. In a debt case, this might be a case about the same debt, like a small claims case, a bankruptcy case, or a divorce case where the debt was assigned to one of the parties. In an eviction case, it might be a separate case about damages owed.";
+// A question's "more" is background or examples, behind a "More" button. Instructions and warnings stay in its help.
+const relatedHelp = "Indiana Legal Help's Answer instructions say related cases can be other cases with the same parties.";
+const relatedMore = "In a debt case, this might be a case about the same debt, like a small claims case, a bankruptcy case, or a divorce case where the debt was assigned to one of the parties. In an eviction case, it might be a separate case about damages owed.";
 
-const contactSteps = (sec, relHelp = relatedHelp) => [
+const contactSteps = (sec, relHelp = relatedHelp, relMore = relatedMore) => [
   { id: "receiveAt", sec, type: "choice", label: "Where you want court papers",
     q: "Where do you want to receive court papers and case information?",
     help: "Pick one. The form says the Attorney General confidential address is only an option if you have used it in another court case.",
     options: [["Choice1", "At my street address"], ["Choice2", "At my email address"], ["Choice3", "At the Attorney General confidential address"]] },
   { id: "related", sec, type: "choice", label: "Related cases",
     q: "Are there other court cases related to this one?",
-    help: relHelp,
+    help: relHelp, more: relMore,
     options: [["yes", "Yes"], ["no", "No"]] },
   { id: "relatedNumbers", sec, type: "text", label: "Related case numbers", upper: true,
     showIf: a => a.related === "yes",
@@ -196,7 +199,7 @@ const fwYouSteps = sec => {
     { ...base.fax, showIf: contact, noWords: true },
     { id: "related", sec, type: "choice", label: "Related cases",
       q: "Are there other court cases related to this one?",
-      help: "The form asks whether there are other cases related to this case. " + relatedHelp,
+      help: "The form asks whether there are other cases related to this case. " + relatedHelp, more: relatedMore,
       options: [["yes", "Yes"], ["no", "No"]] },
     ...[1, 2, 3].flatMap(i => [
       { id: `rel${i}Caption`, sec, type: "text", label: `Related case ${i} caption`, optional: i > 1,
@@ -271,11 +274,12 @@ const fwExpenseSteps = sec => [
 ];
 
 // Continuance packet (to ask the court to move a hearing).
-const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties. For example, in an eviction case there might be a separate case about damages owed.";
-const CONT_COURT_NOTE = " Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, while the top of the form says to fill out that section to match the other court forms filed in your case. This question is optional.";
+const contRelatedHelp = "Indiana Legal Help's continuance instructions say related cases can be other cases with the same parties.";
+const contRelatedMore = "For example, in an eviction case there might be a separate case about damages owed.";
+const CONT_COURT_MORE = "Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, while the top of the form says to fill out that section to match the other court forms filed in your case.";
 const contCaseSteps = sec => [
   ...caseSteps(sec).filter(s => s.id !== "plaintiff" && s.id !== "courtDate")
-    .map(s => ["courtType", "courtTypeOther", "caseNumber"].includes(s.id) ? { ...s, optional: true, help: s.help + CONT_COURT_NOTE }
+    .map(s => ["courtType", "courtTypeOther", "caseNumber"].includes(s.id) ? { ...s, optional: true, help: `${s.help} This question is optional.`, more: CONT_COURT_MORE }
       : s.id === "caseTypeLetters" ? { ...s, optional: true } : s),
   { id: "role", sec, type: "choice", label: "Who started the case",
     q: "Who started this case?",

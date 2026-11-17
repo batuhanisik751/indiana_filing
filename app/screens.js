@@ -148,7 +148,7 @@ function renderStep() {
   // A reload kept this choice but not what it protects, and Cancel can only put the choice back.
   const goneHere = returnToSummary && reloadedEdit === step.id && answers[step.id] === "yes" && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   let input;
-  const desc = `aria-describedby="qhelp qneed"`;
+  const desc = `aria-describedby="qhelp${step.more ? " qmore" : ""} qneed"`;
   if (step.type === "choice") {
     input = `<div class="choices" role="radiogroup" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
       `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${v === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
@@ -179,6 +179,7 @@ function renderStep() {
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
     <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
     <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
+    ${step.more ? moreHtml(`<p class="help">${esc(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}
     ${input}
     <p class="need" id="qneed">${esc(need)}</p>
     <p class="err" id="err" role="alert"></p>

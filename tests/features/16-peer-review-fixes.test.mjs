@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, step } from "../lib.mjs";
+import { fresh, close, inject, step, pick, walk, jump } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -192,5 +192,63 @@ describe("Fix 3: the two views of the form start closed", () => {
     await p.click("#restart"); // Start over, confirmed
     await inject(p, "appearance");
     assert.equal(await p.locator("details.more.section[open]").count(), 0);
+  });
+});
+
+describe("Fix 4: More opens on tap, or on hover on a computer, and holds background, not instructions", () => {
+  const more = () => p.locator(".qmain details.more").first();
+  const openNow = () => more().evaluate(d => d.open);
+  test("a long explanation keeps its instructions on screen, and its background is behind More", async () => {
+    await inject(p, "continuance"); await jump(p, "caseNumber");
+    assert.equal(await p.textContent("#qhelp"), "Indiana case numbers have four parts, like 49D01-2610-CC-001234. The first two digits are the county number. Copy it exactly from your papers. This question is optional.");
+    assert.equal(await openNow(), false);
+    assert.match(await p.textContent("#qmore"), /court staff will complete the court information and your case number/);
+  });
+  test("edge: nothing that tells people what to do, or warns them, is behind More", async () => {
+    const bad = await p.evaluate(() => ["respond", "appearance", "continuance", "feewaiver"].flatMap(f => SITUATIONS[f].steps())
+      .filter(s => s.more && /\b(?:must|need to|have to|don't|do not|won't|warn|lose|can't|cannot|leave this|type|copy|enter|only)\b/i.test(s.more)).map(s => s.id));
+    assert.deepEqual([...new Set(bad)], []);
+  });
+  test("screen readers hear the background with the question", async () => {
+    await inject(p, "appearance"); await jump(p, "related");
+    assert.match(await p.getAttribute(".choices[role=radiogroup]", "aria-describedby"), /\bqmore\b/); // a choice's group carries it
+    assert.match(await p.textContent("#qmore"), /In a debt case, this might be a case about the same debt/);
+  });
+  test("on a computer, resting the pointer on More opens it, and moving away closes it", async () => {
+    await inject(p, "appearance"); await jump(p, "related");
+    await more().locator("summary").hover(); await p.waitForTimeout(600);
+    assert.equal(await openNow(), true);
+    await p.mouse.move(5, 5); await p.waitForTimeout(100);
+    assert.equal(await openNow(), false);
+  });
+  test("edge: a quick pass of the pointer doesn't open it", async () => {
+    await inject(p, "appearance"); await jump(p, "related");
+    await more().locator("summary").hover(); await p.waitForTimeout(100); await p.mouse.move(5, 5); await p.waitForTimeout(500);
+    assert.equal(await openNow(), false);
+  });
+  test("edge: a click right after the hover opened it keeps it open, even after the pointer leaves", async () => {
+    await inject(p, "appearance"); await jump(p, "related");
+    await more().locator("summary").hover(); await p.waitForTimeout(600);
+    await more().locator("summary").click(); await p.mouse.move(5, 5); await p.waitForTimeout(100);
+    assert.equal(await openNow(), true);
+    await more().locator("summary").click(); // a second click closes it
+    assert.equal(await openNow(), false);
+  });
+  test("edge: on a phone nothing opens without a tap, and a tap opens it", async () => {
+    const q = await fresh({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await inject(q, "appearance"); await jump(q, "related");
+    const m = q.locator(".qmain details.more").first();
+    await m.locator("summary").hover().catch(() => {}); await q.waitForTimeout(600);
+    assert.equal(await m.evaluate(d => d.open), false);
+    await m.locator("summary").tap();
+    assert.equal(await m.evaluate(d => d.open), true);
+    await q.context().close();
+  });
+  test("edge: a whole section, like the pages of the form, doesn't open on hover", async () => {
+    await inject(p, "respond");
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await p.evaluate(() => { openMore.clear(); document.querySelectorAll("details.more").forEach(d => { d.open = false; }); });
+    await p.locator('details[data-more="preview"] > summary').hover(); await p.waitForTimeout(600);
+    assert.equal(await p.locator('details[data-more="preview"]').evaluate(d => d.open), false);
   });
 });

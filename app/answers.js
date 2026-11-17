@@ -40,7 +40,7 @@ function save(step) {
   const refuse = msg => {
     document.getElementById("err").textContent = msg;
     const box = document.getElementById("ans");
-    box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "err qhelp qneed"); box.focus();
+    box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", `err qhelp${document.getElementById("qmore") ? " qmore" : ""} qneed`); box.focus();
   };
   // A date input reports a half-typed date as empty, which would quietly erase the answer.
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse("This date isn't complete. Enter the month, day and year, or clear the box.");

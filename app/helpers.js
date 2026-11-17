@@ -53,6 +53,29 @@ function moreHtml(inner, label = "More", key = "", opts = {}) {
   const open = key && (now ? now.open : openMore.has(key));
   return `<details class="more${opts.cls ? ` ${opts.cls}` : ""}"${key ? ` data-more="${esc(key)}"` : ""}${open ? " open" : ""}><summary>${opts.summaryHtml || esc(label)}</summary><div class="morebody"${opts.bodyId ? ` id="${opts.bodyId}"` : ""}>${inner}</div></details>`;
 }
+// On a computer, resting the pointer on a small "More" for a moment opens it, and moving away closes it again.
+// A click right after that keeps it open, and so does tabbing into it. A whole section (like the pages of the
+// form) opens only when asked, since it can download things. Phones and keyboards work as before: tap or Enter.
+const hoverMore = window.matchMedia ? matchMedia("(hover: hover) and (pointer: fine)") : null;
+let hoverTimer = null;
+document.addEventListener("pointerover", e => {
+  if (!hoverMore || !hoverMore.matches || e.pointerType !== "mouse") return;
+  const d = e.target.closest && e.target.closest("details.more:not(.section)");
+  if (!d || d.open || d.contains(e.relatedTarget)) return;
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => { if (d.isConnected && !d.open && d.matches(":hover")) { d.dataset.hovered = "1"; d.open = true; } }, 350);
+});
+document.addEventListener("pointerout", e => {
+  const d = e.target.closest && e.target.closest("details.more");
+  if (!d || d.contains(e.relatedTarget)) return;
+  clearTimeout(hoverTimer);
+  if (d.dataset.hovered && !d.contains(document.activeElement)) d.open = false;
+  delete d.dataset.hovered;
+});
+document.addEventListener("click", e => {
+  const d = e.target.closest && e.target.closest("details.more > summary")?.parentElement;
+  if (d && d.dataset.hovered) { e.preventDefault(); delete d.dataset.hovered; } // it opened on hover: this click keeps it open
+}, true);
 document.addEventListener("toggle", e => {
   const d = e.target;
   if (d.matches && d.matches("details.more[data-more]")) { if (d.open) openMore.add(d.dataset.more); else openMore.delete(d.dataset.more); }

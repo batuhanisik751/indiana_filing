@@ -62,6 +62,9 @@ h2.sub { font-size: 1.2rem; margin: 2rem 0 .5rem; }
 p { margin: 0 0 1rem; }
 .help { color: var(--muted); margin: 0 0 1.25rem; }
 .help a { font-weight: 700; }
+/* A question's "More" sits right under its explanation, and the background inside reads as part of it. */
+p.help + details.more { margin: -1rem 0 1rem; }
+details.more .morebody p.help { margin: 0; }
 .need { font-size: .9rem; color: var(--muted); margin: .75rem 0 0; }
 
 /* progress */
