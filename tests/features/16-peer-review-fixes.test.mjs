@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText } from "../lib.mjs";
+import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText, scoreMatchesFlags } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -333,13 +333,16 @@ describe("Fix 6: it says up front how many questions a form has and what to have
   const counts = () => p.evaluate(() => Object.fromEntries(Object.keys(SITUATIONS).map(k => [k, questionCount(k)])));
   test("the first screen gives the range of questions and says to have any court papers with you", async () => {
     await reset(p);
-    const n = Object.values(await counts());
-    assert.equal(await p.textContent(".hero p.takes"), `Each form is ${Math.min(...n)} to ${Math.max(...n)} questions. Have any court papers you got with you: the court, the case number and the other side's name are on them.`);
+    const [lo, hi] = await p.evaluate(() => [Math.min(...Object.keys(SITUATIONS).map(questionMin)), Math.max(...Object.keys(SITUATIONS).map(questionCount))]);
+    assert.equal(await p.textContent(".hero p.takes"), `Each form is ${lo} to ${hi} questions. Have any court papers you got with you: the court, the case number and the other side's name are on them.`);
   });
   test("each form's card says about how many questions it has and what to have with you", async () => {
     await reset(p); await p.click("#moreToggle");
-    const c = await counts();
-    for (const k of Object.keys(c)) assert.match(await p.textContent(`.pick[data-k="${k}"] .takes`), new RegExp(`^About ${c[k]} questions\\. Have `), k);
+    const c = await counts(), min = await p.evaluate(() => Object.fromEntries(Object.keys(SITUATIONS).map(k => [k, questionMin(k)])));
+    for (const k of Object.keys(c)) {
+      const says = min[k] === c[k] ? `About ${c[k]} questions.` : `${min[k]} to ${c[k]} questions, depending on your answers.`;
+      assert.ok((await p.textContent(`.pick[data-k="${k}"] .takes`)).startsWith(`${says} Have `), k);
+    }
   });
   test("the forms offered after the sorting questions say the same", async () => {
     await reset(p);
@@ -434,5 +437,80 @@ describe("Fix 7A: a full case number fills in the county and court, after one co
     assert.equal(await step(p), "caseNumber");
     await p.fill("#ans", "49D01-2611-CC-001234"); await p.click("#back"); // to the first screen, keeping what was typed
     assert.equal(await p.evaluate(() => answers.caseConfirm), undefined);
+  });
+});
+
+describe("Fix 7B: the fee waiver asks which kinds of income and expenses apply, then only those amounts", () => {
+  const INCOME = ["hourlyRate", "unemployment", "tanf", "ssi", "childSupportIn", "otherIncome"];
+  const EXPENSES = ["housing", "utilities", "food", "childCare", "medical", "transportation", "insurance", "childSupportOut", "otherCosts"];
+  const shownOf = ids => p.evaluate(ids => visible().map(s => s.id).filter(id => ids.includes(id)), ids);
+  const row = async label => (await fieldRows(p)).find(([l]) => l.startsWith(label))?.[1];
+  test("only the checked kinds of income are asked", async () => {
+    await reset(p); await pick(p, "feewaiver"); await walk(p, "incomeKinds");
+    await answer(p, "wages,ssi");
+    assert.equal(await step(p), "hourlyRate");
+    assert.deepEqual(await shownOf(INCOME), ["hourlyRate", "ssi"]);
+  });
+  test("only the checked expenses are asked", async () => {
+    await reset(p); await pick(p, "feewaiver"); await walk(p, "expenseKinds");
+    await answer(p, "housing,food");
+    assert.equal(await step(p), "housing");
+    assert.deepEqual(await shownOf(EXPENSES), ["housing", "food"]);
+  });
+  test("None of these prints $0.00 as the sworn total, with no Income or Expenses flag", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "none", expenseKinds: "none" });
+    assert.equal(await row("6. and Total Income"), "$0.00");
+    assert.equal(await row("8. and Total Expenses"), "$0.00");
+    assert.equal(await p.evaluate(() => runChecks().filter(f => ["Income", "Expenses"].includes(f.title)).length), 0);
+    assert.equal(await scoreMatchesFlags(p), true);
+  });
+  test("edge: skipping the list asks every amount, as before", async () => {
+    await reset(p); await pick(p, "feewaiver"); await walk(p, "incomeKinds");
+    await p.click("#next");
+    assert.deepEqual(await shownOf(INCOME), INCOME);
+    await inject(p, "feewaiver", { incomeKinds: "" });
+    assert.equal(await row("6. and Total Income"), "$1,000.00", "12.50 an hour for 80 hours, as before");
+  });
+  test("edge: a checked kind with no amount is flagged Missing, and the score agrees", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "wages,ssi", ssi: "", expenseKinds: "housing", housing: "500" });
+    assert.match((await flagsFor(p, "ssi"))[0] || "", /^missing\|.*\|You said your household gets this, but no amount is entered, so it's left out of Total Income/);
+    assert.equal(await scoreMatchesFlags(p), true);
+  });
+  test("edge: None of these and the other boxes rule each other out", async () => {
+    await reset(p); await pick(p, "feewaiver"); await walk(p, "incomeKinds");
+    const box = v => p.locator(`input[name=ans][value="${v}"]`);
+    await box("wages").check(); await box("none").check();
+    assert.equal(await box("wages").isChecked(), false);
+    await box("ssi").check();
+    assert.equal(await box("none").isChecked(), false);
+    assert.equal(await p.evaluate(() => draft.value), "ssi");
+  });
+  test("edge: unchecking a kind takes its amount off the form and out of the total", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "wages,ssi", ssi: "500" });
+    assert.equal(await row("6. and Total Income"), "$1,500.00");
+    await editAnswer(p, "incomeKinds"); await answer(p, "wages");
+    assert.equal(await step(p), "summary");
+    assert.equal(await row("6. and Total Income"), "$1,000.00");
+    assert.ok(!(await fieldRows(p)).some(([, v]) => v.includes("500")));
+  });
+  test("edge: an edit that checks a new kind asks its amount before going back to the summary", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "wages" });
+    await editAnswer(p, "incomeKinds"); await answer(p, "wages,ssi");
+    assert.equal(await step(p), "ssi");
+    await p.fill("#ans", "300"); await p.click("#next");
+    assert.equal(await step(p), "summary");
+    assert.equal(await row("6. and Total Income"), "$1,300.00");
+  });
+  test("edge: an amount marked I'm not sure still keeps the sworn total blank, and is Missing", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "ssi", ssi: "" }, { ssi: true });
+    assert.match(await row("6. and Total Income"), /Left blank until you answer the questions marked/);
+    assert.match((await flagsFor(p, "ssi"))[0], /^missing\|/);
+    assert.equal(await scoreMatchesFlags(p), true);
+  });
+  test("edge: the summary lists the checked kinds by name, with an Edit link", async () => {
+    await inject(p, "feewaiver", { incomeKinds: "wages,ssi", ssi: "200" });
+    await p.evaluate(() => { document.querySelector('details[data-more="answers"]').open = true; });
+    const r = await p.$$eval("dl.vals > div", ds => ds.filter(d => d.querySelector("dt").textContent === "Kinds of income").map(d => [d.querySelector("dd").textContent, d.querySelector("[data-fix]")?.dataset.fix]));
+    assert.deepEqual(r, [["Wages from work, SSI/SSD benefits", "incomeKinds"]]);
   });
 });

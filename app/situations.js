@@ -55,7 +55,10 @@ const SITUATIONS = {
   },
 };
 // What starting a form takes: the questions it starts with (some answers add a few), and what to have with you.
+// The most is with nothing answered. The fewest is with every "Which of these" list answered "None of these".
 const questionCount = key => SITUATIONS[key].steps().filter(s => !s.showIf || s.showIf({})).length;
-const takesHtml = key => `<small class="takes">About ${questionCount(key)} questions. ${esc(SITUATIONS[key].bring)}</small>`;
-const takesRange = () => { const n = Object.keys(SITUATIONS).map(questionCount); return [Math.min(...n), Math.max(...n)]; };
+const questionMin = key => { const st = SITUATIONS[key].steps(), none = Object.fromEntries(st.filter(s => s.type === "checks").map(s => [s.id, "none"])); return st.filter(s => !s.showIf || s.showIf(none)).length; };
+const questionsText = key => questionMin(key) === questionCount(key) ? `About ${questionCount(key)} questions.` : `${questionMin(key)} to ${questionCount(key)} questions, depending on your answers.`;
+const takesHtml = key => `<small class="takes">${questionsText(key)} ${esc(SITUATIONS[key].bring)}</small>`;
+const takesRange = () => { const k = Object.keys(SITUATIONS); return [Math.min(...k.map(questionMin)), Math.max(...k.map(questionCount))]; };
 window.appParts++;

@@ -150,7 +150,11 @@ function renderStep() {
   const goneHere = returnToSummary && reloadedEdit === step.id && answers[step.id] === "yes" && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   let input;
   const desc = `aria-describedby="qhelp${step.more ? " qmore" : ""} qneed"`;
-  if (step.type === "choice") {
+  if (step.type === "checks") { // check every one that applies
+    const on = String(v).split(",");
+    input = `<div class="choices" role="group" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
+      `<label class="choice"><input type="checkbox" name="ans" value="${esc(val)}" ${on.includes(val) ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
+  } else if (step.type === "choice") {
     input = `<div class="choices" role="radiogroup" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
       `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${v === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
   } else if (step.type === "select") {
@@ -253,9 +257,13 @@ function renderStep() {
   if (other) other.onclick = () => { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; chooseOtherForm(); };
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
-  app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" ? "change" : "input", () => {
+  app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" || i.type === "checkbox" ? "change" : "input", () => {
     if (i.validity?.badInput) return; // a half-typed date isn't an answer yet
-    draft = { id: step.id, value: i.value };
+    if (i.type === "checkbox") {
+      // "None of these" and the others rule each other out.
+      if (i.checked) app.querySelectorAll("input[name=ans]").forEach(o => { if (o !== i && (o.value === "none") !== (i.value === "none")) o.checked = false; });
+      draft = { id: step.id, value: [...app.querySelectorAll("input[name=ans]:checked")].map(o => o.value).join(",") };
+    } else draft = { id: step.id, value: i.value };
     const wasOk = saveOk; saveProgress(); updatePrivacyNote();
     if (wasOk && !saveOk) announce("Your answers can't be saved on this device right now.");
     if (i.type === "radio") { app.querySelector(".where").outerHTML = whereHtml(step); wireWhere(step); } // this choice can change where things print
@@ -273,6 +281,7 @@ function renderStep() {
 }
 
 function readInput(step) {
+  if (step.type === "checks") { answers[step.id] = [...app.querySelectorAll("input[name=ans]:checked")].map(c => c.value).join(","); return; }
   if (step.type === "choice") { const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : ""; return; }
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return; // half-typed: keep what was there
   let val = cleanText(document.getElementById("ans").value).trim();

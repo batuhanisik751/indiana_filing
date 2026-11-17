@@ -212,7 +212,7 @@ function feeWaiverFields(a) {
   if (toNum(a.otherIncome) > 0) out.push(f(FORM.fwMotion, "Other income description", a.otherIncomeDesc, "otherIncomeDesc",
     [{ t: "text", name: "DescriptionOtherIncome", value: a.otherIncomeDesc }]));
   out.push(
-    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], "Left blank (no income entered)",
+    totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], a.incomeKinds === "none" ? "" : "Left blank (no income entered)",
       toNum(a.hourlyRate) > 0 && empty(a.monthlyHours) ? "Left blank until you enter your hours per month" : "", "monthlyHours"),
     f(FORM.fwMotion, "7. Money in the bank", isNum(a.bank) ? `$${moneyOrBlank(a.bank)}` : "", "bank", [{ t: "text", name: "BankAccount", value: moneyOrBlank(a.bank) }]),
     ...EXPENSES.map(([k, label, name]) => amountRow(FORM.fwMotion, label, k, a, name)),
@@ -220,7 +220,7 @@ function feeWaiverFields(a) {
   if (toNum(a.otherCosts) > 0) out.push(f(FORM.fwMotion, "Other expenses description", a.otherCostsDesc, "otherCostsDesc",
     [{ t: "text", name: "DescriptionOtherCosts", value: a.otherCostsDesc }]));
   out.push(
-    totalRow(FORM.fwMotion, "8. and Total Expenses (added up for you)", expenseTotal(a), EXPENSE_IDS, a, ["MonthlyExpenses"], "Left blank (no expenses entered)"),
+    totalRow(FORM.fwMotion, "8. and Total Expenses (added up for you)", expenseTotal(a), EXPENSE_IDS, a, ["MonthlyExpenses"], a.expenseKinds === "none" ? "" : "Left blank (no expenses entered)"),
     f(FORM.fwMotion, "Date", formDate(a.signDate), "signDate", [{ t: "draw", page: 3, x: 76, y: 263, value: formDate(a.signDate) }]),
     f(FORM.fwMotion, "Printed Name", a.name, "name", [{ t: "lines", page: 3, x0: 360, x1: 526, ys: [221.5], layouts: NAME_LAYOUTS, value: a.name }]),
     f(FORM.fwOrder, "Distribution: your name", a.name, "name"),

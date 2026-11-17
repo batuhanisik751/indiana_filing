@@ -246,17 +246,26 @@ const INCOME = [
   ["childSupportIn", "Child support received", "How much child support is received each month?", "MonthlyChildSupportReceived"],
   ["otherIncome", "Other income", "How much other income is received each month?", "OtherIncome"],
 ];
+// "Which of these" lists on the fee waiver: only the amounts for what's checked are asked. Skipped, every amount
+// is asked, as before. "None of these" swears to $0.00, so that total prints. kind ties an amount to its list.
+const listed = (v, key) => empty(v) || String(v).split(",").includes(key);
+const chosenKind = (s, a) => !!s.kind && !empty(a[s.kind[0]]) && String(a[s.kind[0]]).split(",").includes(s.kind[1]);
 const fwIncomeSteps = sec => [
-  { id: "hourlyRate", sec, type: "money", label: "Wages per hour", optional: true,
+  { id: "incomeKinds", sec, type: "checks", label: "Kinds of income", optional: true,
+    q: "Which kinds of income does your household get each month?",
+    help: "Choose every one that applies, for you and the people you financially support. The next questions ask the amount for each one you choose.",
+    need: "If you skip this, you'll be asked about every kind of income.",
+    options: [["wages", "Wages from work"], ...INCOME.map(([id, label]) => [id, label]), ["none", "None of these"]] },
+  { id: "hourlyRate", sec, type: "money", label: "Wages per hour", optional: true, kind: ["incomeKinds", "wages"], showIf: a => listed(a.incomeKinds, "wages"),
     q: "If wages are earned, how much is paid per hour?",
     help: `The form lists wages as dollars per hour times hours per month. ${incomeHelp}` },
   { id: "monthlyHours", sec, type: "number", label: "Hours worked per month",
-    showIf: a => toNum(a.hourlyRate) > 0,
+    showIf: a => listed(a.incomeKinds, "wages") && toNum(a.hourlyRate) > 0,
     q: "About how many hours are worked per month?",
     help: "We multiply this by the hourly wage to fill in the monthly wages on the form." },
-  ...INCOME.map(([id, label, q]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true, q, help: incomeHelp })),
+  ...INCOME.map(([id, label, q]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true, kind: ["incomeKinds", id], showIf: a => listed(a.incomeKinds, id), q, help: incomeHelp })),
   { id: "otherIncomeDesc", sec, type: "textarea", short: true, label: "Description of other income",
-    showIf: a => toNum(a.otherIncome) > 0,
+    showIf: a => listed(a.incomeKinds, "otherIncome") && toNum(a.otherIncome) > 0,
     q: "What is the other income?", help: "The form says \"Other (please describe).\"" },
   { id: "bank", sec, type: "money", label: "Money in the bank",
     q: "How much money is in the bank?",
@@ -275,11 +284,16 @@ const EXPENSES = [
   ["otherCosts", "Other expenses", "OtherCosts"],
 ];
 const fwExpenseSteps = sec => [
-  ...EXPENSES.map(([id, label]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true,
+  { id: "expenseKinds", sec, type: "checks", label: "Kinds of expenses", optional: true,
+    q: "Which of these does your household pay each month?",
+    help: "Choose every one that applies. The next questions ask the amount for each one you choose.",
+    need: "If you skip this, you'll be asked about every kind of expense.",
+    options: [...EXPENSES.map(([id, label]) => [id, label]), ["none", "None of these"]] },
+  ...EXPENSES.map(([id, label]) => ({ id, sec, type: "money", label: `${label} per month`, optional: true, kind: ["expenseKinds", id], showIf: a => listed(a.expenseKinds, id),
     q: id === "childSupportOut" ? "How much child support is paid each month?" : `How much is spent each month on ${label.charAt(0).toLowerCase() + label.slice(1)}?`,
     help: id === "childSupportOut" ? "This is child support paid, listed under Monthly Expenses on the form. Leave this blank if none." : "The form lists monthly expenses. Leave this blank if none." })),
   { id: "otherCostsDesc", sec, type: "textarea", short: true, label: "Description of other expenses",
-    showIf: a => toNum(a.otherCosts) > 0,
+    showIf: a => listed(a.expenseKinds, "otherCosts") && toNum(a.otherCosts) > 0,
     q: "What are the other expenses?", help: "The form says \"Other (please describe).\"" },
 ];
 

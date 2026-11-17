@@ -44,7 +44,7 @@ function unsureAdvice(step) {
   if (CASE_IDS.test(id)) return sitKey === "feewaiver"
     ? "Check your records, or get free legal help."
     : "Check your court papers, look up your case at mycase.in.gov, or ask the clerk's office.";
-  return step.type === "choice" ? "This tool can't choose this for you. You can get free legal help." : "This tool can't tell you what to write here. You can get free legal help.";
+  return step.type === "choice" || step.type === "checks" ? "This tool can't choose this for you. You can get free legal help." : "This tool can't tell you what to write here. You can get free legal help.";
 }
 // What to do next, after the advice.
 function unsureNext(step, where) {

@@ -9,7 +9,7 @@ const sampleAnswer = s => (s.type === "date" ? "2031-01-15" : s.type === "money"
 // The rows of the official forms this question's answer fills. It may not be answered yet, so they're worked out as
 // if it were, and as if the other boxes were too: a signature needs a name before it has a place to print.
 function whereRows(step, guessRole = true) {
-  const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select").map(s => [s.id, sampleAnswer(s)]));
+  const filled = Object.fromEntries(steps.filter(s => s.type !== "choice" && s.type !== "select" && s.type !== "checks").map(s => [s.id, sampleAnswer(s)]));
   Object.entries(visibleAnswers()).forEach(([k, v]) => { if (!empty(v)) filled[k] = v; });
   const chosen = draft && draft.id === step.id ? draft.value : answers[step.id], given = !empty(chosen); // the choice on screen counts before it's saved
   // A choice not made yet could print any of its options. One that's made prints only that one.

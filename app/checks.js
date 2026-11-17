@@ -5,7 +5,7 @@ function completeness() {
   const a = visibleAnswers(), vis = visible();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
   const isIn = s => !empty(a[s.id]) && !badNum(s) && !notAnAnswer(s, a[s.id]);
-  const need = vis.filter(s => !s.optional || s.sworn || badNum(s));
+  const need = vis.filter(s => !s.optional || s.sworn || badNum(s) || chosenKind(s, a)); // an amount whose kind was checked is needed
   let total = need.length, filled = need.filter(isIn).length;
   if (sitKey === "respond") { // the Answer's three paragraph lists count once: at least one has to have something
     total++;
@@ -13,7 +13,7 @@ function completeness() {
   }
   if (sitKey === "feewaiver") { // items 6 and 8 of the sworn motion print blank without these. Income and expenses count once each
     total += 2;
-    filled += [EARNED_IDS, EXPENSE_IDS].filter(ids => anyAmount(a, ids)).length;
+    filled += [[EARNED_IDS, a.incomeKinds], [EXPENSE_IDS, a.expenseKinds]].filter(([ids, kinds]) => kinds === "none" || anyAmount(a, ids)).length;
   }
   return { total, filled };
 }
@@ -230,7 +230,7 @@ function runChecks() {
   // "I'm not sure" typed into a box would print on the form. The button is what flags it instead.
   vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+    flags.push({ level: s.optional && !s.sworn && !chosenKind(s, a) ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
       why: s.id === "courtTypeOther" && /^court[.!]*$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
         : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.${s.id === "email" && NO_WORDS.test(String(a[s.id]).trim()) && !NOT_KNOWN.test(String(a[s.id]).trim()) ? ` If you don't have one, ${sitKey === "feewaiver" ? "leave this blank" : "type None"}.` : ""}` });
   });
@@ -321,10 +321,10 @@ function runChecks() {
       flags.push({ level: "check", title: "Hours worked per month", fix: "monthlyHours", why: "A month has at most 744 hours, and this number goes into the wages on this sworn form. Check it." });
     if (toNum(a.hourlyRate) >= 100)
       flags.push({ level: "check", title: "Wages per hour", fix: "hourlyRate", why: `$${money(toNum(a.hourlyRate))} an hour is unusually high, and it goes on this sworn form. Check this number, including the decimal point.` });
-    if (!anyAmount(a, EARNED_IDS))
-      flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, enter 0 for any one of them so the form shows $0.00.", fix: "hourlyRate" });
-    if (!anyAmount(a, EXPENSE_IDS))
-      flags.push({ level: "missing", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, enter 0 for any one of them so the form shows $0.00.", fix: "housing" });
+    if (!anyAmount(a, EARNED_IDS) && a.incomeKinds !== "none")
+      flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, choose \"None of these\" in the list of kinds of income, so the form shows $0.00.", fix: "incomeKinds" });
+    if (!anyAmount(a, EXPENSE_IDS) && a.expenseKinds !== "none")
+      flags.push({ level: "missing", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, choose \"None of these\" in the list of expenses, so the form shows $0.00.", fix: "expenseKinds" });
     [["adults", "People over 18 who live with you", "Item 3 of the Verified Motion for Fee Waiver asks who you live with who is over 18."],
      ["children", "People under 18 who live with you", "Item 4 of the Verified Motion for Fee Waiver asks who you live with who is under 18."],
      ["supported", "People you financially support", "Item 5 of the Verified Motion for Fee Waiver asks who you financially support in your household."]].forEach(([k, label, why]) => {
@@ -355,15 +355,19 @@ function runChecks() {
   // A required one is still missing from the form, so it's flagged that way.
   vis.filter(s => unsure[s.id] && empty(a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: s.optional && !s.sworn ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: blankWhy(s).link || unsureLink(s),
+    flags.push({ level: s.optional && !s.sworn && !chosenKind(s, a) ? "check" : "missing", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, unsure: true, link: blankWhy(s).link || unsureLink(s),
       // A question the form needs keeps the reason it matters, and the rule that gives it. A question that protects an address says what it isn't protecting yet.
       why: `You marked this "I'm not sure." ${!s.optional && blankWhy(s).why !== "This is blank." ? `${blankWhy(s).why} ` : ""}${printingAnyway(s, a)}${unsureAdvice(s)} ${unsureNext(s, "summary")}`.trim() });
   });
 
   // Everything else that is required but blank.
+  // An amount whose kind was checked in a "Which of these" list is needed too: left blank, a sworn total leaves it out.
   vis.forEach(s => {
-    if (handled.has(s.id) || s.optional) return;
-    if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, ...blankWhy(s), fix: s.id, blank: true });
+    if (handled.has(s.id) || (s.optional && !chosenKind(s, a))) return;
+    if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, fix: s.id, blank: true, ...(s.optional
+      ? { why: s.kind[0] === "incomeKinds" ? "You said your household gets this, but no amount is entered, so it's left out of Total Income on this sworn form. Enter the monthly amount, or uncheck it in the list of kinds of income."
+        : "You said your household pays this, but no amount is entered, so it's left out of Total Expenses on this sworn form. Enter the monthly amount, or uncheck it in the list of expenses." }
+      : blankWhy(s)) });
   });
   const unsureIds = new Set(flags.filter(f => f.unsure).map(f => f.fix));
   return flags.filter(f => f.unsure || !(f.blank && unsureIds.has(f.fix)));

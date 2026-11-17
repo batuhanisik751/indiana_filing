@@ -85,7 +85,8 @@ export async function walk(p, target = "summary", over = {}) {
     if (s.id === target || s.id !== undefined && !s.type) break;
     let v = vals[s.id];
     if (s.type === "date") v ??= await p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }, DAYS_AHEAD[s.id] ?? 0);
-    if (s.type === "choice") await p.locator(`input[name=ans][value="${s.options.includes(v) ? v : s.options[0]}"]`).check({ force: true });
+    if (s.type === "checks") { for (const k of String(v ?? "").split(",").filter(Boolean)) await p.locator(`input[name=ans][value="${k}"]`).check({ force: true }); } // left blank: every amount is asked
+    else if (s.type === "choice") await p.locator(`input[name=ans][value="${s.options.includes(v) ? v : s.options[0]}"]`).check({ force: true });
     else if (s.type === "select") await p.selectOption("#ans", v && s.options.includes(v) ? v : s.options[0]);
     else await p.fill("#ans", v ?? (s.type === "money" || s.type === "number" ? "0" : s.optional ? "" : "Sample answer"));
     await p.click("#next");
@@ -132,7 +133,8 @@ export const jump = (p, id) => p.evaluate(id => { const i = visible().findIndex(
 // Answers the question on screen.
 export async function answer(p, value) {
   const s = await p.evaluate(() => (({ type }) => ({ type }))(visible()[cur]));
-  if (s.type === "choice") await p.locator(`input[name=ans][value="${value}"]`).check({ force: true });
+  if (s.type === "checks") { await p.locator("input[name=ans]:checked").evaluateAll(cs => cs.forEach(c => c.click())); for (const k of value.split(",").filter(Boolean)) await p.locator(`input[name=ans][value="${k}"]`).check({ force: true }); }
+  else if (s.type === "choice") await p.locator(`input[name=ans][value="${value}"]`).check({ force: true });
   else if (s.type === "select") await p.selectOption("#ans", value);
   else await p.fill("#ans", value);
   await p.click("#next");

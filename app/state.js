@@ -81,6 +81,7 @@ function shown(step) {
   const v = answers[step.id];
   if (empty(v)) return "";
   if (step.type === "choice") { const o = step.options.find(o => o[0] === v); return o ? o[1] : v; }
+  if (step.type === "checks") return String(v).split(",").map(k => (step.options.find(o => o[0] === k) || [, k])[1]).join(", ");
   if (step.type === "date") return formDate(v);
   if (step.type === "money") return isNum(v) ? `$${moneyOrBlank(v)}` : v;
   return v;
