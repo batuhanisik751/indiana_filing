@@ -46,6 +46,7 @@ function save(step) {
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse("This date isn't complete. Enter the month, day and year, or clear the box.");
   readInput(step);
   const v = answers[step.id];
+  if (step.id === "caseNumber" && empty(answers.caseConfirm)) before.delete("caseConfirm"); // asked again, before the county and court
   if (String(v ?? "").length > ANSWER_MAX) return refuse(`This is too long: ${String(v).length.toLocaleString("en-US")} characters. Keep it under ${ANSWER_MAX.toLocaleString("en-US")}.`);
   // An email that can't work is stopped here, not only flagged at the end. "None" and a blank box still go on.
   if (step.type === "email" && !empty(v) && !SAYS_NONE.test(String(v).trim()) && !notAnAnswer(step, v)) {

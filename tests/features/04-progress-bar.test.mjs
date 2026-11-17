@@ -20,7 +20,7 @@ describe("4. Progress bar", () => {
   test("it moves forward with each answer", async () => {
     await pick(p, "appearance");
     const before = (await bar()).now;
-    await answer(p, "Allen"); await answer(p, "SUPERIOR");
+    await answer(p, "02D01-2611-CC-001234"); await answer(p, "yes");
     assert.ok((await bar()).now > before);
   });
   test("the summary shows how many needed answers are filled in, at 100% when all are", async () => {

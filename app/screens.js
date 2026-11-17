@@ -178,7 +178,7 @@ function renderStep() {
     <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
-    <h1 class="q" id="q" tabindex="-1">${esc(step.q)}</h1>
+    <h1 class="q" id="q" tabindex="-1">${esc(typeof step.q === "function" ? step.q(answers) : step.q)}</h1>
     <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
     ${step.more ? moreHtml(`<p class="help">${esc(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}
     ${input}
@@ -277,6 +277,8 @@ function readInput(step) {
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return; // half-typed: keep what was there
   let val = cleanText(document.getElementById("ans").value).trim();
   if (step.upper) val = val.toUpperCase();
+  // A case number that names another county or court has to be confirmed again.
+  if (step.id === "caseNumber" && caseCourt(val)?.name !== caseCourt(answers.caseNumber)?.name) { delete answers.caseConfirm; delete unsure.caseConfirm; }
   answers[step.id] = val;
 }
 

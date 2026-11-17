@@ -1,7 +1,7 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, step, pick, walk, jump, reset } from "../lib.mjs";
+import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -367,5 +367,72 @@ describe("Fix 6: it says up front how many questions a form has and what to have
       assert.equal(await q.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${width}: no sideways scroll`);
       await q.context().close();
     }
+  });
+});
+
+describe("Fix 7A: a full case number fills in the county and court, after one confirmation", () => {
+  const caseFirst = async (form, number) => { await reset(p); await pick(p, form); assert.equal(await step(p), "caseNumber"); await answer(p, number); };
+  test("the case number comes first, and a full one is confirmed in one question", async () => {
+    await caseFirst("appearance", "02D01-2611-CC-001234");
+    assert.equal(await step(p), "caseConfirm");
+    assert.equal(await p.textContent("#q"), "Your case number says Allen County, Superior Court. Is that right?");
+  });
+  test("Yes skips the county and court questions, and the form still prints them", async () => {
+    await caseFirst("appearance", "02D01-2611-CC-001234"); await answer(p, "yes");
+    assert.equal(await step(p), "courtDate");
+    await walk(p, "summary");
+    const rows = Object.fromEntries((await fieldRows(p)).map(([l, v]) => [l, v]));
+    assert.equal(await p.evaluate(() => visibleAnswers().county + "|" + visibleAnswers().courtType), "Allen|SUPERIOR");
+    const text = await pdfText(p);
+    assert.ok(text.includes("Allen") && text.includes("SUPERIOR"), "printed on the form");
+    assert.deepEqual(await flagsFor(p, "county"), []);
+    assert.ok(Object.keys(rows).length > 0);
+  });
+  test("each form with a case number saves a question", async () => {
+    for (const form of ["respond", "appearance", "continuance"]) {
+      await caseFirst(form, "49C01-2611-PL-000123"); await answer(p, "yes");
+      const ids = await p.evaluate(() => visible().map(s => s.id));
+      assert.ok(!ids.includes("county") && !ids.includes("courtType") && ids.includes("caseConfirm"), form);
+      assert.equal(await p.evaluate(() => visibleAnswers().county + "|" + visibleAnswers().courtType), "Marion|CIRCUIT", form);
+    }
+  });
+  test("edge: No asks the county and court as before, and a mismatch with the number is still flagged", async () => {
+    await caseFirst("appearance", "02D01-2611-CC-001234"); await answer(p, "no");
+    assert.equal(await step(p), "county");
+    await answer(p, "Marion"); await answer(p, "SUPERIOR");
+    await walk(p, "summary");
+    assert.ok((await flagsFor(p, "caseNumber")).some(f => /don't match Marion County's number \(49\)/.test(f)));
+  });
+  test("edge: with no case number, or one whose court letter isn't C or D, the county and court are asked", async () => {
+    await caseFirst("appearance", ""); assert.equal(await step(p), "county");
+    await caseFirst("appearance", "49K01-2611-CC-001234"); assert.equal(await step(p), "county");
+    await caseFirst("appearance", "02D01-2611"); assert.equal(await step(p), "county");
+  });
+  test("edge: changing the case number to another county asks for the confirmation again", async () => {
+    await inject(p, "appearance", { caseConfirm: "yes" });
+    assert.equal(await p.evaluate(() => visible().some(s => s.id === "county")), false);
+    await editAnswer(p, "caseNumber"); await p.fill("#ans", "49D01-2611-CC-001234"); await p.click("#next");
+    assert.equal(await step(p), "caseConfirm");
+    assert.equal(await p.textContent("#q"), "Your case number says Marion County, Superior Court. Is that right?");
+    assert.equal(await p.locator("input[name=ans]:checked").count(), 0, "nothing chosen for the new number");
+  });
+  test("edge: a change that keeps the same county and court keeps the confirmation", async () => {
+    await inject(p, "appearance", { caseConfirm: "yes" });
+    await editAnswer(p, "caseNumber"); await p.fill("#ans", "02D01-2611-CC-009999"); await p.click("#next");
+    assert.equal(await step(p), "summary");
+    assert.equal(await p.evaluate(() => answers.caseConfirm), "yes");
+  });
+  test("edge: on the summary, the county and court rows edit through the confirmation", async () => {
+    await inject(p, "appearance", { caseConfirm: "yes" });
+    await p.evaluate(() => { document.querySelector('details[data-more="answers"]').open = true; });
+    const targets = await p.$$eval("dl.vals > div", ds => ds.filter(d => /^(County|Court)/.test(d.querySelector("dt").textContent)).map(d => d.querySelector("[data-fix]")?.dataset.fix));
+    assert.ok(targets.length >= 1 && targets.every(t => t === "caseConfirm"), JSON.stringify(targets));
+  });
+  test("edge: Back with a changed case number, without Continue, doesn't keep the old confirmation", async () => {
+    await caseFirst("appearance", "02D01-2611-CC-001234"); await answer(p, "yes");
+    await p.click("#back"); await p.click("#back");
+    assert.equal(await step(p), "caseNumber");
+    await p.fill("#ans", "49D01-2611-CC-001234"); await p.click("#back"); // to the first screen, keeping what was typed
+    assert.equal(await p.evaluate(() => answers.caseConfirm), undefined);
   });
 });

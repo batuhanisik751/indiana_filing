@@ -73,8 +73,9 @@ document.getElementById("saveToggle").onclick = () => {
 };
 
 const visible = () => steps.filter(s => !s.showIf || s.showIf(answers));
-// Only answers to questions that are currently shown go on the form.
-const visibleAnswers = () => Object.fromEntries(visible().map(s => [s.id, answers[s.id]]));
+// Only answers to questions that are currently shown go on the form, plus what a hidden question takes from
+// another answer: the county and court, from a case number the person confirmed.
+const visibleAnswers = () => Object.fromEntries(steps.flatMap(s => (!s.showIf || s.showIf(answers) ? [[s.id, answers[s.id]]] : s.derive ? [[s.id, s.derive(answers)]] : [])));
 
 function shown(step) {
   const v = answers[step.id];

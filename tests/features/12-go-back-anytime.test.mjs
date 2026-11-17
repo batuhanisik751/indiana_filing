@@ -11,11 +11,11 @@ const edit = id => editAnswer(p, id);
 
 describe("12. Go back anytime", () => {
   test("Back goes to the previous question with its answer still there", async () => {
-    await pick(p, "appearance"); await walk(p, "caseNumber");
+    await pick(p, "appearance"); await walk(p, "name");
     await p.click("#back");
-    assert.equal(await step(p), "courtType");
-    assert.equal(await p.locator('input[name=ans][value="SUPERIOR"]').isChecked(), true);
-    assert.equal(await p.evaluate(() => answers.county), "Allen");
+    assert.equal(await step(p), "plaintiff");
+    assert.equal(await p.inputValue("#ans"), "Acme Credit LLC");
+    assert.equal(await p.evaluate(() => answers.caseNumber), "02D01-2611-CC-001234");
   });
   test("Back from the first question returns to the first screen", async () => {
     await pick(p, "appearance"); await p.click("#back");
@@ -52,9 +52,9 @@ describe("12. Go back anytime", () => {
     assert.equal(await step(p), "summary");
   });
   test("edge: the browser's Back button steps back inside the tool", async () => {
-    await pick(p, "appearance"); await walk(p, "caseNumber");
+    await pick(p, "appearance"); await walk(p, "name");
     await p.evaluate(() => history.back());
-    await p.waitForFunction(() => mode === "step" && visible()[cur].id === "courtType");
+    await p.waitForFunction(() => mode === "step" && visible()[cur].id === "plaintiff");
   });
   test("edge: starting from the paper sorting, the summary lets those answers be changed", async () => {
     await p.click('.pick[data-kind="debt"]');

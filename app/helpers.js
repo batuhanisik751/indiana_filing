@@ -43,6 +43,15 @@ const FAMILY_CASES = { DC: "Domestic Relations with Children", DN: "Domestic Rel
 const NOT_CIVIL_CASES = new Set("CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV".split(" ")); // Administrative Rule 8's criminal, infraction and ordinance case types
 const CASE_CODES = new Set("AD CC CE CP CT DC DN DR EV GV MF MH MI PC PL PO RA RF RS TP TS XP CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV JC JD JM JP JQ JS JT EM ES EU GM GU TR SC CB".split(" "));
 const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0");
+// What a full case number says about its county and court. Administrative Rule 8: the first two digits are the
+// county's number, and the letter after them is the court, C for Circuit and D for Superior. Null unless it says both.
+function caseCourt(cn) {
+  const m = caseMatch(cn), letter = m ? String(cn).trim().toUpperCase()[2] : "";
+  const county = m ? COUNTIES[+m[1] - 1] : null, court = { C: "CIRCUIT", D: "SUPERIOR" }[letter];
+  return county && court ? { county, court, name: `${county} County, ${court === "CIRCUIT" ? "Circuit" : "Superior"} Court` } : null;
+}
+// The person confirmed the county and court in their case number, so those two questions aren't asked.
+const caseConfirmed = a => a.caseConfirm === "yes" && !!caseCourt(a.caseNumber);
 // "More": extra detail that starts closed and opens on tap. A real <details>, so keyboards and screen readers can use it.
 // With a key, it stays open when the page redraws (the summary does, when its PDF check finishes).
 const openMore = new Set();

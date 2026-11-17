@@ -80,7 +80,7 @@ test("Get help closes when the person moves on", async () => {
   await pick(p, "appearance");
   await p.click("#helpBtn");
   assert.ok(await p.locator("#helpPanel").isVisible());
-  await p.selectOption("#ans", "Allen");
+  await p.fill("#ans", "02D01-2611-CC-001234"); // the first question is the case number
   await p.click("#next");
   assert.ok(!(await p.locator("#helpPanel").isVisible()));
   await p.context().close();

@@ -45,6 +45,8 @@ function renderSummary(rerender = false) {
   const groups = [];
   fields.forEach(x => { let g = groups.find(g => g.form === x.form); if (!g) groups.push(g = { form: x.form, items: [] }); g.items.push(x); });
   const visIds = new Set(visible().map(s => s.id));
+  // A hidden answer taken from another one (the county, from a confirmed case number) is edited through that one.
+  const editOf = id => !id ? null : visIds.has(id) ? id : visIds.has(steps.find(s => s.id === id)?.editVia) ? steps.find(s => s.id === id).editVia : null;
 
   // Back from an Edit in the list of every answer: the list is open again, so focus can return to that row.
   if (lastEdited && fixFrom === "vals") openMore.add("answers");
@@ -82,7 +84,7 @@ function renderSummary(rerender = false) {
         <dl class="vals">${g.items.map(x => `
           <div><dt>${esc(x.label)}</dt>
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
-          ${x.step && visIds.has(x.step) ? `<button class="link edit" data-fix="${x.step}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
+          ${editOf(x.step) ? `<button class="link edit" data-fix="${editOf(x.step)}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
         </dl>
       </section>`).join("")}</div>`, "Show every answer, with Edit links", "answers", { cls: "section" })}
 
