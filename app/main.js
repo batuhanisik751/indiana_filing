@@ -37,6 +37,8 @@ function syncHistory() {
 window.addEventListener("popstate", () => {
   if (ignorePop) { ignorePop = false; syncHistory(); return; }
   if (inGuard()) { if (mode === "pick" && helpPanel.hidden && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
+  const big = document.querySelector("dialog.pageview[open]");
+  if (big) { big.close(); syncHistory(); return; } // Back closes a page shown large, and stays on this screen
   if (!helpPanel.hidden) { setHelp(false); return; }
   if (backToAnswers()) { document.getElementById("backToWork").click(); return; }
   if (mode === "pick") return;

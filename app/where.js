@@ -136,8 +136,15 @@ async function drawWhere(step, at = 0, speak = false) {
       return `<span class="wheremark" style="left:${pct(left, view.width)};top:${pct(top, view.height)};width:${pct(width, view.width)};height:${pct(height, view.height)}"></span>`;
     }).join("");
     box.innerHTML = `<div class="wherepage">${marks}</div><p class="draftnote" id="whereCaption">${esc(where)}${spots.length > 1 ? `. Place ${at + 1} of ${spots.length}.` : "."}</p>
-      ${spots.length > 1 ? `<p class="need wherenav"><button class="link" id="wherePrev"${at ? "" : " disabled"}>Previous place</button><button class="link" id="whereNext"${at < spots.length - 1 ? "" : " disabled"}>Next place</button></p>` : ""}`;
+      <p class="need wherenav">${spots.length > 1 ? `<button class="link" id="wherePrev"${at ? "" : " disabled"}>Previous place</button><button class="link" id="whereNext"${at < spots.length - 1 ? "" : " disabled"}>Next place</button>` : ""}<button class="link" id="whereBig">Enlarge</button></p>`;
     box.querySelector(".wherepage").prepend(canvas);
+    // Large: the same page and highlights, drawn again at the larger size.
+    const big = document.getElementById("whereBig");
+    const openBig = () => showPageLarge({ opener: big, titleFor: () => `${where}, with the place for this answer highlighted`,
+      render: async (n, w) => ({ canvas: await drawPdfPage(doc, page + 1, w), marks }), refocus: () => document.getElementById("whereBig") });
+    big.onclick = openBig;
+    canvas.style.cursor = "zoom-in";
+    canvas.onclick = openBig;
     if (speak) announce(`${where}. The place for this answer is highlighted.`);
     // The button pressed can become disabled at either end, and focus shouldn't fall to the top of the page.
     const move = (id, to, other) => { const b = document.getElementById(id); if (b) b.onclick = () => drawWhere(step, to, true).then(() => { const again = document.getElementById(id); (again && !again.disabled ? again : document.getElementById(other))?.focus({ preventScroll: true }); }); };

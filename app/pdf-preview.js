@@ -90,6 +90,67 @@ function pdfFlags() {
   ];
 }
 
+// A page shown large, over the summary or question: "Enlarge" under a page opens it. Close, Escape or Back closes it.
+// render(n, cssWidth) draws page n and resolves to { canvas, marks }, marks being highlight markup placed in percent.
+function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus }) {
+  document.querySelector("dialog.pageview")?.remove();
+  const dlg = document.createElement("dialog");
+  dlg.className = "pageview";
+  dlg.setAttribute("aria-labelledby", "pvTitle");
+  dlg.innerHTML = `<div class="pvbar"><h2 class="sub" id="pvTitle"></h2><span class="pvnav">${count > 1 ? `<button class="ghost small" id="pvPrev">Previous page</button><button class="ghost small" id="pvNext">Next page</button>` : ""}<button class="primary small" id="pvClose">Close</button></span></div><div class="pvbody"></div>`;
+  document.body.appendChild(dlg);
+  const body = dlg.querySelector(".pvbody"), prev = dlg.querySelector("#pvPrev"), next = dlg.querySelector("#pvNext");
+  let token = 0;
+  const show = async n => {
+    at = n; const mine = ++token;
+    dlg.querySelector("#pvTitle").textContent = titleFor(n);
+    if (prev) { prev.disabled = n <= 1; next.disabled = n >= count; }
+    body.innerHTML = `<p class="draftnote" role="status">Loading the page…</p>`;
+    try {
+      const { canvas, marks = "" } = await render(n, Math.min(body.clientWidth - 2 || window.innerWidth, 1100));
+      if (mine !== token || !dlg.isConnected) return;
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", titleFor(n));
+      const page = document.createElement("div");
+      page.className = "pvpage"; page.innerHTML = marks; page.prepend(canvas);
+      body.replaceChildren(page); body.scrollTop = 0;
+    } catch (e) {
+      console.error(e);
+      if (mine === token && dlg.isConnected) body.innerHTML = `<p class="draftnote" role="alert">This page couldn't be shown large. The page and the download on the screen behind still work.</p>`;
+    }
+  };
+  // The button pressed can become disabled at the first or last page, and focus shouldn't fall to the top of the page.
+  // show() sets that before it starts drawing, so focus moves at once.
+  const step = (to, from, other) => () => { show(to()); if (from.disabled) other.focus(); };
+  if (prev) { prev.onclick = step(() => at - 1, prev, next); next.onclick = step(() => at + 1, next, prev); }
+  dlg.querySelector("#pvClose").onclick = () => dlg.close();
+  dlg.addEventListener("close", () => {
+    dlg.remove();
+    const back = opener && opener.isConnected ? opener : refocus && refocus(at);
+    if (back) back.focus();
+  });
+  dlg.showModal();
+  dlg.querySelector("#pvClose").focus();
+  show(at);
+  return dlg;
+}
+// One page of a PDF, drawn sharp at this width. A phone gets extra detail, so pinching in stays readable.
+async function drawPdfPage(pdf, n, cssWidth) {
+  const page = await pdf.getPage(n), base = page.getViewport({ scale: 1 });
+  const zoom = Math.min(2, Math.max(1, 900 / cssWidth));
+  const viewport = page.getViewport({ scale: (cssWidth / base.width) * (window.devicePixelRatio || 1) * zoom });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  return canvas;
+}
+const showFilledPage = (pdf, n, opener) => showPageLarge({
+  count: pdf.numPages, at: n, opener,
+  titleFor: i => `Page ${i} of ${pdf.numPages} of your filled form`,
+  render: async (i, w) => ({ canvas: await drawPdfPage(pdf, i, w) }),
+  refocus: i => app.querySelector(`#preview [data-page="${i}"]`) || app.querySelector('details[data-more="preview"] > summary'),
+});
+
 async function renderPreview(bytes, el) {
   const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -103,8 +164,11 @@ async function renderPreview(bytes, el) {
     canvas.setAttribute("role", "img");
     canvas.setAttribute("aria-label", `Page ${i} of ${pdf.numPages} of your filled form`);
     const fig = document.createElement("figure");
-    fig.innerHTML = `<figcaption>Page ${i} of ${pdf.numPages}</figcaption>`;
+    fig.innerHTML = `<figcaption>Page ${i} of ${pdf.numPages} <button class="link" data-page="${i}" aria-label="Enlarge page ${i} of ${pdf.numPages}">Enlarge</button></figcaption>`;
     fig.prepend(canvas);
+    const big = fig.querySelector("button");
+    big.onclick = () => showFilledPage(pdf, i, big);
+    canvas.addEventListener("click", () => big.click()); // the page itself opens large too; the button is there for keyboards
     // Browsers without scroll anchoring would push what's on screen down as each page appears.
     const above = getComputedStyle(el).overflowAnchor !== "auto" && el.getBoundingClientRect().bottom <= 0, before = el.offsetHeight;
     el.appendChild(fig);

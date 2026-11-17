@@ -186,6 +186,22 @@ button.link:disabled { color: var(--muted); text-decoration: none; cursor: defau
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }
+.preview figcaption button.link { margin-left: .5rem; font-size: .85rem; }
+.preview canvas, .wherepage canvas { cursor: zoom-in; }
+/* A page shown large over the screen. */
+dialog.pageview { width: min(calc(100vw - 2rem), 72rem); max-width: none; max-height: calc(100vh - 2rem); padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); flex-direction: column; overflow: hidden; }
+dialog.pageview[open] { display: flex; }
+dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
+.pvbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); }
+.pvbar h2.sub { margin: 0; font-size: 1.05rem; }
+.pvnav { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pvbody { flex: 1; min-height: 0; overflow: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+.pvpage { position: relative; }
+.pvpage canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
+@media (max-width: 600px) {
+  dialog.pageview { width: 100vw; height: 100vh; height: 100dvh; max-height: none; margin: 0; border-radius: 0; }
+  .pvbody { padding: .5rem; }
+}
 footer { font-size: .85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
 footer .foothelp strong { display: block; color: var(--ink); margin-bottom: .25rem; }
 .footnote { margin: 0; }

@@ -24,6 +24,7 @@ function resetAnswers() {
   editOriginal = null; lastProgress = {}; fixNth = 0; clearedContact = []; editErased = null; reloadedEdit = null;
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false; pickedOther = false;
   pdfState = { key: null, result: null, error: false, busy: false };
+  document.querySelector("dialog.pageview")?.remove(); // a page of the filled form shown large goes with the answers
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
 // The same, with the box on screen counting as it reads now. Emptying the only answer leaves nothing to lose.

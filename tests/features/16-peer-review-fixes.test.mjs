@@ -252,3 +252,79 @@ describe("Fix 4: More opens on tap, or on hover on a computer, and holds backgro
     assert.equal(await p.locator('details[data-more="preview"]').evaluate(d => d.open), false);
   });
 });
+
+describe("Fix 5: Enlarge shows a page of the form at full width", () => {
+  const dialog = () => p.locator("dialog.pageview[open]");
+  const bigCanvas = () => p.waitForSelector("dialog.pageview[open] .pvpage canvas", { timeout: 120000 });
+  async function pages(q = p) {
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await q.evaluate(() => { const d = document.querySelector('details[data-more="preview"]'); d.open = true; });
+    await q.waitForSelector("#preview canvas", { timeout: 120000 });
+  }
+  test("each page of the filled form has an Enlarge button that shows it far larger", async () => {
+    await pages();
+    const small = await p.$eval("#preview canvas", c => c.getBoundingClientRect().width);
+    await p.click('#preview [data-page="1"]');
+    await bigCanvas();
+    const large = await p.$eval("dialog.pageview .pvpage canvas", c => c.getBoundingClientRect().width);
+    assert.ok(large > small * 1.8, `${Math.round(small)} to ${Math.round(large)} pixels wide`);
+    assert.equal(await p.textContent("#pvTitle"), "Page 1 of 4 of your filled form");
+    await p.click("#pvClose");
+  });
+  test("edge: clearing the answers closes a page shown large, so it doesn't stay on screen", async () => {
+    await pages();
+    await p.click('#preview [data-page="1"]'); await bigCanvas();
+    await p.evaluate(() => { resetAnswers(); mode = "pick"; render(); }); // what Clear my data does, here or from another tab
+    assert.equal(await p.locator("dialog.pageview").count(), 0);
+  });
+  test("Next and Previous move between pages, and Close returns focus to the Enlarge button", async () => {
+    await pages();
+    await p.click('#preview [data-page="1"]'); await bigCanvas();
+    assert.equal(await p.locator("#pvPrev").isDisabled(), true);
+    await p.click("#pvNext");
+    await p.waitForFunction(() => document.getElementById("pvTitle").textContent.startsWith("Page 2 of"));
+    await p.click("#pvClose");
+    assert.equal(await dialog().count(), 0);
+    assert.equal(await p.evaluate(() => document.activeElement.dataset.page), "1");
+  });
+  test("edge: at the last page, Next is disabled and focus moves to Previous", async () => {
+    await pages();
+    await p.click('#preview [data-page="3"]'); await bigCanvas();
+    await p.click("#pvNext");
+    await p.waitForFunction(() => document.getElementById("pvTitle").textContent.startsWith("Page 4 of"));
+    assert.equal(await p.locator("#pvNext").isDisabled(), true);
+    assert.equal(await p.evaluate(() => document.activeElement.id), "pvPrev");
+    await p.keyboard.press("Escape");
+  });
+  test("edge: Escape, and the browser's Back button, close it and stay on the summary", async () => {
+    await pages();
+    await p.click('#preview [data-page="1"]'); await bigCanvas();
+    await p.keyboard.press("Escape");
+    assert.equal(await dialog().count(), 0);
+    await p.click('#preview [data-page="1"]'); await bigCanvas();
+    await p.evaluate(() => history.back());
+    await p.waitForFunction(() => !document.querySelector("dialog.pageview[open]"));
+    assert.equal(await step(p), "summary");
+  });
+  test("edge: on a phone it fills the screen, drawn sharp enough to pinch in", async () => {
+    const q = await fresh({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+    await pages(q);
+    await q.click('#preview [data-page="1"]');
+    await q.waitForSelector("dialog.pageview[open] .pvpage canvas", { timeout: 120000 });
+    const [box, css, px] = await q.evaluate(() => { const d = document.querySelector("dialog.pageview").getBoundingClientRect(), c = document.querySelector(".pvpage canvas"); return [[d.width, d.height], c.getBoundingClientRect().width, c.width]; });
+    assert.deepEqual(box, [390, 844]);
+    assert.ok(px >= css * 3 * 1.5, `${px} pixels for ${Math.round(css)} wide`);
+    await q.context().close();
+  });
+  test("edge: the picture of where an answer prints can be enlarged too, with the place still highlighted", async () => {
+    await inject(p, "appearance"); await jump(p, "name");
+    await p.click("#whereToggle");
+    await p.waitForSelector("#whereBig", { timeout: 120000 });
+    await p.click("#whereBig"); await bigCanvas();
+    assert.ok(await p.locator("dialog.pageview .wheremark").count() >= 1);
+    assert.match(await p.textContent("#pvTitle"), /Appearance .*page \d+ of \d+, with the place for this answer highlighted/);
+    await p.click("#pvClose");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "whereBig");
+  });
+});
