@@ -196,6 +196,7 @@ details.more.section > .morebody { border-left: 0; padding: .6rem 0 0; margin: 0
 .wherenav { display: flex; flex-wrap: wrap; gap: 0 1rem; }
 .wherenav button.link, .wherenav a { display: inline-block; padding: .3rem 0; }
 button.link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+button.ghost:disabled, button.primary:disabled { opacity: .45; cursor: not-allowed; }
 .preview figure { margin: 0 0 1rem; }
 .preview canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .preview figcaption { font-size: .8rem; color: var(--muted); margin-top: .3rem; text-align: center; }

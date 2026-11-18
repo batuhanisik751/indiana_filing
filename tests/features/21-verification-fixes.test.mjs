@@ -297,3 +297,21 @@ describe("VF5: a name typed with /s/ isn't signed twice, and is flagged", () => 
   });
 });
 
+describe("VF6: a disabled button looks disabled", () => {
+  test("on the first page, Previous page looks disabled and Next page doesn't", async () => {
+    const p = await fresh();
+    await inject(p, "respond");
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await p.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; });
+    await p.waitForSelector("#preview canvas", { timeout: 120000 });
+    await p.click('#preview [data-page="1"]');
+    await p.waitForSelector("dialog.pageview[open] .pvpage canvas", { timeout: 60000 });
+    const look = id => p.$eval(`#${id}`, b => [b.disabled, +getComputedStyle(b).opacity, getComputedStyle(b).cursor]);
+    const [prev, next] = [await look("pvPrev"), await look("pvNext")];
+    assert.equal(prev[0], true); assert.ok(prev[1] <= 0.5, `opacity ${prev[1]}`); assert.equal(prev[2], "not-allowed");
+    assert.equal(next[0], false); assert.equal(next[1], 1); assert.notEqual(next[2], "not-allowed");
+    await p.keyboard.press("Escape");
+    await p.context().close();
+  });
+});
+
