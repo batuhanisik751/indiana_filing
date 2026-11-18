@@ -373,3 +373,42 @@ describe("VF9: form card headings read with a pause before the form number", () 
   });
 });
 
+describe("VF13: the browser's Back stays in the tool while answers are waiting to go back to", () => {
+  const back = p => p.evaluate(() => history.back());
+  // Watches for the page trying to leave (the browser's "Leave site?" check), and stays.
+  const leaving = p => { p.removeAllListeners("dialog"); const seen = { left: false }; p.on("dialog", d => { if (d.type() === "beforeunload") seen.left = true; d.dismiss(); }); return seen; };
+  test("Choose a different form, a case card, Back, Back: back to the summary", async () => {
+    const p = await fresh();
+    await pick(p, "appearance"); await walk(p, "summary");
+    await p.click("#changeForm"); await p.click('.pick[data-kind="debt"]');
+    await back(p); await p.waitForFunction(() => mode === "pick");
+    assert.equal(await p.locator("#backToWork").count(), 1);
+    const seen = leaving(p);
+    await back(p); await p.waitForFunction(() => mode === "summary", null, { timeout: 5000 });
+    assert.equal(seen.left, false);
+    await p.context().close();
+  });
+  test("edge: the same through Which one fits", async () => {
+    const p = await fresh();
+    await pick(p, "appearance"); await walk(p, "summary");
+    await p.click("#changeForm");
+    if (!(await p.locator("#notSure").isVisible())) await p.click("#moreToggle"); // it stays open from before
+    await p.click("#notSure");
+    await back(p); await p.waitForFunction(() => mode === "pick");
+    const seen = leaving(p);
+    await back(p); await p.waitForFunction(() => mode === "summary", null, { timeout: 5000 });
+    assert.equal(seen.left, false);
+    await p.context().close();
+  });
+  test("edge: back in the form, Back goes back through the questions as usual, with no loop to the first screen", async () => {
+    const p = await fresh();
+    await pick(p, "appearance"); await walk(p, "summary");
+    await p.click("#changeForm"); await p.click('.pick[data-kind="debt"]');
+    await back(p); await p.waitForFunction(() => mode === "pick");
+    await back(p); await p.waitForFunction(() => mode === "summary");
+    await back(p); await p.waitForFunction(() => mode === "step");
+    assert.equal(await p.evaluate(() => visible()[cur].id), await p.evaluate(() => visible().at(-1).id), "the last question, as Back to questions");
+    await p.context().close();
+  });
+});
+

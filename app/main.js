@@ -30,7 +30,8 @@ function dropGuard() { ignorePop = true; history.back(); }
 // so nobody is trapped going back and forth.
 const backToAnswers = () => mode === "pick" && pickedOther && !!sitKey && hasAnswers();
 function syncHistory() {
-  if (mode !== "pick") pickedOther = false;
+  // A side trip into the sorting questions or "Which one fits?" keeps it: the answers are still waiting.
+  if (mode === "step" || mode === "summary") pickedOther = false;
   // From the first screen, Back leaves the app, unless it has something to close or return to first.
   if (mode === "pick" && helpPanel.hidden && !backToAnswers()) { if (inGuard() && !ignorePop) dropGuard(); return; }
   if (!inGuard()) { try { history.pushState({ icfh: 1 }, ""); } catch { /* not allowed here: Back leaves, with the usual warning */ } }
