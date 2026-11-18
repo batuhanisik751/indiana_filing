@@ -24,7 +24,7 @@ function flagHtml(x, i, flags) {
   return `
       <li><span class="tag ${x.level}">${x.level === "missing" ? "Missing" : "Check"}</span>
       <span class="flagtext">${text}</span>
-      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}"${desc ? ` aria-describedby="${desc}"` : ""}>Fix</button>` : ""}</li>`;
+      ${x.fix ? `<button class="ghost small" data-fix="${x.fix}"${x.hit && x.hit.length ? ` data-hit="${x.hit.map(h => h.join("-")).join(",")}"` : ""} aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}"${desc ? ` aria-describedby="${desc}"` : ""}>Fix</button>` : ""}</li>`;
 }
 // The summary counts the days to the court date from today. A page left open past midnight, or brought back by a phone
 // the next morning without reloading, draws it again for the new day, keeping focus and place.
@@ -38,12 +38,25 @@ window.addEventListener("focus", redrawIfNewDay);
 window.addEventListener("pageshow", redrawIfNewDay);
 setInterval(redrawIfNewDay, 60000);
 
+// The parts of each answer a flag is about, as text, to mark where the answer is shown in "Show every answer".
+function markedParts(flags) {
+  const out = {}, a = visibleAnswers();
+  for (const f of flags) if (f.hit && f.hit.length && typeof a[f.fix] === "string") (out[f.fix] ||= []).push(...f.hit.map(([s, e]) => a[f.fix].slice(s, e)));
+  return out;
+}
+// A shown answer with those parts marked (when they're in it as shown).
+function markParts(value, parts) {
+  let html = esc(value);
+  for (const p of new Set(parts || [])) if (p.trim()) html = html.split(esc(p)).join(`<mark>${esc(p)}</mark>`);
+  return html;
+}
 function renderSummary(rerender = false) {
   summaryDay = todayDay();
   const sit = SITUATIONS[sitKey];
   const a = visibleAnswers();
   ensurePdf();
   const flags = [...runChecks(), ...pdfFlags()].sort((x, y) => flagRank(x) - flagRank(y)); // a stable sort: the checks' own order stays within each group
+  const marked = markedParts(flags);
   const missing = flags.filter(x => x.level === "missing").length;
   const checking = pdfState.busy || !pdfState.key; // the PDF's own checks aren't in yet
   const failed = !!pdfState.error; // the PDF's own checks never ran
@@ -102,7 +115,7 @@ function renderSummary(rerender = false) {
         <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<span class="sr-only">, </span><small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
         <dl class="vals">${g.items.map(x => `
           <div><dt>${esc(x.label)}</dt>
-          <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>
+          <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : markParts(x.value, marked[x.step])}</dd>
           ${editOf(x.step) ? `<button class="link edit" data-fix="${editOf(x.step)}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
         </dl>
       </section>`).join("")}</div>`, "Show every answer, with Edit links", "answers", { cls: "section" })}
@@ -116,6 +129,8 @@ function renderSummary(rerender = false) {
 
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
     const where = b.closest("ul.flags") ? "flags" : "vals";
+    // A flag about part of the answer opens it with that part selected.
+    selectOnOpen = b.dataset.hit ? { id: b.dataset.fix, spans: b.dataset.hit.split(",").map(h => h.split("-").map(Number)) } : null;
     goFix(b.dataset.fix, where, [...app.querySelectorAll(`${where === "flags" ? "ul.flags" : "dl.vals"} [data-fix="${b.dataset.fix}"]`)].indexOf(b));
   });
   app.querySelectorAll("[data-ics]").forEach(b => b.onclick = () => downloadIcs(b.dataset.ics));

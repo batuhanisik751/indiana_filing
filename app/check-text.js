@@ -49,6 +49,10 @@ const isReference = (s, at) => {
 const passesCardCheck = n => { const d = n.replace(/\D/g, ""); if (d.length < 13 || d.length > 19) return false; let sum = 0; for (let i = 0; i < d.length; i++) { let x = +d[d.length - 1 - i]; if (i % 2 && (x *= 2) > 9) x -= 9; sum += x; } return sum % 10 === 0; };
 const ACCOUNT_WORD = "accounts?|accts?|acc|a\\/c|routing|rt|aba|cards?|loans?|mortgages?|checking|savings|member|customer";
 const ACCOUNT_LABEL = new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])`, "i");
+// A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word.
+const PASSWORD_RES = [/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S+/i,
+  /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S+/i,
+  /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S+/i];
 function privateKind(text, isAddress = false) {
   const s = String(text ?? "").normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
   // 123-45-6789 and the same with other separators. A hyphen before it only counts after a letter, as in Smith-123-45-6789.
@@ -81,10 +85,25 @@ function privateKind(text, isAddress = false) {
     || (!notCard(n) && /^\d{4}[ .-]\d{4}[ .-]\d{4}[ .-]\d{1,7}(?:[ .-]\d{1,3})?$|^\d{4}[ .-]\d{6}[ .-]\d{4,5}$/.test(n))))) return "account";
   if ([...s.matchAll(/\d{4}([_,/*:~])\d{4}\1\d{4}\1\d{1,7}/g)].some(m => passesCardCheck(m[0]))) return "account";
   if (/\b(?:pin|personal identification number)\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,))* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}(?:\b(?:is|was)\b|:)[: ]*\d{4,8}\b/i.test(s)) return "pin";
-  if (/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S/i.test(s)
-    || /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S/i.test(s)
-    || /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S/i.test(s)) return "pin";
+  if (PASSWORD_RES.some(re => re.test(s))) return "pin";
   return null;
+}
+// Where in an answer the private information is, as [start, end] pieces: each number that's enough by itself to be
+// flagged, or, failing that, the words the flag needs (like "password:" and what follows). Used to select it when the
+// person fixes it and to mark it where the answer is already shown, never to repeat it in a flag. Pieces a few
+// characters apart are one.
+function privateSpans(text, flagged) {
+  const s = String(text ?? "");
+  const blank = (t, spans) => spans.reduce((acc, [a, b]) => acc.slice(0, a) + " ".repeat(b - a) + acc.slice(b), t);
+  const nums = [...s.matchAll(/\d(?:[\d .\/_,:*~\u00b7\u2010-\u2015\u2212-]*\d)?/g)].map(m => [m.index, m.index + m[0].length]);
+  // Still flagged with every number taken out: it's a password, with its label.
+  let hits = flagged(blank(s, nums)) ? PASSWORD_RES.map(re => re.exec(s)).filter(Boolean).map(m => [m.index, m.index + m[0].length])
+    : nums.filter((c, i) => flagged(blank(s, nums.filter((_, j) => j !== i))));
+  if (!hits.length) {
+    const words = [...s.matchAll(/\S+/g)].map(m => [m.index, m.index + m[0].length]);
+    hits = words.filter(c => !flagged(blank(s, [c])));
+  }
+  return hits.reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a - last[1] <= 3) last[1] = b; else out.push([a, b]); return out; }, []);
 }
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
 const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold

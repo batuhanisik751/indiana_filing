@@ -8,6 +8,7 @@ let unsure = {}; // questions the person marked "I'm not sure"
 let justMarked = false; // the last question was just marked: say so on the next screen
 let fromNotSure = false; // came here from "Which one fits?"
 let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
+let selectOnOpen = null; // { id, spans }: the part of an answer a flag is about, to select when its question opens
 let fixFrom = null;      // where on the summary the person tapped Fix or Edit ("flags" or "vals")
 let fixNth = 0;          // which of several Edit buttons for the same answer was tapped
 let pendingFocus = null; // a Fix button to focus once the PDF check finishes
