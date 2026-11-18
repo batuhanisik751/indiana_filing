@@ -54,3 +54,55 @@ describe("BT1: \"Answer\" in a document's name isn't defined, and only words tha
     assert.deepEqual(wrong, []);
   });
 });
+
+describe("BT10: the court date countdown keeps up with the day when the page stays open", () => {
+  // A page in Indianapolis opened at 11:58 pm on December 17, with the court date the next day.
+  async function nightBefore() {
+    const q = await fresh({ timezoneId: "America/Indiana/Indianapolis" });
+    await q.clock.install({ time: new Date("2026-12-18T04:58:00Z") });
+    await q.reload(); await q.waitForSelector("#app h1");
+    await inject(q, "respond", { courtDate: "2026-12-18" });
+    await pdfDone(q); // so the PDF's own redraws can't be what updates the line
+    return q;
+  }
+  const pdfDone = async q => { for (let i = 0; i < 200 && !(await q.evaluate(() => !!pdfState.result && !pdfState.busy)); i++) await new Promise(r => setTimeout(r, 100)); };
+  const dateLine = q => q.$eval("[data-ics]", b => b.closest("li").querySelector(":scope > p").textContent).catch(() => null);
+  const stepText = q => q.$$eval("ol.steps > li > p", ps => ps.map(x => x.textContent).find(t => /court date/.test(t)));
+
+  test("left open past midnight, \"tomorrow\" becomes \"today\", with focus kept where it was", async () => {
+    const q = await nightBefore();
+    assert.match(await dateLine(q), /^Your next court date: 12\/18\/2026, tomorrow\./);
+    await q.evaluate(() => document.querySelector("[data-ics]").closest("li").querySelector("details.more > summary").focus());
+    await q.clock.fastForward("07:00");
+    assert.match(await dateLine(q), /^Your next court date: 12\/18\/2026, today\./);
+    assert.equal(await q.evaluate(() => document.activeElement.closest("li")?.querySelector("strong")?.textContent), "Go to every court date", "focus stays on that step's More");
+    await q.context().close();
+  });
+  test("the day after, the date has passed: no countdown and no calendar file", async () => {
+    const q = await nightBefore();
+    await q.clock.fastForward("24:07:00");
+    assert.equal(await q.$("[data-ics]"), null);
+    assert.match(await stepText(q), /The court date you entered, 12\/18\/2026, has already passed\./);
+    await q.context().close();
+  });
+  test("edge: a phone bringing the tab back the next morning redraws it as soon as it's shown", async () => {
+    const q = await nightBefore();
+    await q.clock.setFixedTime(new Date("2026-12-18T13:00:00Z")); // 8 am, with no timers run
+    assert.match(await dateLine(q), /, tomorrow\./, "nothing has run yet");
+    await q.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    assert.match(await dateLine(q), /, today\./);
+    await q.context().close();
+  });
+  test("edge: on the same day it isn't redrawn, so nothing moves while someone reads", async () => {
+    const q = await fresh({ timezoneId: "America/Indiana/Indianapolis" });
+    await q.clock.install({ time: new Date("2026-12-17T17:00:00Z") }); // noon
+    await q.reload(); await q.waitForSelector("#app h1");
+    await inject(q, "respond", { courtDate: "2026-12-18" });
+    await pdfDone(q);
+    await q.evaluate(() => { window.__steps = document.querySelector("ol.steps"); });
+    await q.clock.fastForward("10:00");
+    await q.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    assert.equal(await q.evaluate(() => window.__steps.isConnected), true);
+    await q.context().close();
+  });
+});

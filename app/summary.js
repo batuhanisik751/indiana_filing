@@ -26,7 +26,20 @@ function flagHtml(x, i, flags) {
       <span class="flagtext">${text}</span>
       ${x.fix ? `<button class="ghost small" data-fix="${x.fix}" aria-label="Fix: ${esc(x.title)}${sameTitle(flags, x) > 1 ? ` (${flags.filter(y => y.title === x.title).indexOf(x) + 1} of ${sameTitle(flags, x)})` : ""}"${desc ? ` aria-describedby="${desc}"` : ""}>Fix</button>` : ""}</li>`;
 }
+// The summary counts the days to the court date from today. A page left open past midnight, or brought back by a phone
+// the next morning without reloading, draws it again for the new day, keeping focus and place.
+let summaryDay = null;
+function redrawIfNewDay() {
+  if (mode !== "summary" || summaryDay === todayDay()) return;
+  keepFocus(() => renderSummary(true));
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") redrawIfNewDay(); });
+window.addEventListener("focus", redrawIfNewDay);
+window.addEventListener("pageshow", redrawIfNewDay);
+setInterval(redrawIfNewDay, 60000);
+
 function renderSummary(rerender = false) {
+  summaryDay = todayDay();
   const sit = SITUATIONS[sitKey];
   const a = visibleAnswers();
   ensurePdf();
