@@ -385,3 +385,26 @@ describe("BT8: the ready list and the word list open only when tapped or clicked
     await q.context().close();
   });
 });
+
+describe("BT9: tests for three breaks that went unnoticed", () => {
+  test("a word in a question's More text is a button too", async () => {
+    await inject(p, "continuance", { role: "other" }); await jump(p, "hearingDate");
+    await p.evaluate(() => { visible()[cur].more = "The defendant can ask for this."; render(); });
+    assert.deepEqual(await p.$$eval("#qmore button.term", bs => bs.map(b => b.textContent)), ["defendant"]);
+  });
+  test("Start over deletes the kept text size and contrast with everything else", async () => {
+    await reset(p); await p.evaluate(() => localStorage.clear()); await reset(p);
+    await p.click("#saveToggle");
+    await p.click("#readBtn"); await p.click("#textBigger"); await p.click("#readBtn");
+    assert.notEqual(await p.evaluate(() => localStorage.getItem("icfh-display-v1")), null);
+    await inject(p, "appearance");
+    await p.click("#restart");
+    assert.equal(await p.evaluate(() => localStorage.getItem("icfh-display-v1")), null);
+  });
+  test("a kept look found while saving is off is deleted when the page opens", async () => {
+    await p.evaluate(() => { localStorage.clear(); localStorage.setItem("icfh-display-v1", JSON.stringify({ size: 2, contrast: true })); });
+    await reset(p);
+    assert.equal(await p.evaluate(() => localStorage.getItem("icfh-display-v1")), null);
+    assert.equal(await p.isDisabled("#textSmaller"), true, "and it isn't applied");
+  });
+});
