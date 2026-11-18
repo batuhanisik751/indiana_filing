@@ -437,3 +437,24 @@ describe("BT14: one Enter too many at the end of the range does nothing", () => 
     assert.deepEqual(seen, ["1.15", "1.3", "1.5", "1.5", "1.5", "1.5", "1.5", "1.5"]);
   });
 });
+
+describe("BT15: an expired saved copy doesn't bring back its text size and contrast", () => {
+  const keep = (days) => p.evaluate(days => {
+    localStorage.clear();
+    localStorage.setItem("icfh-save-pref", "on");
+    localStorage.setItem("icfh-display-v1", JSON.stringify({ size: 2, contrast: true }));
+    localStorage.setItem("icfh-progress-v1", JSON.stringify({ v: 1, sitKey: "appearance", answers: { name: "Pat Example" }, unsure: {}, savedAt: Date.now() - days * 864e5 }));
+  }, days);
+  test("31 days old: the page opens at the usual size and colors, and nothing is left on the device", async () => {
+    await keep(31); await reset(p);
+    assert.equal(await p.getAttribute("#textSmaller", "aria-disabled"), "true");
+    assert.equal(await p.getAttribute("#contrastBtn", "aria-pressed"), "false");
+    assert.deepEqual(await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith("icfh-"))), []);
+  });
+  test("edge: 2 days old: the look is still kept and applied", async () => {
+    await keep(2); await reset(p);
+    assert.equal(await p.getAttribute("#contrastBtn", "aria-pressed"), "true");
+    assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim()), "1.3");
+    await p.evaluate(() => localStorage.clear());
+  });
+});

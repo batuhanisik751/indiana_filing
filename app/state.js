@@ -91,6 +91,9 @@ function applyDisplay() {
 function keepDisplay() {
   if (savingOn() && (look.size || look.contrast)) store.set(DISPLAY_KEY, JSON.stringify(look)); else store.del(DISPLAY_KEY);
 }
+// A saved copy too old to use turns saving off (in readSaved), and with it the previous person's look: so it's
+// checked first, and an expired copy's look is never applied.
+if (savingOn()) readSaved();
 if (savingOn()) {
   try {
     const d = JSON.parse(store.get(DISPLAY_KEY) || "null");
