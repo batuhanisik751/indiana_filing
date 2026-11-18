@@ -610,3 +610,17 @@ describe("BT21: the calendar file is a plain calendar file, without METHOD", () 
     for (const part of ["VERSION:2.0", "PRODID:", "UID:", "DTSTAMP:", "DTSTART;VALUE=DATE:", "DTEND;VALUE=DATE:", "SUMMARY:Court date"]) assert.ok(t.includes(`\r\n${part}`), part);
   });
 });
+
+describe("BT22: the test helpers' dates are the page's local dates", () => {
+  test("at 10:30 pm in Indianapolis (already tomorrow in UTC), \"30 days ahead\" is 30 days from today there", async () => {
+    const q = await fresh({ timezoneId: "America/Indiana/Indianapolis" });
+    await q.clock.install({ time: new Date("2026-11-18T03:30:00Z") }); // November 17, 10:30 pm
+    await q.reload(); await q.waitForSelector("#app h1");
+    await inject(q, "respond");
+    assert.equal(await q.evaluate(() => answers.courtDate), "2026-12-17");
+    assert.match(await q.textContent("ol.steps"), /12\/17\/2026, 30 days from today\./);
+    await reset(q); await pick(q, "continuance"); await walk(q, "reason");
+    assert.equal(await q.evaluate(() => answers.hearingDate), "2026-12-17", "walk gives the same local date");
+    await q.context().close();
+  });
+});

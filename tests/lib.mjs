@@ -95,7 +95,8 @@ export async function walk(p, target = "summary", over = {}) {
     const s = await p.evaluate(() => (mode === "step" ? (({ id, type, optional, options }) => ({ id, type, optional, options: (options || []).map(o => (Array.isArray(o) ? o[0] : o)) }))(visible()[cur]) : { id: mode }));
     if (s.id === target || s.id !== undefined && !s.type) break;
     let v = vals[s.id];
-    if (s.type === "date") v ??= await p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }, DAYS_AHEAD[s.id] ?? 0);
+    // The page's own local date, as its date box gives it (not UTC, which is already tomorrow in a US evening).
+    if (s.type === "date") v ??= await p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }, DAYS_AHEAD[s.id] ?? 0);
     if (s.type === "checks") { for (const k of String(v ?? "").split(",").filter(Boolean)) await p.locator(`input[name=ans][value="${k}"]`).check({ force: true }); } // left blank: every amount is asked
     else if (s.type === "choice") await p.locator(`input[name=ans][value="${s.options.includes(v) ? v : s.options[0]}"]`).check({ force: true });
     else if (s.type === "select") await p.selectOption("#ans", v && s.options.includes(v) ? v : s.options[0]);
@@ -129,7 +130,7 @@ export async function reset(p) { await p.goto(p.url().startsWith("http://app.tes
 // Date questions not given get a date counted from today, as in walk().
 export const inject = (p, form, answers = {}, unsure = {}) => p.evaluate(([form, answers, unsure, ahead, given]) => {
   for (const s of SITUATIONS[form].steps()) if (s.type === "date" && !given.includes(s.id)) {
-    const d = new Date(); d.setDate(d.getDate() + (ahead[s.id] ?? 0)); answers[s.id] = d.toISOString().slice(0, 10);
+    const d = new Date(); d.setDate(d.getDate() + (ahead[s.id] ?? 0)); answers[s.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; // local, like the date box
   }
   window.__set = { form, answers, unsure };
   // Through eval, because the page's own variables are top-level lets.

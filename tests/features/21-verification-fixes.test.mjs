@@ -335,7 +335,7 @@ describe("VF7: fee waiver totals always have an Edit link", () => {
 });
 
 describe("VF8: a service date before the signing date is flagged to check", () => {
-  const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }; // local, like the page
   test("a copy sent before the form is signed is flagged, with both dates", async () => {
     const p = await fresh();
     await inject(p, "appearance", { svc1Date: day(-5), signDate: day(2) });
