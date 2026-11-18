@@ -267,7 +267,9 @@ function renderStep() {
   if (other) other.onclick = () => { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; chooseOtherForm(); };
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
+  let typedHere = false; // something was typed or chosen on this question since it appeared
   app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" || i.type === "checkbox" ? "change" : "input", () => {
+    typedHere = true;
     if (i.validity?.badInput) return; // a half-typed date isn't an answer yet
     if (i.type === "checkbox") {
       // "None of these" and the others rule each other out.
@@ -281,6 +283,10 @@ function renderStep() {
   app.querySelectorAll("input, select").forEach(i => i.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.repeat || e.isComposing) return;
     e.preventDefault();
+    // A second Enter right after the first would land on the question that just appeared and skip it, as a
+    // double click would. So an Enter in the first moment of a new question, before anything is typed, is ignored.
+    // (A choice already refuses an Enter with nothing chosen.)
+    if (step.type !== "choice" && !typedHere && performance.now() - drawnAt < 500) return;
     // Moving on from a choice with nothing selected would skip it by accident.
     if (step.type === "choice" && !app.querySelector("input[name=ans]:checked")) {
       document.getElementById("err").textContent = `Choose one with the arrow keys or Space, or press ${returnToSummary ? "Save and review" : "Continue"} to skip it.`;

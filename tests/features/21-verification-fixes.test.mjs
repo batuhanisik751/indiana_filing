@@ -62,3 +62,35 @@ describe("VF10: a changed case number never keeps an old county and court confir
     await ctx.close();
   });
 });
+
+describe("VF11: pressing Enter twice doesn't skip the next question", () => {
+  const enterTwice = async (p, gap) => { await p.focus("#ans"); await p.keyboard.press("Enter"); await p.waitForTimeout(gap); await p.keyboard.press("Enter"); };
+  test("Enter, then Enter again a moment later, stops at the next question with nothing saved", async () => {
+    const p = await fresh();
+    await pick(p, "continuance"); await walk(p, "timeNeeded");
+    await p.fill("#ans", "2 weeks"); await enterTwice(p, 250);
+    assert.equal(await step(p), "spokeDate");
+    assert.equal(await p.evaluate(() => "spokeDate" in answers), false, "the next answer wasn't saved blank");
+    await p.context().close();
+  });
+  test("edge: the same on a text box and an email box, with no pause at all", async () => {
+    const p = await fresh();
+    for (const [at, value, next] of [["plaintiff", "Acme Credit LLC", "name"], ["email", "pat@example.com", "phone"]]) {
+      await pick(p, "appearance"); await walk(p, at);
+      await p.fill("#ans", value); await enterTwice(p, 0);
+      assert.equal(await step(p), next, at);
+      await p.goto(p.url()); await p.waitForSelector("#app h1");
+    }
+    await p.context().close();
+  });
+  test("edge: one Enter still moves on, and Enter on the new question after a moment still works", async () => {
+    const p = await fresh();
+    await pick(p, "appearance"); await walk(p, "name");
+    await p.fill("#ans", "Pat Example"); await p.focus("#ans"); await p.keyboard.press("Enter");
+    assert.equal(await step(p), "acp");
+    await walk(p, "phone");
+    await p.waitForTimeout(700); await p.focus("#ans"); await p.keyboard.press("Enter");
+    assert.notEqual(await step(p), "phone", "a deliberate Enter later skips, as before");
+    await p.context().close();
+  });
+});
