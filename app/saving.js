@@ -163,7 +163,7 @@ function saveProgress() {
   const inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
   // What a reload won't bring back, so that page can say it's gone.
   const dropped = [...new Set([...clearedContact, ...steps.filter(s => !keptIds.has(s.id) && guarded(s.id) && !empty(answers[s.id])).map(s => s.id)])];
-  const data = { v: 1, sitKey, ...(dropped.length ? { cleared: dropped } : {}), answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
+  const data = { v: 1, sitKey, ...(dropped.length ? { cleared: dropped } : {}), ...(caseConfirmFor ? { caseConfirmFor } : {}), answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, ...(empty(editOriginal.value) ? {} : { erased: true }) } : editOriginal } : null };
@@ -237,6 +237,7 @@ function restoreSaved(d, keep) {
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
   clearedContact = Array.isArray(d.cleared) ? d.cleared.filter(k => Object.hasOwn(CONTACT_WORDS, k) && steps.some(s => s.id === k)) : [];
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
+  caseConfirmFor = typeof d.caseConfirmFor === "string" ? d.caseConfirmFor : null; // checked against the number before the next screen
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
   if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) {
     answers[d.draft.id] = d.draft.value;

@@ -7,6 +7,7 @@ app.addEventListener("click", e => {
 
 function render() {
   drawnAt = performance.now();
+  dropStaleCaseConfirm();
   draft = null; // a new screen: what was typed has been saved or left
   // Get help sits above the screen. Left open, a phone's next question starts far below the fold.
   if (!helpPanel.hidden) { helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false"); }

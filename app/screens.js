@@ -292,12 +292,16 @@ function renderStep() {
 
 function readInput(step) {
   if (step.type === "checks") { answers[step.id] = [...app.querySelectorAll("input[name=ans]:checked")].map(c => c.value).join(","); return; }
-  if (step.type === "choice") { const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : ""; return; }
+  if (step.type === "choice") {
+    const c = app.querySelector("input[name=ans]:checked"); answers[step.id] = c ? c.value : "";
+    if (step.id === "caseConfirm") caseConfirmFor = empty(answers.caseConfirm) ? null : caseCourt(answers.caseNumber)?.name ?? null;
+    return;
+  }
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return; // half-typed: keep what was there
   let val = cleanText(document.getElementById("ans").value).trim();
   if (step.upper) val = val.toUpperCase();
   // A case number that names another county or court has to be confirmed again.
-  if (step.id === "caseNumber" && caseCourt(val)?.name !== caseCourt(answers.caseNumber)?.name) { delete answers.caseConfirm; delete unsure.caseConfirm; }
+  if (step.id === "caseNumber" && caseCourt(val)?.name !== caseCourt(answers.caseNumber)?.name) { delete answers.caseConfirm; delete unsure.caseConfirm; caseConfirmFor = null; }
   answers[step.id] = val;
 }
 

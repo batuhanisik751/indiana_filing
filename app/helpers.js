@@ -50,8 +50,15 @@ function caseCourt(cn) {
   const county = m ? COUNTIES[+m[1] - 1] : null, court = { C: "CIRCUIT", D: "SUPERIOR" }[letter];
   return county && court ? { county, court, name: `${county} County, ${court === "CIRCUIT" ? "Circuit" : "Superior"} Court` } : null;
 }
-// The person confirmed the county and court in their case number, so those two questions aren't asked.
-const caseConfirmed = a => a.caseConfirm === "yes" && !!caseCourt(a.caseNumber);
+// The person confirmed the county and court in their case number, so those two questions aren't asked. The
+// confirmation holds only for the county and court it was answered for (caseConfirmFor), however the number changes.
+const caseConfirmed = a => a.caseConfirm === "yes" && !!caseCourt(a.caseNumber) && caseConfirmFor === caseCourt(a.caseNumber).name;
+// A confirmation answered for another county or court is dropped, so the question is asked again with nothing chosen.
+// Run before each screen: a number can change by a reload of what was typed, not only by Continue.
+function dropStaleCaseConfirm() {
+  if (empty(answers.caseConfirm) || caseConfirmFor === (caseCourt(answers.caseNumber)?.name ?? null)) return;
+  delete answers.caseConfirm; delete unsure.caseConfirm; caseConfirmFor = null;
+}
 // "More": extra detail that starts closed and opens on tap. A real <details>, so keyboards and screen readers can use it.
 // With a key, it stays open when the page redraws (the summary does, when its PDF check finishes).
 const openMore = new Set();

@@ -122,7 +122,8 @@ export const inject = (p, form, answers = {}, unsure = {}) => p.evaluate(([form,
   }
   window.__set = { form, answers, unsure };
   // Through eval, because the page's own variables are top-level lets.
-  globalThis.eval("resetAnswers(); sitKey = __set.form; steps = SITUATIONS[sitKey].steps(); answers = __set.answers; unsure = __set.unsure; mode = 'summary'; render();");
+  // A confirmation given here counts for the case number given with it, as if it had been answered on its question.
+  globalThis.eval("resetAnswers(); sitKey = __set.form; steps = SITUATIONS[sitKey].steps(); answers = __set.answers; unsure = __set.unsure; caseConfirmFor = answers.caseConfirm ? (caseCourt(answers.caseNumber) || {}).name || null : null; mode = 'summary'; render();");
 }, [form, { ...VALUES, ...answers }, unsure, DAYS_AHEAD, Object.keys(answers)]);
 // Every flag for one question, as "level|title|why".
 export const flagsFor = (p, id) => p.evaluate(id => runChecks().filter(f => f.fix === id).map(f => `${f.level}|${f.title}|${f.why}`), id);
