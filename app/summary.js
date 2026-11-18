@@ -86,7 +86,7 @@ function renderSummary(rerender = false) {
     <p class="draftnote">These are the official Indiana forms approved by the Coalition for Court Access. Red text shows what's still blank. <a id="summaryBlank" href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">Blank official forms (PDF)</a> · <a href="${sit.official.page}" target="_blank" rel="noopener">On Indiana Legal Help</a></p>
     ${moreHtml(`<div class="formgrid">${groups.map(g => `
       <section class="formcard">
-        <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
+        <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<span class="sr-only">, </span><small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
         <dl class="vals">${g.items.map(x => `
           <div><dt>${esc(x.label)}</dt>
           <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : esc(x.value)}</dd>

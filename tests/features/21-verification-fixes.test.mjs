@@ -359,3 +359,17 @@ describe("VF8: a service date before the signing date is flagged to check", () =
   });
 });
 
+describe("VF9: form card headings read with a pause before the form number", () => {
+  test("screen readers get \"..., Form CCA-...\", not two words run together, and the card looks the same", async () => {
+    const p = await fresh();
+    for (const form of ["respond", "continuance", "feewaiver"]) {
+      await inject(p, form, { incomeKinds: "none", expenseKinds: "none" });
+      const heads = await p.$$eval(".formcard h3", hs => hs.filter(h => h.querySelector("small")).map(h => h.textContent));
+      assert.ok(heads.length > 0, form);
+      for (const h of heads) assert.match(h, /[a-z)], Form CCA-GF-\d{4}-\d{4}$/, h);
+      assert.equal(await p.$eval(".formcard h3 small", s => getComputedStyle(s).display), "block");
+    }
+    await p.context().close();
+  });
+});
+
