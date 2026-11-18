@@ -208,7 +208,7 @@ function mayReplaceCopy(old, stored) {
   return false;
 }
 function clearSaved() { store.del(STORE_KEY); }
-function savingOffForNext() { store.del(PREF_KEY); lastSavingOn = false; }
+function savingOffForNext() { store.del(PREF_KEY); store.del(DISPLAY_KEY); lastSavingOn = false; }
 // Writes the saved copy and remembers it, so this page can tell its own copy from another tab's.
 function writeCopy(json) { const ok = store.set(STORE_KEY, json); if (ok) lastWritten = json; return ok; }
 // Are these sorting answers what's in the saved copy? (A form's copy is never replaced by them.)
@@ -421,6 +421,7 @@ function setSaving(on) {
   }
   lastSavingOn = on;
   if (!on) clearSaved();
+  keepDisplay(); // the text size and contrast are kept, or deleted, with everything else
   updatePrivacyNote();
   // Say "saved" only when a copy really is on the device.
   const stored = saveOk && savedIsMine();

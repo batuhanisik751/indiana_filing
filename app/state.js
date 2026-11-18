@@ -64,12 +64,50 @@ document.getElementById("saveMine").onclick = () => {
   announce(savedHere ? "This tab's answers are saved on this device." : "This tab's answers couldn't be saved.");
   document.getElementById("saveToggle").focus(); // this link is hidden now
 };
+// Bigger text and high contrast, from the header. Kept on this device only while saving is on, like everything
+// else the tool keeps; with saving off they last until the page is closed.
+const DISPLAY_KEY = "icfh-display-v1", TEXT_SIZES = [1, 1.15, 1.3, 1.5];
+const look = { size: 0, contrast: false };
+function applyDisplay() {
+  const root = document.documentElement;
+  if (look.size) root.style.setProperty("--text-scale", TEXT_SIZES[look.size]); else root.style.removeProperty("--text-scale");
+  if (look.contrast) root.dataset.contrast = "high"; else delete root.dataset.contrast;
+  document.getElementById("textSmaller").disabled = look.size === 0;
+  document.getElementById("textBigger").disabled = look.size === TEXT_SIZES.length - 1;
+  document.getElementById("contrastBtn").setAttribute("aria-pressed", String(look.contrast));
+}
+// Only a change from the usual look is kept, and only with saving on.
+function keepDisplay() {
+  if (savingOn() && (look.size || look.contrast)) store.set(DISPLAY_KEY, JSON.stringify(look)); else store.del(DISPLAY_KEY);
+}
+if (savingOn()) {
+  try {
+    const d = JSON.parse(store.get(DISPLAY_KEY) || "null");
+    if (d && Number.isInteger(d.size) && d.size > 0 && d.size < TEXT_SIZES.length) look.size = d.size;
+    if (d && d.contrast === true) look.contrast = true;
+  } catch { /* unreadable: the usual look */ }
+} else if (!storageFull) store.del(DISPLAY_KEY);
+applyDisplay();
+const sizeBtn = (id, step, other) => document.getElementById(id).onclick = () => {
+  look.size = Math.max(0, Math.min(TEXT_SIZES.length - 1, look.size + step));
+  applyDisplay(); keepDisplay();
+  // At the end of the range this button turns off, so focus moves to the one that still works.
+  if (document.getElementById(id).disabled) document.getElementById(other).focus();
+  announce(`Text size ${Math.round(TEXT_SIZES[look.size] * 100)} percent.`);
+};
+sizeBtn("textBigger", 1, "textSmaller"); sizeBtn("textSmaller", -1, "textBigger");
+document.getElementById("contrastBtn").onclick = () => {
+  look.contrast = !look.contrast;
+  applyDisplay(); keepDisplay();
+  announce(look.contrast ? "High contrast is on." : "High contrast is off.");
+};
+
 document.getElementById("clearData").onclick = () => {
   const stored = store.get(STORE_KEY) !== null, wasOn = savingOn();
   if (!confirm(`Clear my data? This deletes every answer you have entered, on this page${stored ? ", in any other open tab, and saved on this device" : " and in any other open tab"}${wasOn ? ", and turns saving off" : ""}.`)) return;
   clearEverywhere();
   // Saving goes back to off, so the next person on this computer starts with it off.
-  store.del(PREF_KEY); lastSavingOn = false;
+  store.del(PREF_KEY); store.del(DISPLAY_KEY); lastSavingOn = false;
   resetAnswers(); mode = "pick"; render();
   announce(wasOn ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
 };
