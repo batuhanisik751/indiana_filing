@@ -141,13 +141,17 @@ function renderNotSure() {
 
 // An explanation with the words the word list defines made into buttons that show the definition (the first time each
 // word comes up in that paragraph). The text reads the same, to everyone.
-function termify(text) {
+// Only words whose definition fits this form and this person, and never a word that is part of a document's name:
+// "Answer instructions" is the name of a guide, not the Answer form.
+const DOC_NAME_AFTER = /^\s+(?:instructions|packet)\b/i;
+function termify(text, key = sitKey, a = answers) {
   let html = esc(text);
   GLOSSARY.forEach((g, i) => {
-    const m = g.match.exec(html);
-    // Never inside a button already made for a longer term (like "Related cases" before "cases").
-    if (m && !/<button[^>]*>[^<]*$/.test(html.slice(0, m.index)))
-      html = `${html.slice(0, m.index)}<button type="button" class="term" data-term="${i}" aria-expanded="false" aria-controls="termbox">${m[0]}</button>${html.slice(m.index + m[0].length)}`;
+    if (!g.fits(key, a)) return;
+    const every = new RegExp(g.match.source, g.match.flags.includes("g") ? g.match.flags : `${g.match.flags}g`);
+    // The first time the word comes up as a word, not inside a button already made for a longer one.
+    const m = [...html.matchAll(every)].find(x => !DOC_NAME_AFTER.test(html.slice(x.index + x[0].length)) && !/<button[^>]*>[^<]*$/.test(html.slice(0, x.index)));
+    if (m) html = `${html.slice(0, m.index)}<button type="button" class="term" data-term="${i}" aria-expanded="false" aria-controls="termbox">${m[0]}</button>${html.slice(m.index + m[0].length)}`;
   });
   return html;
 }

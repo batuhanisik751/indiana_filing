@@ -87,7 +87,7 @@ describe("Word list", () => {
     await reset(p);
     const out = await p.evaluate(() => {
       const div = document.createElement("div");
-      div.innerHTML = termify("The plaintiff said the plaintiff's answer and the Answer are due. Related cases, a related case.");
+      div.innerHTML = termify("The plaintiff said the plaintiff's answer and the Answer are due. Related cases, a related case.", "respond", {}); // the words of the Answer form
       return [...div.querySelectorAll("button.term")].map(b => b.textContent);
     });
     assert.deepEqual(out, ["plaintiff", "Answer", "Related cases"]);
@@ -103,7 +103,7 @@ describe("Word list", () => {
       if (await p.locator("#qhelp button.term, #qmore button.term").count() >= 2) found = true;
     }
     if (!found) { // no question has two: check it with two made-up ones
-      await p.evaluate(() => { document.getElementById("qhelp").innerHTML = termify("The plaintiff and the defendant."); wireTerms(); });
+      await p.evaluate(() => { document.getElementById("qhelp").innerHTML = termify("The defendant and the Appearance."); wireTerms(); });
     }
     const terms = p.locator("#qhelp button.term, #qmore button.term");
     await terms.nth(0).click(); await terms.nth(1).click();
