@@ -195,6 +195,7 @@ function renderStep() {
     <h1 class="q" id="q" tabindex="-1">${esc(typeof step.q === "function" ? step.q(answers) : step.q)}</h1>
     <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
     ${step.more ? moreHtml(`<p class="help">${esc(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}
+    ${cur === 0 && !returnToSummary ? readyHtml(sitKey) : ""}
     ${input}
     <p class="need" id="qneed">${esc(need)}</p>
     <p class="err" id="err" role="alert"></p>
