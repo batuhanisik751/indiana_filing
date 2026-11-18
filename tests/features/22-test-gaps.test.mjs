@@ -75,3 +75,39 @@ describe("TG1: saving keeps its privacy rules", () => {
     await p.context().close();
   });
 });
+
+describe("TG2: the full next-steps text never overstates what missing a hearing means", () => {
+  // Every situation's steps, line and full text: form x filing method x county x role x case type x court date.
+  const allText = p => p.evaluate(() => {
+    const out = [];
+    for (const form of ["respond", "appearance", "continuance", "feewaiver"]) for (const fileMethod of ["", "efile", "paper"]) for (const county of ["", "Allen", "Marion"])
+      for (const role of ["me", "other"]) for (const caseNumber of ["", "02D01-2611-SC-001234", "02D01-2611-EV-001234", "02D01-2611-CC-001234", "02D01-2611-CM-001234"])
+        for (const courtDate of ["", "2020-01-02", "2099-01-02"]) {
+          sitKey = form;
+          for (const s of nextSteps(form, { fileMethod, county, role, caseNumber, courtDate, hearingDate: courtDate, name: "Pat" })) out.push({ form, caseNumber, role, title: s.title, text: `${s.short || ""} ${s.body}` });
+        }
+    return out;
+  });
+  test("no step says the court will, must or shall rule against you, enter a default or dismiss", async () => {
+    const p = await fresh();
+    const bad = (await allText(p)).filter(s => /\b(will|must|shall) (rule against|enter (a |an )?(default|judgment)|dismiss)|\bwill lose\b|\blose automatically\b/i.test(s.text)).map(s => `${s.form} ${s.caseNumber}: ${s.title}`);
+    assert.deepEqual([...new Set(bad)], []);
+    await p.context().close();
+  });
+  test("edge: an eviction's full text gives the Eviction FAQ's words exactly", async () => {
+    const p = await fresh();
+    const s = (await allText(p)).find(x => x.form === "appearance" && x.caseNumber.includes("-EV-") && x.title === "Go to every court date");
+    assert.ok(s.text.includes("Indiana Legal Help's Eviction FAQ says that if you don't show up to your hearing, the court can rule against you without hearing your side of the story (a default judgment)."), s.text);
+    await p.context().close();
+  });
+  test("edge: small claims gives Small Claims Rule 10's words exactly, for both sides", async () => {
+    const p = await fresh();
+    const all = await allText(p);
+    const defendant = all.find(x => x.form === "appearance" && x.caseNumber.includes("-SC-") && x.title === "Go to every court date");
+    assert.ok(defendant.text.includes('"the court may enter a default judgment against him."'), defendant.text);
+    const starter = all.find(x => x.form === "continuance" && x.role === "me" && x.caseNumber.includes("-SC-") && x.title === "If you don't go to court");
+    assert.ok(starter.text.includes("the court may dismiss the claim without prejudice"), starter.text);
+    await p.context().close();
+  });
+});
+
