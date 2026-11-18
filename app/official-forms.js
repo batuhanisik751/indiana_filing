@@ -50,18 +50,21 @@ const GLOSSARY = [
     says: "Your formal response to the lawsuit (Complaint) filed against you. In this document, you tell the court which parts of the Complaint you agree with, which you disagree with, and which you aren't sure about. You can also use this form to list your defenses." },
   { term: "Defenses", fits: (key) => key === "respond", match: /\bdefenses?\b/i, src: TERM_SRC.answer(3),
     says: "These are legal reasons why you should win the case or face reduced damages, even if some of the things the Plaintiff says in the Complaint are true. Important: You must list your defenses in this initial Answer. If you do not list them now, you may lose your right to use them later in the case." },
-  { term: "Appearance", fits: ANY_FORM, match: /\bAppearance\b/, src: TERM_SRC.answer(2),
+  { term: "Appearance", alt: { continuance: { src: TERM_SRC.cont(2), says: "This is the form that tells the court how to contact you if they need to." } }, fits: ANY_FORM, match: /\bAppearance\b/, src: TERM_SRC.answer(2),
     says: "This is the form that tells the court and the other party how to contact you if they need to." },
   { term: "Continuance", fits: (key) => key === "continuance", match: /\bcontinuance\b/i, src: TERM_SRC.cont(3),
     says: "A \"Continuance\" is when a person asks the court to delay a trial or hearing. You can do this if you have a good reason, which you need to show by giving proof, like a written statement. These forms will give you the place to provide the written statement. The court will decide if it's okay to postpone the hearing." },
-  { term: "Related cases", fits: ANY_FORM, match: /\brelated cases?\b/i, src: TERM_SRC.answer(4),
+  { term: "Related cases", alt: { continuance: { src: TERM_SRC.cont(3) } }, fits: ANY_FORM, match: /\brelated cases?\b/i, src: TERM_SRC.answer(4),
     says: "Sometimes there can be other cases that have the same parties." },
-  { term: "Certificate of Service", fits: CASE_FORMS_ONLY, match: /\bcertificate of service\b/i, src: TERM_SRC.answer(4),
+  { term: "Certificate of Service", alt: { continuance: { src: TERM_SRC.cont(3) } }, fits: CASE_FORMS_ONLY, match: /\bcertificate of service\b/i, src: TERM_SRC.answer(4),
     says: "You are required to give a copy of every form you file with the court to every other person involved in the case. You must say when you gave them the copies and how you gave them the copies." },
-  { term: "Perjury", fits: ANY_FORM, match: /\bperjury\b/i, src: TERM_SRC.answer(3),
+  { term: "Perjury", alt: { continuance: { src: TERM_SRC.cont(3) } }, fits: ANY_FORM, match: /\bperjury\b/i, src: TERM_SRC.answer(3),
     says: "When a person makes a false statement under oath in the things they say in case documents or when they testify in court, when they know the statement is false or they don't believe the statement is true." },
 ];
-const termHtml = g => `<strong>${esc(g.term)}:</strong> \u201c${esc(g.says)}\u201d <small class="src">Source: <a href="${g.src.href}" target="_blank" rel="noopener">${esc(g.src.text)}</a></small>`;
+// A definition as the form being filled cites it: the continuance's own instructions say four of these words too.
+const termDef = (g, key) => ({ says: g.says, src: g.src, ...(g.alt && g.alt[key]) });
+const termSource = d => `<small class="src">Source: <a href="${d.src.href}" target="_blank" rel="noopener">${esc(d.src.text)}</a></small>`;
+const termHtml = (g, key) => { const d = termDef(g, key); return `<strong>${esc(g.term)}:</strong> \u201c${esc(d.says)}\u201d ${termSource(d)}`; };
 
 // Official PDFs and which of their pages end up in the filled document.
 // Page numbers are 0-based pages of the original PDF.

@@ -164,7 +164,7 @@ function wireTerms() {
     box.hidden = open;
     if (open) return;
     b.setAttribute("aria-expanded", "true");
-    box.innerHTML = `<p>${termHtml(GLOSSARY[+b.dataset.term])}</p>`;
+    box.innerHTML = `<p>${termHtml(GLOSSARY[+b.dataset.term], sitKey)}</p>`;
     markNewTabLinks(box);
   });
 }

@@ -53,7 +53,8 @@ describe("Word list", () => {
       const loose = new Function(`return ${LOOSE}`)();
       await loadPreviewTools();
       const out = [];
-      for (const g of GLOSSARY) {
+      // Each definition, and each form's own version of it (BT5).
+      for (const g of GLOSSARY.flatMap(g => [g, ...Object.entries(g.alt || {}).map(([k, a]) => ({ term: `${g.term} (${k})`, ...termDef(g, k) }))])) {
         const packet = g.src.href.startsWith(LINKS.answerInstructions) ? "answerPacket" : "continuancePacket";
         await loadPdfTools(OFFICIAL[packet].file);
         const doc = await whereDoc(OFFICIAL[packet].file), page = +g.src.href.split("#page=")[1];

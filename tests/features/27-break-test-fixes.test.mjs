@@ -288,3 +288,23 @@ describe("BT12: with bigger text, the header stays small and the question comes 
     }
   });
 });
+
+describe("BT5: on the continuance, definitions cite the continuance's own instructions", () => {
+  const sources = () => p.$$eval("#helpWords dd", ds => ds.map(d => d.closest("dl") && d.previousElementSibling.textContent + ": " + d.querySelector("a").textContent.replace(/\s*\(opens in a new tab\)/, "")));
+  test("Get help's list on the continuance: Appearance from page 2, Related cases, Certificate of Service and Perjury from page 3", async () => {
+    await inject(p, "continuance", { role: "me" }); await p.click("#helpBtn");
+    assert.deepEqual(await sources(), ["Defendant: Answer instructions, page 3", "Appearance: Continuance instructions, page 2", "Continuance: Continuance instructions, page 3",
+      "Related cases: Continuance instructions, page 3", "Certificate of Service: Continuance instructions, page 3", "Perjury: Continuance instructions, page 3"]);
+    assert.match(await p.textContent("#helpWords"), /“This is the form that tells the court how to contact you if they need to\.”/);
+  });
+  test("a word tapped in a continuance question cites the continuance instructions too", async () => {
+    await inject(p, "continuance", { role: "me", related: "yes" }); await jump(p, "related");
+    const b = p.locator("#qhelp button.term", { hasText: /related cases/i });
+    await b.click();
+    assert.match(await p.textContent("#termbox"), /Source: Continuance instructions, page 3/);
+  });
+  test("edge: the Appearance and Answer still cites its own (Answer) instructions", async () => {
+    await inject(p, "respond"); await p.click("#helpBtn");
+    for (const s of await sources()) assert.match(s, /Answer instructions/);
+  });
+});

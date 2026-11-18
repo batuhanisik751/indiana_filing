@@ -43,7 +43,7 @@ function renderWords() {
   const box = document.getElementById("helpWords"), was = box.querySelector("details");
   box.innerHTML = `<details class="more words"${was && was.open ? " open" : ""}><summary>Words on the forms</summary><div class="morebody">
   <p class="need">What the official instructions say these words mean, word for word.${forForm ? " These are the ones that fit your form." : " Some are written for the person being sued, like the instructions they come from."}</p>
-  <dl class="words">${list.map(g => `<dt>${esc(g.term)}</dt><dd>\u201c${esc(g.says)}\u201d <small class="src">Source: <a href="${g.src.href}" target="_blank" rel="noopener">${esc(g.src.text)}</a></small></dd>`).join("")}</dl></div></details>`;
+  <dl class="words">${list.map(g => { const d = termDef(g, forForm ? sitKey : null); return `<dt>${esc(g.term)}</dt><dd>\u201c${esc(d.says)}\u201d ${termSource(d)}</dd>`; }).join("")}</dl></div></details>`;
   markNewTabLinks(box);
 }
 renderWords();
