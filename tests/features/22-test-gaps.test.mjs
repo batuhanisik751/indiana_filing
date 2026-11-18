@@ -2,7 +2,7 @@
 // TG1 to TG10 on the Issue Map. Each was written to fail on the deliberate break that first went unnoticed.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, pick, walk, inject, SAVED, SAVING } from "../lib.mjs";
+import { fresh, close, pick, walk, inject, SAVED, SAVING, fieldRows, flagsFor, pdfText } from "../lib.mjs";
 
 after(close);
 const stored = (p, key = SAVED) => p.evaluate(k => localStorage.getItem(k), key);
@@ -107,6 +107,36 @@ describe("TG2: the full next-steps text never overstates what missing a hearing 
     assert.ok(defendant.text.includes('"the court may enter a default judgment against him."'), defendant.text);
     const starter = all.find(x => x.form === "continuance" && x.role === "me" && x.caseNumber.includes("-SC-") && x.title === "If you don't go to court");
     assert.ok(starter.text.includes("the court may dismiss the claim without prejudice"), starter.text);
+    await p.context().close();
+  });
+});
+
+describe("TG3: the fee waiver's sworn totals add up every amount, on the summary and in the PDF", () => {
+  const ready = p => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  const total = (p, label) => p.evaluate(label => { const r = SITUATIONS.feewaiver.fields(visibleAnswers()).find(r => r.label.startsWith(label)); return [String(r.value), r.pdf.map(o => o.value)]; }, label);
+  const EXPENSES = { housing: "500", utilities: "100.50", food: "300", childCare: "50", medical: "25.25", transportation: "60", insurance: "40", childSupportOut: "0", otherCosts: "10", otherCostsDesc: "Phone" };
+  const INCOME = { hourlyRate: "12.50", monthlyHours: "80", unemployment: "200", tanf: "100.25", ssi: "300", childSupportIn: "50", otherIncome: "25", otherIncomeDesc: "Gifts" };
+  test("every expense counts in Total Expenses: $1,085.75 on the summary and in the PDF's box", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "", ...INCOME, ...EXPENSES }); await ready(p);
+    assert.deepEqual(await total(p, "8. and Total Expenses"), ["$1,085.75", ["1,085.75"]]);
+    assert.ok((await pdfText(p)).includes("1,085.75"), "printed");
+    await p.context().close();
+  });
+  test("every kind of income counts in Total Income: wages of $12.50 for 80 hours plus the rest is $1,675.25", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "", ...INCOME, ...EXPENSES }); await ready(p);
+    const [shown, boxes] = await total(p, "6. and Total Income");
+    assert.equal(shown, "$1,675.25"); assert.deepEqual([...new Set(boxes)], ["1,675.25"]);
+    assert.ok((await pdfText(p)).includes("1,675.25"), "printed");
+    await p.context().close();
+  });
+  test("edge: the wage flag starts at $100 an hour: 99.99 isn't flagged, 100 and 125 are", async () => {
+    const p = await fresh();
+    for (const [rate, flagged] of [["99.99", false], ["100", true], ["125", true]]) {
+      await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "none", hourlyRate: rate, monthlyHours: "10" });
+      assert.equal((await flagsFor(p, "hourlyRate")).some(f => /an hour is unusually high/.test(f)), flagged, rate);
+    }
     await p.context().close();
   });
 });
