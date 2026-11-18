@@ -83,6 +83,6 @@ function goFix(id, from = "vals", nth = 0) {
   const idx = visible().findIndex(s => s.id === id);
   if (idx < 0) return;
   lastEdited = id; fixFrom = from; fixNth = nth; followUps = []; editOriginal = null;
-  cur = idx; returnToSummary = true; mode = "step"; render(); window.scrollTo(0, 0);
+  cur = idx; returnToSummary = true; mode = "step"; render(); // render starts it at the top (past the header with bigger text)
 }
 window.appParts++;

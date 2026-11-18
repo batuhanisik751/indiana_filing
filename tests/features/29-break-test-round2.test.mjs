@@ -1,7 +1,7 @@
 // Fixes from the second break-test, of the features added after looking at other teams' projects (BT23 on).
-import { describe, test, before, after } from "node:test";
+import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject } from "../lib.mjs";
+import { fresh, close, inject, editAnswer } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -97,5 +97,59 @@ describe("BT26: a number and a password in one answer are both part of it", () =
   });
   test("edge: a number that isn't private next to a password isn't part of it", async () => {
     assert.deepEqual((await part("respond", "defenses", "I paid $500 and my password: abc.")).marked, ["password: abc."]);
+  });
+});
+
+describe("BT27: the selected part is in sight", () => {
+  const SSN = "My SSN is 123-45-6789.";
+  const lines = (n, at) => Array.from({ length: n }, (_, i) => (i === at ? SSN : `Line ${i + 1}.`)).join("\n");
+  // Whether line i shows in the box. Lines this short don't wrap, so each takes the same share of the box's height.
+  const lineShown = i => p.evaluate(([i]) => {
+    const el = document.getElementById("ans"), cs = getComputedStyle(el), pad = parseFloat(cs.paddingTop);
+    const lh = (el.scrollHeight - pad - parseFloat(cs.paddingBottom)) / el.value.split("\n").length, top = pad + i * lh;
+    return top >= el.scrollTop - 1 && top + lh <= el.scrollTop + el.clientHeight + 1;
+  }, [i]);
+  const onScreen = () => p.evaluate(() => { const box = document.getElementById("ans").getBoundingClientRect(), note = document.getElementById("hitnote").getBoundingClientRect(); return box.top >= 0 && note.bottom <= window.innerHeight; });
+  const size = n => p.evaluate(n => { look.size = n; applyDisplay(); }, n);
+  const usual = async () => { await size(0); await p.setViewportSize({ width: 1000, height: 900 }); };
+  beforeEach(usual); after(usual);
+
+  test("at the end of a long answer: the box is scrolled to it", async () => {
+    await inject(p, "respond", { defenses: lines(31, 30) });
+    await fixPrivate("defenses");
+    assert.equal(await selected(), "123-45-6789");
+    assert.equal(await lineShown(30), true);
+    assert.equal(await onScreen(), true);
+  });
+  test("in the middle of a long answer: the box is scrolled to it, not to the end", async () => {
+    await inject(p, "respond", { defenses: lines(31, 15) });
+    await fixPrivate("defenses");
+    assert.equal(await lineShown(15), true);
+    assert.equal(await lineShown(30), false);
+  });
+  test("on a phone, at the usual and the biggest text size: the page is moved so the box and the note show", async () => {
+    await p.setViewportSize({ width: 375, height: 667 });
+    for (const n of [0, 3]) {
+      await size(n);
+      await inject(p, "respond", { defenses: lines(31, 30) });
+      await fixPrivate("defenses");
+      assert.equal(await onScreen(), true, `size ${n}`);
+      assert.equal(await lineShown(30), true, `size ${n}`);
+    }
+  });
+  test("edge: with bigger text, Fix and Edit start a question past the header, as Continue does", async () => {
+    await p.setViewportSize({ width: 375, height: 667 });
+    await size(2);
+    await inject(p, "respond", { defenses: "I paid this off." });
+    await editAnswer(p, "defenses");
+    assert.equal(await p.evaluate(() => Math.round(app.getBoundingClientRect().top)), 8);
+  });
+  test("edge: at the usual size a short answer moves nothing: the page stays at the top", async () => {
+    await inject(p, "respond", { defenses: SSN });
+    await fixPrivate("defenses");
+    assert.equal(await p.evaluate(() => [window.scrollY, document.getElementById("ans").scrollTop].join()), "0,0");
+    await inject(p, "respond", { defenses: "I paid this off." });
+    await editAnswer(p, "defenses");
+    assert.equal(await p.evaluate(() => window.scrollY), 0);
   });
 });

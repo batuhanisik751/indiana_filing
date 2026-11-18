@@ -177,6 +177,21 @@ function wireTerms() {
   });
 }
 
+// A text box doesn't scroll to a selection made from code. This finds where it is, with a hidden copy of the box
+// holding the text before it, and scrolls the box to put it in the middle.
+function scrollToSelection(el) {
+  if (el.tagName !== "TEXTAREA" || el.scrollHeight <= el.clientHeight) return;
+  const cs = getComputedStyle(el), copy = document.createElement("div"), at = document.createElement("span");
+  for (const k of ["fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "wordSpacing", "lineHeight", "textTransform", "textIndent", "tabSize", "wordBreak", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) copy.style[k] = cs[k];
+  Object.assign(copy.style, { position: "absolute", visibility: "hidden", left: "-9999px", top: "0", boxSizing: "border-box", width: `${el.clientWidth}px`, border: "0", whiteSpace: "pre-wrap", overflowWrap: "break-word" });
+  copy.textContent = el.value.slice(0, el.selectionStart);
+  at.textContent = el.value.slice(el.selectionStart, el.selectionEnd) || "\u200b";
+  copy.append(at);
+  document.body.append(copy);
+  const top = at.offsetTop, height = at.offsetHeight;
+  copy.remove();
+  el.scrollTop = Math.max(0, top - Math.max(0, (el.clientHeight - height) / 2));
+}
 function renderStep() {
   const vis = visible();
   if (cur >= vis.length) cur = vis.length - 1;
@@ -284,6 +299,12 @@ function renderStep() {
   if (hit && hit[1] <= el.value.length) {
     el.setSelectionRange(hit[0], hit[1]);
     el.insertAdjacentHTML("afterend", '<p class="need hitnote" id="hitnote">The part the flag is about is selected.</p>');
+    // The selected part has to be in sight, or typing would replace text the person can't see: the box is scrolled
+    // to it, and on a phone, where the box can start below the screen, the page is moved down until the note under
+    // the box shows (never past the box's top).
+    scrollToSelection(el);
+    const note = document.getElementById("hitnote").getBoundingClientRect();
+    if (note.bottom > window.innerHeight) window.scrollBy(0, Math.min(note.bottom - window.innerHeight + 8, el.getBoundingClientRect().top - 8));
     announce("The part the flag is about is selected.");
   }
   document.getElementById("back").onclick = () => {
