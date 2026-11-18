@@ -478,8 +478,9 @@ describe("BT16: saving turned on in another tab keeps this tab's text size and c
     const a = await ctx.open(), b = await ctx.open();
     await a.click("#readBtn"); await a.click("#contrastBtn");
     await a.click("#saveToggle");
-    await b.waitForFunction(() => localStorage.getItem("icfh-save-pref") === "on");
-    await b.waitForTimeout(200);
+    await b.waitForFunction(() => localStorage.getItem("icfh-display-v1") !== null);
+    // B hears "saving turned on" after A's look is kept (the browser can deliver it either way round, so it's replayed).
+    await b.evaluate(() => { globalThis.eval("lastSavingOn = false"); window.dispatchEvent(new StorageEvent("storage", { key: "icfh-save-pref", newValue: "on" })); });
     assert.deepEqual(await stored(a), { size: 0, contrast: true });
     await ctx.close();
   });
