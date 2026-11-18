@@ -45,3 +45,30 @@ describe("I18a: a list that says \"all\" next to another list that names paragra
     assert.match(await p.$eval("ul.howchecks li:has(strong:text-is('Your answer to the Complaint.'))", li => li.textContent), /a list saying "all" isn't next to another list naming paragraphs/);
   });
 });
+
+describe("I18b: paragraph numbers written as words", () => {
+  const lines = () => p.evaluate(() => runChecks().map(f => `${f.title}|${f.why}`));
+  test("\"one, two\" admitted and \"four\" denied: paragraph 3 is flagged as left out", async () => {
+    await inject(p, "respond", { admitted: "one, two", denied: "four", notEnough: "" });
+    assert.ok((await lines()).some(l => /^Paragraphs not in any list\|Paragraph 3 isn't in any of your lists\./.test(l)));
+  });
+  test("\"one, 2\" admitted and \"3\" denied is read as 1, 2 and 3: nothing to flag", async () => {
+    await inject(p, "respond", { admitted: "one, 2", denied: "3", notEnough: "" });
+    assert.deepEqual(await lines(), []);
+  });
+  test("a paragraph written as a word in two lists is flagged as in two lists", async () => {
+    await inject(p, "respond", { admitted: "paragraphs two and three", denied: "two", notEnough: "" });
+    assert.ok((await lines()).some(l => /^Paragraphs listed in more than one list\|Paragraph 2 is in more than one of your lists\./.test(l)));
+  });
+  test("edge: \"every one of them\" is an \"all\" list, and \"the first three\" still counts as naming paragraphs", async () => {
+    await inject(p, "respond", { admitted: "every one of them", denied: "3", notEnough: "" });
+    assert.ok((await flagsFor(p, "admitted")).some(f => f.startsWith("check|Your lists say different things")));
+    await inject(p, "respond", { admitted: "the first three", denied: "5", notEnough: "" });
+    assert.ok(!(await lines()).some(l => /^Paragraphs (?:not in any list|listed in more than one list)/.test(l)), "no paragraph is read from it");
+  });
+  test("edge: a sentence starting with a number word isn't read as a paragraph", async () => {
+    await inject(p, "respond", { admitted: "1, 2", denied: "3", notEnough: "One paragraph is about a different debt." });
+    assert.deepEqual(await p.evaluate(() => [...paragraphNumbers(answers.notEnough)]), []);
+    assert.ok((await flagsFor(p, "notEnough")).some(f => /doesn't seem to name any paragraph numbers/.test(f)));
+  });
+});

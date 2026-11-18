@@ -27,10 +27,15 @@ function completeness() {
   return { total, filled };
 }
 
-// The paragraph numbers in a list, like "1, 3-5" or "1 through 3".
+// Paragraph numbers written as words where they stand in a list: "one, 2", "paragraphs two and three", "one through
+// four". Not "every one", "the first three", "one of them" or "One paragraph is wrong".
+const NUMBER_WORDS = Object.fromEntries("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split(" ").map((w, i) => [w, i + 1]));
+const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(]|\\b(?:and|or|through|thru|to|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${Object.keys(NUMBER_WORDS).join("|")})\\b(?=\\s*(?:$|[,;&).]|\\b(?:and|or|through|thru|to)\\b))`, "gi");
+const numberWordsAsDigits = v => String(v ?? "").replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${NUMBER_WORDS[w.toLowerCase()]}`);
+// The paragraph numbers in a list, like "1, 3-5", "1 through 3" or "one, two".
 function paragraphNumbers(v) {
   const out = new Set();
-  for (const m of notAmounts(v).matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
+  for (const m of notAmounts(numberWordsAsDigits(v)).matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);
@@ -354,7 +359,7 @@ function runChecks() {
     const listed = new Set(lists.flatMap(([, n]) => [...n]).filter(n => n >= 1 && n <= PARAGRAPH_MAX));
     const skipped = [];
     for (let i = 1, top = Math.max(0, ...listed); i < top; i++) if (!listed.has(i)) skipped.push(i);
-    if (skipped.length && !lists.some(([k]) => unsure[k] || onlyListWords(notAmounts(a[k]))))
+    if (skipped.length && !lists.some(([k]) => unsure[k] || onlyListWords(notAmounts(numberWordsAsDigits(a[k])))))
       flags.push({ level: "check", title: "Paragraphs not in any list", fix: "admitted", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
         why: `${skipped.length > 1 ? `Paragraphs ${rangesText(skipped)} aren't` : `Paragraph ${skipped[0]} isn't`} in any of your lists. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't see your Complaint, so check these numbers against it.` });
   }

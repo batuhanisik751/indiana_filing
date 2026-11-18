@@ -82,7 +82,7 @@ export const CASES = [
   { kind: "Answer lists", name: "a paragraph left out", form: "respond", answers: { admitted: "1, 2", denied: "4" }, expect: ["admitted"] },
   { kind: "Answer lists", name: "\"all of them\" admitted, and paragraph 3 denied", form: "respond", answers: { admitted: "all of them", denied: "3" }, expect: [["admitted", "denied"]] },
   { kind: "Answer lists", name: "no defenses", form: "respond", answers: { defenses: "" }, expect: ["defenses"] },
-  { kind: "Answer lists", name: "a number written as a word", form: "respond", answers: { admitted: "one, 2", denied: "3" }, expect: ["admitted"], hard: true },
+  { kind: "Answer lists", name: "a paragraph left out, the numbers written as words", form: "respond", answers: { admitted: "one, two", denied: "four" }, expect: ["admitted"], hard: true },
 
   // ---------- Words that would print ----------
   { kind: "Words that would print", name: "/s/ typed before the name", form: "respond", answers: { name: "/s/ Pat Example" }, expect: ["name"] },
@@ -145,6 +145,7 @@ export const CASES = [
   { kind: "Correct answers", name: "fax: none", form: "appearance", answers: { fax: "None" }, expect: [] },
   { kind: "Correct answers", name: "paragraph lists with \"and\"", form: "respond", answers: { admitted: "1 and 2", denied: "3" }, expect: [] },
   { kind: "Correct answers", name: "paragraph range", form: "respond", answers: { admitted: "1-2", denied: "3" }, expect: [] },
+  { kind: "Correct answers", name: "a paragraph number written as a word", form: "respond", answers: { admitted: "one, 2", denied: "3" }, expect: [] },
   { kind: "Correct answers", name: "\"all except 3\" admitted, 3 denied", form: "respond", answers: { admitted: "all except 3", denied: "3" }, expect: [] },
   { kind: "Correct answers", name: "\"the rest\" admitted, 2 and 3 denied", form: "respond", answers: { admitted: "the rest", denied: "2, 3" }, expect: [] },
   { kind: "Correct answers", name: "court date tomorrow", form: "respond", answers: { courtDate: D(1), signDate: D(0), svc1Date: D(0) }, expect: [] },
