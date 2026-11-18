@@ -43,7 +43,7 @@ function keepFocus(redraw) {
   const el = document.activeElement;
   let find = null;
   if (el && el !== document.body && app.contains(el)) {
-    const attr = el.id ? "id" : ["data-fix", "data-dl", "href"].find(n => el.hasAttribute(n));
+    const attr = el.id ? "id" : ["data-fix", "data-dl", "data-ics", "href"].find(n => el.hasAttribute(n));
     if (attr) {
       const box = attr === "data-fix" ? (el.closest("ul.flags") ? "ul.flags " : "dl.vals ") : "";
       const sel = attr === "id" ? `#${CSS.escape(el.id)}` : `${box}${attr === "href" ? "a" : ""}[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;

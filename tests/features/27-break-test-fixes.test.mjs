@@ -192,3 +192,29 @@ describe("BT4: the ready list says what the Appearance says about the email and 
     assert.match(await p.textContent("details.ready"), /Your mailing address, and your email and phone number if you have them\./);
   });
 });
+
+describe("BT11: focus stays on \"Add it to my calendar\" when the summary redraws", () => {
+  test("focused while the PDF is being made, still focused after the summary redraws with it", async () => {
+    const q = await fresh();
+    await q.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 9); window.__day = dayString(d); });
+    await inject(q, "respond", { courtDate: await q.evaluate(() => window.__day) });
+    assert.equal(await q.evaluate(() => pdfState.busy || !pdfState.result), true, "the PDF is still being made");
+    await q.focus("[data-ics]");
+    await q.waitForFunction(() => !!pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await q.waitForTimeout(100);
+    assert.equal(await q.evaluate(() => document.activeElement.dataset.ics), await q.evaluate(() => window.__day));
+    await q.context().close();
+  });
+  test("edge: and when the day changes overnight (BT10's redraw)", async () => {
+    const q = await fresh({ timezoneId: "America/Indiana/Indianapolis" });
+    await q.clock.install({ time: new Date("2026-12-18T04:58:00Z") });
+    await q.reload(); await q.waitForSelector("#app h1");
+    await inject(q, "respond", { courtDate: "2026-12-20" });
+    for (let i = 0; i < 200 && !(await q.evaluate(() => !!pdfState.result && !pdfState.busy)); i++) await new Promise(r => setTimeout(r, 100));
+    await q.focus("[data-ics]");
+    await q.clock.fastForward("07:00");
+    assert.match(await q.textContent("ol.steps"), /12\/20\/2026, 2 days from today\./);
+    assert.equal(await q.evaluate(() => document.activeElement.dataset.ics), "2026-12-20");
+    await q.context().close();
+  });
+});
