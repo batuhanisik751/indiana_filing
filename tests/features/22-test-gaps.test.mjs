@@ -315,3 +315,27 @@ describe("TG8: each answer prints in its own place on the official form", () => 
   });
 });
 
+describe("TG9: the highlight on the form picture covers the place the answer prints", () => {
+  // TG8 shows the answer prints inside the boxes the tool works out; this shows the picture highlights those boxes.
+  const marksVsBoxes = p => p.evaluate(async () => {
+    const step = visible()[cur], { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet];
+    const doc = await whereDoc(off.file), spots = await whereSpots(step, doc), { page, rects } = spots[0];
+    const view = (await doc.getPage(page + 1)).getViewport({ scale: 1 });
+    const want = rects.map(r => { const [x1, y1, x2, y2] = view.convertToViewportRectangle(r); return [Math.min(x1, x2) / view.width * 100, Math.min(y1, y2) / view.height * 100]; });
+    const got = [...document.querySelectorAll("#wherePreview .wheremark")].map(m => [parseFloat(m.style.left), parseFloat(m.style.top)]);
+    return { want, got };
+  });
+  for (const [form, id] of [["appearance", "name"], ["appearance", "email"], ["respond", "defenses"], ["continuance", "reason"]]) {
+    test(`${form}, ${id}: each highlight sits on a box the answer prints in`, async () => {
+      const p = await fresh();
+      await inject(p, form, { role: "other" }); await jump(p, id);
+      await p.click("#whereToggle");
+      await p.waitForSelector("#wherePreview .wheremark", { timeout: 120000 });
+      const { want, got } = await marksVsBoxes(p);
+      assert.equal(got.length, want.length, "one highlight per box");
+      for (const [l, t] of got) assert.ok(want.some(([wl, wt]) => Math.abs(wl - l) < 0.5 && Math.abs(wt - t) < 0.5), `highlight at ${l.toFixed(1)}%, ${t.toFixed(1)}% isn't on a box`);
+      await p.context().close();
+    });
+  }
+});
+
