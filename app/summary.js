@@ -56,6 +56,15 @@ function markParts(value, m) {
 // question. A choice, and a change that brings up another question, are made on the question itself, which asks it.
 const INLINE_TYPES = new Set(["text", "textarea", "email", "tel", "money", "number", "date"]);
 const editsInPlace = id => INLINE_TYPES.has(steps.find(s => s.id === id)?.type);
+// The question that changes an answer: its own while it's shown. A hidden answer is changed through the question that
+// hid it: the county through the case number's confirmation, a fee waiver amount through its "Which of these" list.
+function editTarget(id) {
+  if (!id) return null;
+  const vis = new Set(visible().map(s => s.id));
+  if (vis.has(id)) return id;
+  const s = steps.find(x => x.id === id), via = s?.editVia || s?.kind?.[0];
+  return vis.has(via) ? via : null;
+}
 const rowSel = (id, nth) => `dl.vals [data-row="${CSS.escape(`${id}:${nth}`)}"]`;
 function inlineBoxHtml(step, label) {
   const ie = inlineEdit, v = ie.value, limit = dateLimit(step, visibleAnswers());
@@ -91,6 +100,7 @@ function openInline(id, nth) {
   });
 }
 function closeInline() {
+  if (inlineEdit.where === "pdf") return closePdfEdit(document.querySelector("dialog.pageview"));
   const ie = inlineEdit, sel = rowSel(ie.id, ie.nth);
   inlineEdit = null;
   redrawSummaryAt(sel, () => app.querySelector(`${sel} [data-fix]`)?.focus({ preventScroll: true }));
@@ -99,7 +109,8 @@ function closeInline() {
 function inlineToQuestion(note = "") {
   const ie = inlineEdit;
   inlineEdit = null;
-  goFix(ie.id, "vals", ie.nth);
+  if (ie.where === "pdf") document.querySelector("dialog.pageview")?.remove(); // the page shown large goes; the question opens
+  goFix(ie.id, "vals", Math.max(0, ie.nth));
   const box = document.getElementById("ans");
   if (!box) return;
   if (ie.erased) editErased = ie.id; // emptied on the summary: the old answer stays off the device here too
@@ -128,11 +139,25 @@ function saveInline() {
   if (!empty(answers[step.id]) || step.optional) delete unsure[step.id];
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(answers[step.id]);
   clearedContact = clearedContact.filter(k => k !== step.id);
+  if (ie.where === "pdf") {
+    // On a page of the form shown large: the summary behind is brought up to date, the form is made again, and the page
+    // is shown again with the change.
+    inlineEdit = null;
+    ie.onSaved();
+    renderSummary(true); saveProgress(); updatePrivacyNote();
+    const box = document.getElementById("pvEdit");
+    if (box) box.innerHTML = `<p class="need" role="status">Saved. Making the page again with your change…</p>`;
+    announce("Saved. Making the page again with your change.");
+    if (!pdfState.busy) window.dispatchEvent(new Event("pdfready")); // nothing changed on the form, so nothing to wait for
+    return;
+  }
   closeInline();
   announce("Saved. Your filled form and the checks are updated.");
 }
-function wireInline() {
-  const box = document.getElementById("inEdit");
+function wireInline(root = app) {
+  const box = root.querySelector("#inEdit"), on = (id, f) => { const b = root.querySelector(`#${id}`); if (b) b.onclick = f; };
+  on("ieFull", () => inlineToQuestion());
+  on("ieCancel", closeInline);
   if (!box) return;
   box.addEventListener("input", () => {
     if (box.validity?.badInput) return; // a half-typed date isn't an answer yet
@@ -142,12 +167,10 @@ function wireInline() {
   });
   box.addEventListener("keydown", e => {
     if (e.isComposing) return;
-    if (e.key === "Escape") { e.preventDefault(); closeInline(); }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeInline(); }
     else if (e.key === "Enter" && box.tagName !== "TEXTAREA" && !e.repeat) { e.preventDefault(); saveInline(); }
   });
-  document.getElementById("ieSave").onclick = saveInline;
-  document.getElementById("ieCancel").onclick = closeInline;
-  document.getElementById("ieFull").onclick = () => inlineToQuestion();
+  on("ieSave", saveInline);
 }
 function renderSummary(rerender = false) {
   summaryDay = todayDay();
@@ -169,15 +192,7 @@ function renderSummary(rerender = false) {
 
   const groups = [];
   fields.forEach(x => { let g = groups.find(g => g.form === x.form); if (!g) groups.push(g = { form: x.form, items: [] }); g.items.push(x); });
-  const visIds = new Set(visible().map(s => s.id));
-  // A hidden answer is edited through the question that hid it: the county through the case number's confirmation,
-  // a fee waiver amount (and the total it starts) through its "Which of these" list.
-  const editOf = id => {
-    if (!id) return null;
-    if (visIds.has(id)) return id;
-    const s = steps.find(x => x.id === id), via = s?.editVia || s?.kind?.[0];
-    return visIds.has(via) ? via : null;
-  };
+  const editOf = editTarget;
 
   // Back from an Edit in the list of every answer: the list is open again, so focus can return to that row.
   if (lastEdited && fixFrom === "vals") openMore.add("answers");
@@ -236,7 +251,7 @@ function renderSummary(rerender = false) {
     <p class="need"><button class="link" id="changeForm">Choose a different form</button></p>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
-  if (inlineEdit && !boxPlaced) inlineEdit = null; // its row is gone (the answer moved or was hidden)
+  if (inlineEdit && inlineEdit.where !== "pdf" && !boxPlaced) inlineEdit = null; // its row is gone (the answer moved or was hidden)
   wireInline();
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
     if (b.dataset.inline) return openInline(b.dataset.fix, +b.dataset.nth);

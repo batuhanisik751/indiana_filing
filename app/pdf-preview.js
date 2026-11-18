@@ -23,6 +23,7 @@ function ensurePdf() {
     if (!error) try { result = await buildPdf(sit, ans); } catch (e) { error = e.damagedForm ? "form" : "build"; console.error(e); }
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
+    window.dispatchEvent(new Event("pdfready")); // a page of the form shown large, waiting for a change to show
     if (mode === "summary") {
       keepFocus(() => renderSummary(true));
       if (pendingFocus && document.activeElement && document.activeElement.matches(`.status, ul.flags [data-fix="${pendingFocus.id}"]`)) {
@@ -96,7 +97,7 @@ function pdfFlags() {
 
 // A page shown large, over the summary or question: "Enlarge" under a page opens it. Close, Escape or Back closes it.
 // render(n, cssWidth) draws page n and resolves to { canvas, marks }, marks being highlight markup placed in percent.
-function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus }) {
+function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, shown }) {
   document.querySelector("dialog.pageview")?.remove();
   const dlg = document.createElement("dialog");
   dlg.className = "pageview";
@@ -118,6 +119,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus })
       const page = document.createElement("div");
       page.className = "pvpage"; page.innerHTML = marks; page.prepend(canvas);
       body.replaceChildren(page); body.scrollTop = 0;
+      if (shown) shown(n, page, body);
     } catch (e) {
       console.error(e);
       if (mine === token && dlg.isConnected) body.innerHTML = `<p class="draftnote" role="alert">This page couldn't be shown large. The page and the download on the screen behind still work.</p>`;
@@ -148,12 +150,97 @@ async function drawPdfPage(pdf, n, cssWidth) {
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
   return canvas;
 }
-const showFilledPage = (pdf, n, opener) => showPageLarge({
-  count: pdf.numPages, at: n, opener,
-  titleFor: i => `Page ${i} of ${pdf.numPages} of your filled form`,
-  render: async (i, w) => ({ canvas: await drawPdfPage(pdf, i, w) }),
-  refocus: i => app.querySelector(`#preview [data-page="${i}"]`) || app.querySelector('details[data-more="preview"] > summary'),
-});
+// A page of the filled form shown large. Item 17: each answer on it can be tapped (or reached with Tab) to change it in
+// a small box over the page, checked the same way as on its question. The page is then made again with the change.
+function showFilledPage(pdf, n, opener, focusId = null) {
+  const result = pdfState.result;
+  let waiting = false;
+  const reopen = () => {
+    window.removeEventListener("pdfready", reopen);
+    if (!dlg.isConnected || !waiting) return;
+    const at = dlg.pvAt || n;
+    if (!pdfState.result || pdfState.error) {
+      dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but the form couldn't be made again. Close this page to see why.</p>`;
+      return;
+    }
+    pdfjsLib.getDocument({ data: pdfState.result.all.slice() }).promise.then(doc => { showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
+      .catch(e => { console.error(e); dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but this page couldn't be shown again. Close it to see your form.</p>`; });
+  };
+  const dlg = showPageLarge({
+    count: pdf.numPages, at: n, opener,
+    titleFor: i => `Page ${i} of ${pdf.numPages} of your filled form`,
+    render: async (i, w) => {
+      const canvas = await drawPdfPage(pdf, i, w), view = (await pdf.getPage(i)).getViewport({ scale: 1 });
+      return { canvas, marks: pageSpots(result, i).map((s, k) => spotHtml(s, k, view)).join("") };
+    },
+    refocus: i => app.querySelector(`#preview [data-page="${i}"]`) || app.querySelector('details[data-more="preview"] > summary') || app.querySelector("h1"),
+    shown: (i, page, body) => {
+      dlg.pvAt = i;
+      const list = pageSpots(result, i), attached = result?.allPages?.[i - 1]?.attached;
+      body.insertAdjacentHTML("afterbegin", `<p class="draftnote pvhint">${list.length ? "To change an answer, tap it on the page." : attached ? "This page continues answers from the form. Change them where they start, on the form's own page." : "Nothing on this page can be changed here."}</p>`);
+      page.querySelectorAll(".pvspot").forEach(b => b.onclick = () => openPdfEdit(dlg, page, list[+b.dataset.spot], b, () => { waiting = list[+b.dataset.spot].id; window.addEventListener("pdfready", reopen); }));
+      if (focusId) { const s = page.querySelector(`.pvspot[data-id="${CSS.escape(focusId)}"]`); if (s) s.focus(); focusId = null; }
+    },
+  });
+  // Closing the page, or Back, closes a box on it as Cancel would.
+  dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") { inlineEdit = null; saveProgress(); } });
+  dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit")) { e.preventDefault(); closePdfEdit(dlg); } });
+  return dlg;
+}
+// The answers on page i of the filled form that can be changed, top to bottom: { id, label, rect }.
+function pageSpots(result, i) {
+  const at = result?.allPages?.[i - 1];
+  if (!at || at.src === undefined) return [];
+  const list = [];
+  for (const s of result.spots || []) {
+    const id = s.page === at.src && editTarget(s.step);
+    if (id && !list.some(x => x.id === id && x.rect.every((v, j) => Math.abs(v - s.rect[j]) < .5))) list.push({ id, label: s.label, rect: s.rect });
+  }
+  return list.sort((x, y) => (Math.max(y.rect[1], y.rect[3]) - Math.max(x.rect[1], x.rect[3])) || (x.rect[0] - y.rect[0]));
+}
+function spotHtml(s, k, view) {
+  const [x1, y1, x2, y2] = view.convertToViewportRectangle(s.rect), pct = (v, of) => `${(v / of * 100).toFixed(2)}%`;
+  const left = Math.min(x1, x2), top = Math.min(y1, y2), width = Math.max(Math.abs(x2 - x1), 8), height = Math.max(Math.abs(y2 - y1), 8);
+  return `<button type="button" class="pvspot" data-spot="${k}" data-id="${esc(s.id)}" style="left:${pct(left, view.width)};top:${pct(top, view.height)};width:${pct(width, view.width)};height:${pct(height, view.height)}" aria-label="Change: ${esc(s.label)}"></button>`;
+}
+// The box over the page, under the answer tapped (or above it, near the bottom of the page).
+function openPdfEdit(dlg, page, spot, button, onSaved) {
+  if (inlineEdit && inlineEdit.where === "pdf" && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { dlg.querySelector("#inEdit")?.focus(); return; }
+  if (inlineEdit && inlineEdit.where !== "pdf") {
+    if (inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) return;
+    inlineEdit = null; renderSummary(true); // the box open on the summary behind closes
+  }
+  dlg.querySelector("#pvEdit")?.remove();
+  page.querySelectorAll(".pvspot.on").forEach(b => b.classList.remove("on"));
+  const step = steps.find(s => s.id === spot.id), typed = editsInPlace(spot.id);
+  inlineEdit = { id: spot.id, nth: -1, where: "pdf", value: String(answers[spot.id] ?? ""), erased: false, err: "", onSaved };
+  button.classList.add("on");
+  page.insertAdjacentHTML("beforeend", `<div class="pvedit" id="pvEdit" role="group" aria-labelledby="pvEditTitle">
+      <p class="pvedit-title" id="pvEditTitle">${esc(spot.label)}</p>
+      ${typed ? inlineBoxHtml(step, spot.label) : `<p class="need">This is a choice, so it's changed on its question.</p>
+      <div class="ienav"><button class="primary small" id="ieFull">Open the question</button><button class="ghost small" id="ieCancel">Cancel</button></div>`}
+    </div>`);
+  const box = page.querySelector("#pvEdit"), W = page.clientWidth, H = page.clientHeight;
+  const r = button.getBoundingClientRect(), p = page.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+  const below = r.bottom - p.top + 6, above = r.top - p.top - bh - 6;
+  box.style.left = `${Math.max(0, Math.min(r.left - p.left, W - bw))}px`;
+  box.style.top = `${below + bh <= H || above < 0 ? below : above}px`;
+  wireInline(box);
+  box.scrollIntoView({ block: "nearest" });
+  (box.querySelector("#inEdit") || box.querySelector("#ieFull")).focus({ preventScroll: true });
+  const t = box.querySelector("#inEdit");
+  if (t && t.type !== "date") { const len = t.value.length; t.setSelectionRange(len, len); }
+}
+function closePdfEdit(dlg) {
+  const box = dlg.querySelector("#pvEdit"), id = inlineEdit && inlineEdit.id;
+  if (box) box.remove();
+  const erased = inlineEdit && inlineEdit.erased;
+  inlineEdit = null;
+  if (erased) saveProgress(); // the old answer comes back to the device
+  const spot = dlg.querySelector(`.pvspot.on`) || (id && dlg.querySelector(`.pvspot[data-id="${CSS.escape(id)}"]`));
+  dlg.querySelectorAll(".pvspot.on").forEach(b => b.classList.remove("on"));
+  spot?.focus();
+}
 
 async function renderPreview(bytes, el) {
   const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;

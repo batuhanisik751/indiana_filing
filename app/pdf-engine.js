@@ -234,6 +234,11 @@ async function buildPdf(key, a) {
   const font = await src.embedFont(StandardFonts[off.font]);
   const notes = [];
   const draws = [];
+  // Where each answer prints, so it can be tapped on a page of the filled form to change it (item 17):
+  // { step, label, page (of the packet), rect: [x1, y1, x2, y2] } in PDF points. Not a total worked out from others.
+  const spots = [];
+  const spotAt = (item, page, rect) => { if (page >= 0 && item.step && !item.from) spots.push({ step: item.step, label: item.label, page, rect }); };
+  const widgetRect = w => { const r = w.getRectangle(); return [r.x, r.y, r.x + r.width, r.y + r.height]; };
   const blankWidgets = []; // boxes whose text is drawn on their rule instead
   const srcPages = src.getPages();
   const widgetPage = w => {
@@ -287,6 +292,7 @@ async function buildPdf(key, a) {
           }
           return fit;
         });
+        boxes.forEach((w, i) => { if (!fits[i].drawn) spotAt(item, widgetPage(w), widgetRect(w)); });
         const real = fits.filter(x => !x.drawn); // boxes still filled by the form itself
         if (real.some(x => x.wrap)) tf.enableMultiline();
         tf.setFontSize(real.length ? Math.min(...real.map(x => x.size)) : 11);
@@ -301,12 +307,18 @@ async function buildPdf(key, a) {
         if (real.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
         else if (real.length && Math.min(...real.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...real.map(x => x.size)) });
       } else if (op.t === "radio") {
-        form.getRadioGroup(op.name).select(op.option);
+        const group = form.getRadioGroup(op.name);
+        group.select(op.option);
+        // The chosen button only, not the whole group.
+        group.acroField.getWidgets().forEach(w => { let on = null; try { on = w.getOnValue()?.decodeText(); } catch { /* no on value */ } if (on === op.option) spotAt(item, widgetPage(w), widgetRect(w)); });
       } else if (op.t === "check") {
         const cb = form.getCheckBox(op.name);
         if (op.on) cb.check(); else cb.uncheck();
+        if (op.on) cb.acroField.getWidgets().forEach(w => spotAt(item, widgetPage(w), widgetRect(w)));
       } else if (op.t === "drop") {
-        form.getDropdown(op.name).select(op.option);
+        const dd = form.getDropdown(op.name);
+        dd.select(op.option);
+        if (!/^_+$/.test(op.option)) dd.acroField.getWidgets().forEach(w => spotAt(item, widgetPage(w), widgetRect(w)));
       } else if ((op.t === "lines" || op.t === "draw") && !empty(op.value)) {
         draws.push({ op, item, value: safe(op.value) });
       }
@@ -330,6 +342,7 @@ async function buildPdf(key, a) {
       let size = 11;
       while (op.w && size > 6 && font.widthOfTextAtSize(value, size) > op.w) size -= 0.5;
       pages[op.page].drawText(value, { x: op.x, y: op.y, size, font });
+      spotAt(item, op.page, [op.x - 1, op.y - 3, op.x + Math.max(8, font.widthOfTextAtSize(value, size)) + 1, op.y + size + 1]);
       if (op.w && font.widthOfTextAtSize(value, size) > op.w) notes.push({ kind: "overflow", step: item.step, label: item.label });
       else if (size < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size });
       continue;
@@ -352,6 +365,10 @@ async function buildPdf(key, a) {
       const x = op.center ? x0 + Math.max(2, (op.x1 - x0 - font.widthOfTextAtSize(line, fit.size)) / 2) : x0 + 2;
       pages[op.page].drawText(line, { x, y: ys[i] + 2.5, size: fit.size, font });
     });
+    if (fit.lines.length) {
+      const used = ys.slice(0, fit.lines.length), left = Math.min(...fit.lines.map((_, i) => lineX0(op, i)));
+      spotAt(item, op.page, [left, Math.min(...used) - 1, op.x1, Math.max(...used) + 2.5 + fit.size + 1]);
+    }
     if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
     else if (fit.size < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: fit.size });
   }
@@ -362,7 +379,7 @@ async function buildPdf(key, a) {
   const caption = [a.caseNumber ? `Case number: ${a.caseNumber}` : "", a.county ? `${a.county} County` : ""].filter(Boolean).join("    ");
   const addContinuation = async (out, docKey) => {
     const conts = continuations[docKey];
-    if (!conts) return;
+    if (!conts) return 0;
     const f = await out.embedFont(PDFLib.StandardFonts.Helvetica);
     const bold = await out.embedFont(PDFLib.StandardFonts.HelveticaBold);
     // The E-Filing User Guide asks for a 1-inch top margin and numbered pages, so text starts below 1 inch.
@@ -382,22 +399,26 @@ async function buildPdf(key, a) {
     // Number the added pages after the form's own pages.
     const formPages = off.docs[docKey].pages.length;
     added.forEach((pg, i) => pg.drawText(`Page ${formPages + i + 1} (attachment page ${i + 1} of ${added.length} to the ${off.docs[docKey].name})`, { x: 72, y: 40, size: 9, font: f }));
+    return added.length;
   };
   const safeOut = makeSafe(font, () => {});
   const docs = sit.official.docs.map(k => ({ key: k, ...off.docs[k] }));
-  const make = async (parts, title) => {
+  // map: what each page of the made PDF is, in order: { src } a page of the packet, or { attached } a page added to that form.
+  const make = async (parts, title, map = []) => {
     const out = await PDFDocument.create();
     for (const d of parts) {
-      (await out.copyPages(src, d.pages)).forEach(p => out.addPage(p));
-      await addContinuation(out, d.key);
+      (await out.copyPages(src, d.pages)).forEach((p, i) => { out.addPage(p); map.push({ src: d.pages[i] }); });
+      const added = await addContinuation(out, d.key);
+      for (let i = 0; i < added; i++) map.push({ attached: d.key });
     }
     out.setTitle(title);
     out.setCreator("Indiana Court Form Helper");
     return out.save();
   };
-  const all = await make(docs, `${sit.title}: ${docs.map(d => d.number ? `${d.name} (${d.number})` : d.name).join(", ")}`);
+  const allPages = [];
+  const all = await make(docs, `${sit.title}: ${docs.map(d => d.number ? `${d.name} (${d.number})` : d.name).join(", ")}`, allPages);
   const each = docs.length > 1 ? await Promise.all(docs.map(async d => ({ ...d, bytes: await make([d], d.number ? `${d.name} (${d.number})` : d.name) }))) : [];
-  return { all, each, notes };
+  return { all, each, notes, spots, allPages };
 }
 
 function cleanUpAfterFlatten(doc) {

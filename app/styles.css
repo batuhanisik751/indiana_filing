@@ -264,6 +264,14 @@ dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
 .pvbody { flex: 1; min-height: 0; overflow: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
 .pvpage { position: relative; }
 .pvpage canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
+/* Item 17: an answer on a page of the filled form, to tap and change, and the box that opens over the page. */
+.pvhint { margin: 0 0 .5rem; }
+.pvspot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 2px; outline: 2px dashed rgba(30, 90, 128, .55); outline-offset: 1px; cursor: pointer; }
+.pvspot::after { content: ""; position: absolute; inset: -6px; } /* a bigger place to tap than a small box */
+.pvspot:hover, .pvspot.on { background: rgba(255, 196, 0, .35); outline: 2px solid #B45309; }
+.pvspot:focus-visible { outline: 3px solid var(--accent); background: rgba(255, 196, 0, .35); }
+.pvedit { position: absolute; z-index: 2; width: min(24rem, 100%); background: var(--surface); color: var(--ink); border: 2px solid var(--accent); border-radius: 10px; padding: .75rem; box-shadow: var(--shadow); }
+.pvedit-title { margin: 0 0 .35rem; font-weight: 700; }
 @media (max-width: 600px) {
   dialog.pageview { width: 100vw; height: 100vh; height: 100dvh; max-height: none; margin: 0; border-radius: 0; }
   .pvbody { padding: .5rem; }
