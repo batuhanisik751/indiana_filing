@@ -128,11 +128,13 @@ function emailWhy(e) {
     odd: "This has a character email addresses don't usually have. Check it for typos.",
     accent: "This has an accented or special letter before the @. Check it for typos.",
     dots: "This has a dot in the wrong place, like two in a row or one at the end. Check it for typos.",
-    long: "This is too long to be one email address. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
+    long: "This is too long to be one email address. Check it for typos.",
+    hyphen: "A part of the address after the @ starts or ends with a hyphen, which email addresses can't. Check it for typos.",
+    locallong: "The part before the @ is longer than an email address allows. Check it for typos." }[e.kind] || "This email looks incomplete. Check it for typos.";
 }
 // Shapes no working email address has. These are stopped when Continue is pressed, because the court would send papers nowhere.
 // A likely typo, an accented letter or an unusual character can still be right, so those are only flagged at the end.
-const EMAIL_CANT_WORK = new Set(["noat", "spelled", "nolocal", "nodomain", "noend", "dots", "ats", "two", "space", "comma", "extra", "long"]);
+const EMAIL_CANT_WORK = new Set(["noat", "spelled", "nolocal", "nodomain", "noend", "dots", "ats", "two", "space", "comma", "extra", "long", "hyphen", "locallong"]);
 
 function runChecks() {
   const a = visibleAnswers();

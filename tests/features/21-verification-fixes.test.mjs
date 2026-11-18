@@ -476,3 +476,31 @@ describe("VF15: on the fee waiver, \"None\" as the email leaves the box blank, a
   });
 });
 
+describe("VF16: two more email shapes that can't work are refused", () => {
+  const onEmail = async (p, value) => { await inject(p, "appearance"); await jump(p, "email"); await p.fill("#ans", value); await p.click("#next"); };
+  test("a part after the @ that starts or ends with a hyphen is refused, with the reason", async () => {
+    const p = await fresh();
+    for (const e of ["pat@example-.com", "pat@-example.com", "pat@mail.-example.com"]) {
+      await onEmail(p, e);
+      assert.equal(await step(p), "email", e);
+      assert.match(await p.textContent("#err"), /starts or ends with a hyphen/, e);
+    }
+    await p.context().close();
+  });
+  test("a part before the @ longer than 64 characters is refused, with the reason", async () => {
+    const p = await fresh();
+    await onEmail(p, "a".repeat(65) + "@example.com");
+    assert.equal(await step(p), "email");
+    assert.match(await p.textContent("#err"), /longer than an email address allows/);
+    await p.context().close();
+  });
+  test("edge: hyphens inside a part, and exactly 64 characters, are fine", async () => {
+    const p = await fresh();
+    for (const e of ["pat@my-mail.example.com", "a".repeat(64) + "@example.com"]) {
+      await onEmail(p, e);
+      assert.equal(await step(p), "phone", e);
+    }
+    await p.context().close();
+  });
+});
+

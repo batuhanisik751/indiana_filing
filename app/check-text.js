@@ -209,7 +209,9 @@ function emailShape(v) {
   if (!domain) return { kind: "nodomain" };
   if (/[,;!/'"]$/.test(domain)) return { kind: "extra" };
   if (/,/.test(domain)) return { kind: "comma" };
-  if (/[,;<>()[\]:"\\]/.test(t) || /[^\p{L}\p{N}.-]/u.test(domain) || /^-|-$/.test(domain)) return { kind: "odd" };
+  if (local.length > 64) return { kind: "locallong" }; // the most an address's first part can be
+  if (domain.split(".").some(part => /^-|-$/.test(part))) return { kind: "hyphen" }; // as in example-.com
+  if (/[,;<>()[\]:"\\]/.test(t) || /[^\p{L}\p{N}.-]/u.test(domain)) return { kind: "odd" };
   if (/\.\./.test(t) || /^\.|\.$/.test(local) || /^\.|\.$/.test(domain)) return { kind: "dots" };
   if (/[^\x00-\x7F]/.test(local)) return { kind: "accent" };
   const parts = domain.toLowerCase().split("."), end = parts[parts.length - 1], name = parts[0], near = nearEnding(end);
