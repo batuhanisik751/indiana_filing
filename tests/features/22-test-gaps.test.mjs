@@ -2,7 +2,7 @@
 // TG1 to TG10 on the Issue Map. Each was written to fail on the deliberate break that first went unnoticed.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, pick, walk, inject, SAVED, SAVING, fieldRows, flagsFor, pdfText } from "../lib.mjs";
+import { fresh, close, pick, walk, inject, SAVED, SAVING, fieldRows, flagsFor, pdfText, jump, step } from "../lib.mjs";
 
 after(close);
 const stored = (p, key = SAVED) => p.evaluate(k => localStorage.getItem(k), key);
@@ -137,6 +137,40 @@ describe("TG3: the fee waiver's sworn totals add up every amount, on the summary
       await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "none", hourlyRate: rate, monthlyHours: "10" });
       assert.equal((await flagsFor(p, "hourlyRate")).some(f => /an hour is unusually high/.test(f)), flagged, rate);
     }
+    await p.context().close();
+  });
+});
+
+describe("TG4: dates on the day itself", () => {
+  // A day counted from today, as the page counts it (its own time zone).
+  const dayFrom = (p, n) => p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }, n);
+  const tryDate = async (p, id, value) => { await jump(p, id); await p.fill("#ans", value); await p.click("#next"); return step(p); };
+  test("a signing or service date on the hearing day itself is accepted; the day after is refused", async () => {
+    const p = await fresh();
+    const hearing = await dayFrom(p, 10), after = await dayFrom(p, 11);
+    await inject(p, "continuance", { hearingDate: hearing });
+    for (const id of ["signDate", "svc1Date"]) {
+      assert.notEqual(await tryDate(p, id, hearing), id, `${id} on the hearing day`);
+      assert.equal(await tryDate(p, id, after), id, `${id} the day after`);
+      assert.match(await p.textContent("#err"), /This is after your hearing date/);
+    }
+    await p.context().close();
+  });
+  test("edge: a court date of today hasn't passed; yesterday has", async () => {
+    const p = await fresh();
+    const today = await dayFrom(p, 0), yesterday = await dayFrom(p, -1);
+    await inject(p, "appearance", { courtDate: today });
+    assert.ok(!(await flagsFor(p, "courtDate")).some(f => /has already passed/.test(f)), "today");
+    assert.match(await p.textContent("ol.steps"), /Your next court date: /);
+    await inject(p, "appearance", { courtDate: yesterday });
+    assert.ok((await flagsFor(p, "courtDate")).some(f => /has already passed/.test(f)), "yesterday");
+    await p.context().close();
+  });
+  test("edge: the same for a continuance hearing date of today", async () => {
+    const p = await fresh();
+    await inject(p, "continuance", { hearingDate: await dayFrom(p, 0) });
+    assert.ok(!(await flagsFor(p, "hearingDate")).some(f => /has already passed/.test(f)));
+    assert.match(await p.textContent("ol.steps"), /Your hearing is still set for /);
     await p.context().close();
   });
 });
