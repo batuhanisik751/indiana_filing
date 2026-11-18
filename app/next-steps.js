@@ -371,7 +371,7 @@ function courtDateIcs(day) {
   const next = new Date(`${day}T12:00:00`); next.setDate(next.getDate() + 1);
   const ymd = v => v.replace(/-/g, "");
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Indiana Court Form Helper//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Indiana Court Form Helper//EN", "CALSCALE:GREGORIAN", // no METHOD: a plain calendar file to open, not a message, so no ORGANIZER either
     "BEGIN:VEVENT", `UID:${icsEvent.uid}`, `SEQUENCE:${icsEvent.seq}`, `DTSTAMP:${stamp}`,
     `DTSTART;VALUE=DATE:${ymd(day)}`, `DTEND;VALUE=DATE:${ymd(dayString(next))}`,
     "SUMMARY:Court date", "DESCRIPTION:Check the time and place on your court papers.",

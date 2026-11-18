@@ -598,3 +598,15 @@ describe("BT20: adding the date again updates the same calendar event", () => {
     assert.equal(b.seq, 0);
   });
 });
+
+describe("BT21: the calendar file is a plain calendar file, without METHOD", () => {
+  test("no METHOD (which would call for an ORGANIZER), and the parts a calendar needs are there", async () => {
+    const d = new Date(); d.setDate(d.getDate() + 15);
+    await inject(p, "appearance", { courtDate: await p.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 15); return dayString(d); }) });
+    const [dl] = await Promise.all([p.waitForEvent("download"), p.click("[data-ics]")]);
+    const t = (await import("node:fs")).readFileSync(await dl.path(), "utf8");
+    assert.doesNotMatch(t, /\r\nMETHOD:/);
+    assert.doesNotMatch(t, /\r\nORGANIZER/);
+    for (const part of ["VERSION:2.0", "PRODID:", "UID:", "DTSTAMP:", "DTSTART;VALUE=DATE:", "DTEND;VALUE=DATE:", "SUMMARY:Court date"]) assert.ok(t.includes(`\r\n${part}`), part);
+  });
+});
