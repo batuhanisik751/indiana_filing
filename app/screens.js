@@ -267,7 +267,8 @@ function renderStep() {
   wireTerms();
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
-  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+  // With bigger text, a new question starts just past the header, so the question is what's on screen.
+  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, look.size ? Math.max(0, app.getBoundingClientRect().top + window.scrollY - 8) : 0); }
   document.getElementById("back").onclick = () => {
     if (returnToSummary) {
       // C19: Cancel puts the original answer back.

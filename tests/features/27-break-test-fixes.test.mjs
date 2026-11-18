@@ -252,3 +252,39 @@ describe("BT13: text size and contrast add no height to the header on phones", (
     assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim()), "1.3");
   });
 });
+
+describe("BT12: with bigger text, the header stays small and the question comes first", () => {
+  const biggest = async q => { await q.click("#readBtn"); for (let i = 0; i < 3; i++) await q.click("#textBigger"); await q.click("#readBtn"); };
+  const headerH = q => q.evaluate(() => document.querySelector("header").getBoundingClientRect().height);
+  test("at 150%, the header takes at most half of the smallest phone, under a third of a 375px one", async () => {
+    for (const [w, h, most] of [[320, 568, 0.5], [375, 667, 0.3], [667, 375, 0.35]]) {
+      const q = await fresh({ viewport: { width: w, height: h } });
+      await biggest(q);
+      assert.ok(await headerH(q) / h <= most, `${w}x${h}: ${await headerH(q)}px`);
+      await q.context().close();
+    }
+  });
+  test("after Continue at 150%, the next question starts near the top of the screen, past the header", async () => {
+    for (const [w, h] of [[320, 568], [375, 667], [667, 375]]) {
+      const q = await fresh({ viewport: { width: w, height: h } });
+      await biggest(q);
+      await pick(q, "respond"); await q.fill("#ans", "02D01-2611-CC-001234"); await q.click("#next");
+      const top = await q.evaluate(() => document.getElementById("q").getBoundingClientRect().top);
+      assert.ok(top >= 0 && top <= 150, `${w}x${h}: the question starts at ${top}px`);
+      await q.context().close();
+    }
+  });
+  test("edge: at the usual size, nothing changes: each question starts at the top, header and all", async () => {
+    const q = await fresh({ viewport: { width: 375, height: 667 } });
+    await pick(q, "respond"); await q.fill("#ans", "02D01-2611-CC-001234"); await q.click("#next");
+    assert.equal(await q.evaluate(() => window.scrollY), 0);
+    await q.context().close();
+  });
+  test("edge: at the usual size the header is exactly as tall as before", async () => {
+    for (const [w, h] of [[320, 159], [375, 159], [390, 128], [412, 137], [1280, 109]]) {
+      const q = await fresh({ viewport: { width: w, height: 800 } });
+      assert.ok(Math.abs(await headerH(q) - h) <= 1, `${w}px: ${await headerH(q)} vs ${h}`);
+      await q.context().close();
+    }
+  });
+});
