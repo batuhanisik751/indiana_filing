@@ -32,6 +32,7 @@ local("a missing or cut-off file shows a message and leaves saved answers alone"
   for (const f of FILES) for (const h of ["missing", "cut off"]) {
     fail = f; how = h;
     const p = await ctx.open(false);
+    p.allowErrors = true; // a cut-off file is a syntax error, on purpose
     await p.waitForTimeout(60);
     assert.equal(await broken(p), true, `${f} ${h}: says so`);
     assert.equal(await p.locator("#app .pick").count(), 0, `${f} ${h}: no half-working screen`);
@@ -47,6 +48,7 @@ local("a missing or cut-off file shows a message and leaves saved answers alone"
 
 local("another script's errors don't stop the app", async () => {
   const p = await fresh();
+  p.allowErrors = true; // the other script's errors are the point of this test
   await p.addInitScript(() => { setInterval(() => { throw new Error("someone else's script"); }, 5); });
   await p.reload();
   await p.waitForSelector("#app h1");

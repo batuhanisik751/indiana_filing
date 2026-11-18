@@ -13,13 +13,22 @@ export const SAVED = "icfh-progress-v1", SAVING = "icfh-save-pref";
 const VIEW = { width: 1000, height: 900 };
 
 let browser = null;
+const opened = []; // every page the tests opened, to check for errors at the end
 export async function launch() { browser ||= await chromium.launch(); return browser; }
-export async function close() { if (browser) await browser.close(); browser = null; }
+// Closes the browser, then fails the test file if any page threw an error that no test expected. A page that breaks
+// on purpose (a missing file, someone else's script) sets p.allowErrors = true.
+export async function close() {
+  if (browser) await browser.close();
+  browser = null;
+  const errors = opened.splice(0).filter(p => !p.allowErrors).flatMap(p => p.errors);
+  if (errors.length) throw new Error(`The page threw ${errors.length} error(s) no test expected:\n${[...new Set(errors)].slice(0, 10).join("\n")}`);
+}
 
 // Records the page's errors and dialogs. Dialogs are accepted, and kept in p.dialogs so a test can check one was asked.
 function watch(p) {
   p.errors = [];
   p.dialogs = [];
+  opened.push(p);
   p.on("pageerror", e => p.errors.push(e.message));
   p.on("dialog", d => { p.dialogs.push({ type: d.type(), message: d.message() }); d.accept(); });
   return p;
