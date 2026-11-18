@@ -113,9 +113,12 @@ function privateSpans(text, kindOf, skip = []) {
       if (fits(i, j) && kindOf(blank(s, [...others, [c[0], groups[i][0]], [groups[j][1], c[1]]])) === kind) out.push([groups[i][0], groups[j][1]]);
     return out.length ? out : [c];
   };
-  // Still flagged with every number taken out: it's a password, with its label. Every one, not just the first.
-  let hits = flagged(blank(s, nums)) ? PASSWORD_RES.flatMap(re => [...s.matchAll(new RegExp(re.source, re.flags + "g"))]).map(m => [m.index, m.index + m[0].length])
-    : nums.flatMap((c, i) => { const others = nums.filter((_, j) => j !== i); return flagged(blank(s, others)) ? narrow(c, others) : []; });
+  // Each password with its label (every one), and each number outside them, is a part if the answer is still flagged
+  // with all the others taken out. So a Social Security number next to a password is one too.
+  const pws = PASSWORD_RES.flatMap(re => [...s.matchAll(new RegExp(re.source, re.flags + "g"))]).map(m => [m.index, m.index + m[0].length])
+    .sort((x, y) => x[0] - y[0]).reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a < last[1]) last[1] = Math.max(last[1], b); else out.push([a, b]); return out; }, []);
+  const parts = [...pws, ...nums.filter(([a, b]) => !pws.some(([c, d]) => a < d && c < b))];
+  let hits = parts.flatMap((c, i) => { const others = parts.filter((_, j) => j !== i); return !flagged(blank(s, others)) ? [] : i < pws.length ? [c] : narrow(c, others); });
   if (!hits.length) {
     const words = [...s.matchAll(/\S+/g)].map(m => [m.index, m.index + m[0].length]);
     hits = words.filter(c => !flagged(blank(s, [c])));

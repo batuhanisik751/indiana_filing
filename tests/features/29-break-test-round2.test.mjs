@@ -84,3 +84,18 @@ describe("BT25: every password in an answer is part of it, not just the first", 
     assert.deepEqual((await part("respond", "defenses", "My old password is Hunter2!x. The new password: Abc123.")).marked, ["password is Hunter2!x.", "password: Abc123."]);
   });
 });
+
+describe("BT26: a number and a password in one answer are both part of it", () => {
+  test("a Social Security number and a password: the number is selected, and both are marked", async () => {
+    assert.deepEqual(await part("respond", "defenses", "My SSN is 123-45-6789 and the portal password: abc."), { marked: ["123-45-6789", "password: abc."], selected: "123-45-6789" });
+  });
+  test("edge: a password first, then a card number", async () => {
+    assert.deepEqual(await part("respond", "defenses", "pw: x9 and card 4111 1111 1111 1111"), { marked: ["pw: x9", "4111 1111 1111 1111"], selected: "pw: x9" });
+  });
+  test("edge: a number that is the password is one part, with its label", async () => {
+    assert.deepEqual(await part("respond", "defenses", "My password: 123456789 for the site."), { marked: ["password: 123456789"], selected: "password: 123456789" });
+  });
+  test("edge: a number that isn't private next to a password isn't part of it", async () => {
+    assert.deepEqual((await part("respond", "defenses", "I paid $500 and my password: abc.")).marked, ["password: abc."]);
+  });
+});
