@@ -28,6 +28,8 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     await inject(p, "respond", { email: "pat@gmial.com" });
     assert.equal((await flagsFor(p, "email")).length, 1);
     const key = await p.evaluate(() => pdfState.key);
+    // Every announcement, since the filled form's own (when it's made again) follows "Saved" a moment later.
+    await p.evaluate(() => { const a = document.getElementById("announce"); window.__said = []; new MutationObserver(() => { if (a.textContent) __said.push(a.textContent); }).observe(a, { childList: true, characterData: true, subtree: true }); });
     await changeHere("email", "pat@gmail.com");
     assert.equal(await p.locator("#inEdit").count(), 0);
     assert.equal(await p.evaluate(() => answers.email), "pat@gmail.com");
@@ -36,7 +38,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     assert.ok(!(await p.$$eval("ul.flags .ftitle", t => t.map(x => x.textContent))).some(t => /email/i.test(t)), "the flag is gone from the page");
     assert.notEqual(await p.evaluate(() => pdfState.key), key, "the filled form is made again");
     assert.equal(await focusedIs('dl.vals [data-row="email:0"] [data-fix]'), true);
-    assert.match(await p.textContent("#announce"), /Saved/);
+    await p.waitForFunction(() => __said.some(t => /^Saved\./.test(t)));
   });
 
   test("an answer on two forms: the second row's box, and both rows change", async () => {
