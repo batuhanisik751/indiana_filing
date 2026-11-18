@@ -352,7 +352,8 @@ function nextSteps(key, a) {
 function comingDay(v) {
   if (!isDay(v) || hasPassed(v)) return null;
   const d = new Date(`${v}T12:00:00`);
-  return dayString(d) === v ? v : null;
+  // Not a date the summary asks to check (a mistyped year): no countdown or calendar file for it.
+  return dayString(d) === v && daysFromToday(v) <= FAR_HEARING_DAYS ? v : null;
 }
 const dayString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const daysFromToday = v => Math.round((new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5);

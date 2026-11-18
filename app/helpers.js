@@ -34,6 +34,9 @@ const formDate = v => { if (empty(v)) return ""; const [y, m, d] = v.split("-");
 const isDay = v => /^20\d{2}-\d{2}-\d{2}$/.test(v ?? "");
 const todayDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const hasPassed = v => isDay(v) && v < todayDay();
+// A court or hearing date more than this many days off is probably a mistyped year: the summary asks to check it,
+// and it gets no countdown or calendar file.
+const FAR_HEARING_DAYS = 365;
 const dateLimit = (step, a) => {
   if (step.type !== "date") return null;
   const [id, name] = isDay(a.hearingDate) ? ["hearingDate", "hearing date"] : ["courtDate", "court date"];

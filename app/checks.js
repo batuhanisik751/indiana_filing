@@ -301,8 +301,8 @@ function runChecks() {
 
   // A date this far off is usually a mistyped year. It prints as typed. A hearing that has passed has its own flag.
   const daysOff = v => (new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5;
-  vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || (s.id === "hearingDate" && daysOff(a[s.id]) > 365))).forEach(s =>
-    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than ${s.id === "hearingDate" ? "a year" : "180 days"} from today. Check the year.` }));
+  vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || ((s.id === "hearingDate" || s.id === "courtDate") && daysOff(a[s.id]) > FAR_HEARING_DAYS))).forEach(s =>
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than ${s.id === "hearingDate" || s.id === "courtDate" ? "a year" : "180 days"} from today. Check the year.` }));
   if (isDay(a.spokeDate) && has("spokeDate") && daysOff(a.spokeDate) > 0 && daysOff(a.spokeDate) <= 180)
     flags.push({ level: "check", title: "Date you spoke to the other party", fix: "spokeDate", why: `${formDate(a.spokeDate)} is in the future, but item 6 of this sworn form says this conversation already happened. Check the date.` });
 

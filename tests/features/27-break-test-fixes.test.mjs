@@ -2,7 +2,7 @@
 // one section per ticket, in the order they were fixed.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, reset, pick, walk, inject, jump, site } from "../lib.mjs";
+import { fresh, close, reset, pick, walk, inject, jump, site, flagsFor } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -540,5 +540,30 @@ describe("BT18: a kept look applies before the page has loaded", () => {
     assert.ok(html.includes(`sizes = ${JSON.stringify(app.sizes).replace(/,/g, ", ")}`), "sizes");
     for (const k of [app.key, app.pref, app.store]) assert.ok(html.includes(`"${k}"`), k);
     assert.ok(html.includes(`${app.days} * 864e5`), "days");
+  });
+});
+
+describe("BT19: a mistyped far-off court date gets a check, and no countdown or calendar file", () => {
+  const dayAhead = n => p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return dayString(d); }, n);
+  test("Appearance and Answer, court date in 2062: the summary asks to check the year, with no countdown or file", async () => {
+    await inject(p, "respond", { courtDate: "2062-12-18" });
+    assert.ok((await flagsFor(p, "courtDate")).some(f => /12\/18\/2062 is more than a year from today\. Check the year\./.test(f)));
+    assert.doesNotMatch(await p.textContent("ol.steps"), /days from today/);
+    assert.equal(await p.$("[data-ics]"), null);
+    assert.match(await p.textContent("ol.steps"), /Your next court date: 12\/18\/2062\./, "the date itself is still shown, as typed");
+  });
+  test("the continuance already flagged a far hearing date; now it offers no file either", async () => {
+    await inject(p, "continuance", { hearingDate: await dayAhead(800) });
+    assert.ok((await flagsFor(p, "hearingDate")).length > 0);
+    assert.equal(await p.$("[data-ics]"), null);
+  });
+  test("edge: a year away exactly still counts down; a day more doesn't, and is flagged", async () => {
+    await inject(p, "appearance", { courtDate: await dayAhead(365) });
+    assert.match(await p.textContent("ol.steps"), /, 365 days from today\./);
+    assert.notEqual(await p.$("[data-ics]"), null);
+    assert.deepEqual(await flagsFor(p, "courtDate"), []);
+    await inject(p, "appearance", { courtDate: await dayAhead(366) });
+    assert.equal(await p.$("[data-ics]"), null);
+    assert.equal((await flagsFor(p, "courtDate")).length, 1);
   });
 });
