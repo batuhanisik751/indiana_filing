@@ -175,3 +175,32 @@ describe("TG4: dates on the day itself", () => {
   });
 });
 
+describe("TG5: two checks that had no test", () => {
+  test("a phone number whose middle three digits start with 0 or 1, or are like 911, is impossible, and flagged", async () => {
+    const p = await fresh();
+    for (const phone of ["317-055-0100", "317-155-0100", "317-911-0100", "317-411-0100"]) {
+      await inject(p, "appearance", { phone });
+      assert.ok((await flagsFor(p, "phone")).some(f => /doesn't look like a real U\.S\. phone number/.test(f)), phone);
+    }
+    await p.context().close();
+  });
+  test("edge: middle digits that are fine aren't flagged", async () => {
+    const p = await fresh();
+    for (const phone of ["317-255-0100", "317-910-0100", "317-555-0100"]) {
+      await inject(p, "appearance", { phone });
+      assert.deepEqual(await flagsFor(p, "phone"), [], phone);
+    }
+    await p.context().close();
+  });
+  test("choosing to get court papers by email, with the email \"None\", is flagged", async () => {
+    const p = await fresh();
+    for (const email of ["None", "n/a", ""]) {
+      await inject(p, "appearance", { receiveAt: "Choice2", email });
+      assert.ok((await flagsFor(p, "receiveAt")).some(f => /You chose to receive court papers at your email address, but no email address is entered/.test(f)), JSON.stringify(email));
+    }
+    await inject(p, "appearance", { receiveAt: "Choice2", email: "pat@example.com" });
+    assert.ok(!(await flagsFor(p, "receiveAt")).some(f => /no email address is entered/.test(f)), "a real email isn't flagged");
+    await p.context().close();
+  });
+});
+
