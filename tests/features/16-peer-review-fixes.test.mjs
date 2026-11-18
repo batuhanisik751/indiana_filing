@@ -600,7 +600,7 @@ describe("Fix 10: \"More free help\" at the bottom is one line until opened", ()
   test("opened, it lists the same places as Get help", async () => {
     await reset(p);
     await p.click("#footHelp > summary");
-    const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = await p.$$eval("#helpPanel a", a => a.map(x => x.href));
+    const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = await p.$$eval("#helpList a", a => a.map(x => x.href)); // the places, not the word list after them
     assert.equal(foot.length, 6);
     assert.deepEqual([...foot].sort(), [...panel].sort());
   });

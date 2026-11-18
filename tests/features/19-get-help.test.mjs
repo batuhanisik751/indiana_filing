@@ -7,6 +7,8 @@ let p;
 before(async () => { p = await fresh(); });
 after(close);
 const open = () => p.click("#helpBtn");
+// Every link in the panel, and the places to get help (the word list's sources come after them).
+const placeLinks = () => p.$$eval("#helpList a", a => a.map(x => x.href));
 const panelLinks = () => p.$$eval("#helpPanel a", a => a.map(x => ({ href: x.href, text: x.textContent.replace(/\s*\(opens in a new tab\)/, ""), target: x.target, rel: x.rel })));
 
 describe("Get help", () => {
@@ -33,7 +35,7 @@ describe("Get help", () => {
   });
   test("it also lists help near you, a free online legal question, court staff and the Self-Service Legal Center", async () => {
     await reset(p); await open();
-    const hrefs = (await panelLinks()).map(l => l.href);
+    const hrefs = await placeLinks();
     for (const h of ["https://indianalegalhelp.org/get-help/", "https://indiana.freelegalanswers.org/", "https://www.in.gov/courts/selfservice/unrepresented/help", "https://www.in.gov/courts/selfservice/"]) assert.ok(hrefs.includes(h), h);
     assert.equal(hrefs.length, 6);
   });
@@ -68,7 +70,7 @@ describe("Get help", () => {
   });
   test("edge: the footer lists the same places, so they're there even if the page's code doesn't run", async () => {
     await reset(p);
-    const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = (await panelLinks()).map(l => l.href);
+    const foot = await p.$$eval("#footHelp a", a => a.map(x => x.href)), panel = await placeLinks();
     assert.deepEqual(foot, panel);
   });
   test("edge: on a phone the button is at the top of every screen, big enough to tap, without scrolling", async () => {

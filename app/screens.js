@@ -139,6 +139,32 @@ function renderNotSure() {
   document.getElementById("back").onclick = () => { mode = notSureFromKind ? "triage" : "pick"; notSureFromKind = false; render(); };
 }
 
+// An explanation with the words the word list defines made into buttons that show the definition (the first time each
+// word comes up in that paragraph). The text reads the same, to everyone.
+function termify(text) {
+  let html = esc(text);
+  GLOSSARY.forEach((g, i) => {
+    const m = g.match.exec(html);
+    // Never inside a button already made for a longer term (like "Related cases" before "cases").
+    if (m && !/<button[^>]*>[^<]*$/.test(html.slice(0, m.index)))
+      html = `${html.slice(0, m.index)}<button type="button" class="term" data-term="${i}" aria-expanded="false" aria-controls="termbox">${m[0]}</button>${html.slice(m.index + m[0].length)}`;
+  });
+  return html;
+}
+function wireTerms() {
+  const box = document.getElementById("termbox");
+  if (!box) return;
+  app.querySelectorAll("button.term").forEach(b => b.onclick = () => {
+    const open = b.getAttribute("aria-expanded") === "true";
+    app.querySelectorAll("button.term").forEach(x => x.setAttribute("aria-expanded", "false"));
+    box.hidden = open;
+    if (open) return;
+    b.setAttribute("aria-expanded", "true");
+    box.innerHTML = `<p>${termHtml(GLOSSARY[+b.dataset.term])}</p>`;
+    markNewTabLinks(box);
+  });
+}
+
 function renderStep() {
   const vis = visible();
   if (cur >= vis.length) cur = vis.length - 1;
@@ -193,8 +219,9 @@ function renderStep() {
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
     <h1 class="q" id="q" tabindex="-1">${esc(typeof step.q === "function" ? step.q(answers) : step.q)}</h1>
-    <p class="help" id="qhelp">${esc(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
-    ${step.more ? moreHtml(`<p class="help">${esc(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}
+    <p class="help" id="qhelp">${termify(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
+    ${step.more ? moreHtml(`<p class="help">${termify(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}
+    <div class="termbox" id="termbox" hidden></div>
     ${cur === 0 && !returnToSummary ? readyHtml(sitKey) : ""}
     ${input}
     <p class="need" id="qneed">${esc(need)}</p>
@@ -233,6 +260,7 @@ function renderStep() {
     </div>
     </div>`;
   wireWhere(step);
+  wireTerms();
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
   const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
