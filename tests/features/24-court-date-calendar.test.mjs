@@ -109,11 +109,11 @@ describe("Court date: days to go and a calendar file", () => {
     assert.deepEqual(sent, []);
   });
 
-  test("edge: each file is its own event, and every line fits the calendar format's 75-character limit", async () => {
+  test("edge: downloading again updates the same event (BT20), and every line fits the calendar format's 75-character limit", async () => {
     await inject(p, "respond", { courtDate: await dayAhead(40) });
     const a = (await download()).text, b = (await download()).text;
     const uid = t => t.match(/\r\nUID:(.+)\r\n/)[1];
-    assert.notEqual(uid(a), uid(b));
+    assert.equal(uid(a), uid(b));
     for (const l of a.split("\r\n")) assert.ok(Buffer.byteLength(l) <= 75, l);
   });
 

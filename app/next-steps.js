@@ -362,12 +362,17 @@ const howSoon = v => { if (!comingDay(v)) return ""; const n = daysFromToday(v);
 // The court date as a calendar file, made on this device: nothing is sent anywhere. It says only "Court date", since
 // a phone's calendar can be shared or synced, so no case details go in it. The time isn't asked, so it's an all-day
 // event, with reminders at noon a week before and the day before.
+// One event per visit: adding the date again, even after correcting it, gives the same event ID with a higher version
+// number, so a calendar updates the event instead of adding a second one. The ID is kept only in this page, never on
+// the device; Start over and Clear my data drop it.
+let icsEvent = null;
 function courtDateIcs(day) {
+  icsEvent = icsEvent ? { ...icsEvent, seq: icsEvent.seq + 1 } : { uid: `${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}@court-form-helper`, seq: 0 };
   const next = new Date(`${day}T12:00:00`); next.setDate(next.getDate() + 1);
   const ymd = v => v.replace(/-/g, "");
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Indiana Court Form Helper//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-    "BEGIN:VEVENT", `UID:${ymd(day)}-${Math.random().toString(36).slice(2, 12)}@court-form-helper`, `DTSTAMP:${stamp}`,
+    "BEGIN:VEVENT", `UID:${icsEvent.uid}`, `SEQUENCE:${icsEvent.seq}`, `DTSTAMP:${stamp}`,
     `DTSTART;VALUE=DATE:${ymd(day)}`, `DTEND;VALUE=DATE:${ymd(dayString(next))}`,
     "SUMMARY:Court date", "DESCRIPTION:Check the time and place on your court papers.",
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Court date in one week", "TRIGGER:-P6DT12H", "END:VALARM",

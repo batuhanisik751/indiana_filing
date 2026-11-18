@@ -567,3 +567,34 @@ describe("BT19: a mistyped far-off court date gets a check, and no countdown or 
     assert.equal((await flagsFor(p, "courtDate")).length, 1);
   });
 });
+
+describe("BT20: adding the date again updates the same calendar event", () => {
+  const dayAhead = n => p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return dayString(d); }, n);
+  const ics = async () => {
+    const [d] = await Promise.all([p.waitForEvent("download"), p.click("[data-ics]")]);
+    const t = (await import("node:fs")).readFileSync(await d.path(), "utf8");
+    return { uid: t.match(/\r\nUID:(.+)\r\n/)[1], seq: +t.match(/\r\nSEQUENCE:(\d+)\r\n/)[1], start: t.match(/DTSTART;VALUE=DATE:(\d+)/)[1] };
+  };
+  test("twice, then after correcting the date: one event ID, a higher version each time, the new date", async () => {
+    await inject(p, "respond", { courtDate: await dayAhead(20) });
+    const a = await ics(), b = await ics();
+    assert.equal(b.uid, a.uid);
+    assert.deepEqual([a.seq, b.seq], [0, 1]);
+    const moved = await dayAhead(27);
+    await p.evaluate(d => { answers.courtDate = d; render(); }, moved);
+    const c = await ics();
+    assert.equal(c.uid, a.uid);
+    assert.equal(c.seq, 2);
+    assert.equal(c.start, moved.replace(/-/g, ""));
+  });
+  test("edge: Start over begins a new event, and the ID has nothing from the case in it", async () => {
+    await inject(p, "respond", { courtDate: await dayAhead(20), caseNumber: "02D01-2611-CC-004321" });
+    const a = await ics();
+    assert.match(a.uid, /^[a-z0-9]+@court-form-helper$/);
+    await p.click("#restart");
+    await inject(p, "respond", { courtDate: await dayAhead(20) });
+    const b = await ics();
+    assert.notEqual(b.uid, a.uid);
+    assert.equal(b.seq, 0);
+  });
+});
