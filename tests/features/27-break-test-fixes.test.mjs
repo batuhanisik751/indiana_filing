@@ -336,3 +336,20 @@ describe("BT6: closing More closes a definition opened from it", () => {
     assert.equal(await p.isVisible("#termbox"), true);
   });
 });
+
+describe("BT7: screen readers hear a definition, and learn of the ready list", () => {
+  const said = () => p.waitForFunction(() => document.getElementById("announce").textContent).then(h => h.jsonValue());
+  test("tapping a word says its definition", async () => {
+    await reset(p); await pick(p, "respond"); await walk(p, "defenses");
+    await p.locator("#qhelp button.term").first().click();
+    assert.match(await said(), /^Defenses: These are legal reasons why you should win the case/);
+  });
+  test("the first question's answer box is described by the ready list's title too, and only the first", async () => {
+    await reset(p); await pick(p, "feewaiver");
+    const described = () => p.evaluate(() => { const el = document.querySelector("#ans, .choices"); return (el.getAttribute("aria-describedby") || "").split(" ").map(id => document.getElementById(id)?.textContent || `(${id} missing)`); });
+    assert.ok((await described()).includes("Before you start: what to have ready"), (await described()).join(" | "));
+    await p.evaluate(() => { cur = 1; render(); });
+    assert.ok(!(await described()).some(t => /Before you start/.test(t)));
+    assert.ok(!(await described()).some(t => /missing/.test(t)), "every description it names is there");
+  });
+});

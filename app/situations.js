@@ -105,7 +105,7 @@ const questionsText = key => questionMin(key) === questionCount(key) ? `About ${
 // The list above, closed until opened, on a form's first question.
 const readyHtml = key => moreHtml(`<ul class="facts ready">${SITUATIONS[key].ready.map(([what, why, src]) =>
   `<li><strong>${esc(what)}.</strong> ${esc(why)} <small class="src">Source: <a href="${src.href}" target="_blank" rel="noopener">${esc(src.text)}</a></small></li>`).join("")}</ul>`,
-  "Before you start: what to have ready", `ready:${key}`, { cls: "ready" });
+  "Before you start: what to have ready", `ready:${key}`, { cls: "ready", summaryHtml: '<span id="qready">Before you start: what to have ready</span>' });
 const takesHtml = key => `<small class="takes">${questionsText(key)} ${esc(SITUATIONS[key].bring)}</small>`;
 const takesRange = () => { const k = Object.keys(SITUATIONS); return [Math.min(...k.map(questionMin)), Math.max(...k.map(questionCount))]; };
 window.appParts++;

@@ -169,8 +169,11 @@ function wireTerms() {
     box.hidden = open;
     if (open) return;
     b.setAttribute("aria-expanded", "true");
-    box.innerHTML = `<p>${termHtml(GLOSSARY[+b.dataset.term], sitKey)}</p>`;
+    const g = GLOSSARY[+b.dataset.term];
+    box.innerHTML = `<p>${termHtml(g, sitKey)}</p>`;
     markNewTabLinks(box);
+    // The definition shows after the paragraph, so a screen reader hears it now, without losing its place.
+    announce(`${g.term}: ${termDef(g, sitKey).says}`);
   });
 }
 
@@ -191,7 +194,8 @@ function renderStep() {
   // A reload kept this choice but not what it protects, and Cancel can only put the choice back.
   const goneHere = returnToSummary && reloadedEdit === step.id && answers[step.id] === "yes" && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   let input;
-  const desc = `aria-describedby="qhelp${step.more ? " qmore" : ""} qneed"`;
+  // On the first question, the answer box's description also names the ready list above it.
+  const desc = `aria-describedby="qhelp${step.more ? " qmore" : ""}${cur === 0 && !returnToSummary ? " qready" : ""} qneed"`;
   if (step.type === "checks") { // check every one that applies
     const on = String(v).split(",");
     input = `<div class="choices" role="group" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
