@@ -55,6 +55,10 @@ const LOOKALIKE = { "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ":
 // Accents typed as separate marks become one letter (NFC). Invisible formatting characters (zero-width spaces,
 // soft hyphens, direction marks) are dropped, and look-alike spaces and hyphens, common in pasted text, become plain ones.
 const cleanText = v => String(v ?? "").normalize("NFC").replace(/\p{Cf}/gu, "").replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, " ").replace(/[\u2010-\u2012\u2212]/g, "-");
+// One emoji can be several code points: a variation selector, a skin tone, or several emoji joined into one with
+// zero-width joiners. Matched whole, before the joiners are cleaned away, so each prints as one "?" and the flag
+// shows the emoji as it looks. (The copyright and registered signs count as emoji too, and the font prints them.)
+const EMOJI_SEQ = /\p{Extended_Pictographic}(?:[\uFE0E\uFE0F]|\p{Emoji_Modifier})*(?:\u200D\p{Extended_Pictographic}(?:[\uFE0E\uFE0F]|\p{Emoji_Modifier})*)*/gu;
 function makeSafe(font, report) {
   const ok = new Map();
   const fits = ch => {
@@ -62,7 +66,13 @@ function makeSafe(font, report) {
     return ok.get(ch);
   };
   return text => {
-    const clean = cleanText(text).replace(/\t/g, " ");
+    const whole = String(text ?? "").replace(EMOJI_SEQ, e => {
+      const shown = e.replace(/[\uFE0E\uFE0F]/g, "");
+      if (Array.from(shown).every(fits)) return shown; // printable, like the copyright sign: without the selector
+      report(e, "?");
+      return "?";
+    }).replace(/[\uFE0E\uFE0F]|\p{Emoji_Modifier}/gu, ""); // any left alone, with nothing to change
+    const clean = cleanText(whole).replace(/\t/g, " ");
     // An accent the font can't put on this letter is dropped, so name the letter it was on.
     for (const m of clean.matchAll(/\P{M}[\u0300-\u036f]+/gu)) if (!fits(m[0].slice(-1))) report(m[0], m[0].replace(/[\u0300-\u036f]+/g, ""));
     return Array.from(clean).map(ch => {

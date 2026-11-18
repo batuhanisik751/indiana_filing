@@ -2,7 +2,7 @@
 // on the Issue Map. Each section reproduces its problem first.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP, inject, scoreMatchesFlags, jump, fieldRows } from "../lib.mjs";
+import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP, inject, scoreMatchesFlags, jump, fieldRows, pdfText } from "../lib.mjs";
 
 after(close);
 
@@ -230,6 +230,41 @@ describe("VF3: a character the form can't print is flagged once per answer", () 
     const before = await p.evaluate(() => [...runChecks(), ...pdfFlags()].length);
     await inject(p, "continuance", { name: "Zo\u00eb \u0141ukasz", role: "other" }); await ready(p);
     assert.equal(await p.evaluate(() => [...runChecks(), ...pdfFlags()].length), before + 1);
+    await p.context().close();
+  });
+});
+
+describe("VF4: an emoji prints as one question mark, and the flag shows the emoji itself", () => {
+  const ready = p => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  const nameFlag = p => p.evaluate(() => pdfFlags().filter(f => f.fix === "name" && /can't print/.test(f.why)).map(f => f.why).join(" "));
+  const printed = async (p, name) => { await inject(p, "appearance", { name }); await ready(p); return pdfText(p); };
+  test("a heart with its invisible variation selector prints as one ?, and the flag lists the heart", async () => {
+    const p = await fresh();
+    const text = await printed(p, "Pat Example \u2764\ufe0f");
+    assert.ok(text.includes("Pat Example ?") && !text.includes("Pat Example ??"), "one question mark");
+    const why = await nameFlag(p);
+    assert.ok(why.includes('"\u2764\ufe0f" (printed as "?")'), why);
+    assert.ok(!why.includes('"\ufe0f"'), "no invisible character listed on its own");
+    await p.context().close();
+  });
+  test("a skin tone and a family emoji each print as one ?", async () => {
+    const p = await fresh();
+    const text = await printed(p, "Pat Example \ud83d\udc4d\ud83c\udffd \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67");
+    assert.ok(text.includes("Pat Example ? ?") && !text.includes("??"), text.match(/Pat Example[^A-Za-z]{0,8}/)?.[0]);
+    await p.context().close();
+  });
+  test("edge: symbols the font can print, like the copyright and registered signs, still print, with no flag", async () => {
+    const p = await fresh();
+    const text = await printed(p, "Acme\u00a9\ufe0f Credit\u00ae LLC");
+    assert.ok(text.includes("Acme\u00a9 Credit\u00ae LLC"), "printed as written, without the selector");
+    assert.equal(await nameFlag(p), "");
+    await p.context().close();
+  });
+  test("edge: accented letters still print, and a letter it can't print is still named", async () => {
+    const p = await fresh();
+    const text = await printed(p, "Zo\u00eb \u0141ukasz");
+    assert.ok(text.includes("Zo\u00eb Lukasz"));
+    assert.ok((await nameFlag(p)).includes('"\u0141" (printed as "L")'));
     await p.context().close();
   });
 });
