@@ -366,6 +366,11 @@ function runChecks() {
       why: `${formDate(a[s.id])} is after your ${limit.name} (${formDate(limit.date)}). Change whichever one is wrong.`, fix: s.id });
   });
 
+  // The Certificate of Service says a copy was sent on its date, so a date before the form is signed is worth a look.
+  if (isDay(a.signDate)) vis.filter(s => /^svc\dDate$/.test(s.id) && isDay(a[s.id]) && a[s.id] < a.signDate).forEach(s =>
+    flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, fix: s.id,
+      why: `${formDate(a[s.id])} is before the date you'll sign the form (${formDate(a.signDate)}). The certificate says a copy was sent on this date. Check both dates.` }));
+
   // A court date that has passed can't be the next one.
   vis.filter(s => (s.id === "courtDate" || s.id === "hearingDate") && hasPassed(a[s.id])).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `${formDate(a[s.id])} has already passed. Check it against your papers, or look it up at mycase.in.gov.`, fix: s.id }));

@@ -334,3 +334,28 @@ describe("VF7: fee waiver totals always have an Edit link", () => {
   });
 });
 
+describe("VF8: a service date before the signing date is flagged to check", () => {
+  const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  test("a copy sent before the form is signed is flagged, with both dates", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { svc1Date: day(-5), signDate: day(2) });
+    const f = await flagsFor(p, "svc1Date");
+    assert.ok(f.some(x => /^check\|Certificate of Service: Date of service \(person 1\)\|.* is before the date you'll sign the form \(.*\)\. The certificate says a copy was sent on this date\. Check both dates\./.test(x)), f.join("\n"));
+    await p.context().close();
+  });
+  test("edge: the same day, or after signing, isn't flagged", async () => {
+    const p = await fresh();
+    for (const svc1Date of [day(2), day(4)]) {
+      await inject(p, "appearance", { svc1Date, signDate: day(2) });
+      assert.ok(!(await flagsFor(p, "svc1Date")).some(x => /before the date you'll sign/.test(x)), svc1Date);
+    }
+    await p.context().close();
+  });
+  test("edge: every person on the certificate is checked, on the Answer too", async () => {
+    const p = await fresh();
+    await inject(p, "respond", { svcMore1: "yes", svc2Name: "Lawyer Two", svc2Address: "3 Elm St, Fort Wayne, IN 46802", svc2Method: "First Class U.S. mail", svc2Date: day(-3), svcMore2: "no", signDate: day(1) });
+    assert.ok((await flagsFor(p, "svc2Date")).some(x => /before the date you'll sign/.test(x)));
+    await p.context().close();
+  });
+});
+
