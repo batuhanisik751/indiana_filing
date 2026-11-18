@@ -16,10 +16,12 @@ let browser = null;
 export async function launch() { browser ||= await chromium.launch(); return browser; }
 export async function close() { if (browser) await browser.close(); browser = null; }
 
+// Records the page's errors and dialogs. Dialogs are accepted, and kept in p.dialogs so a test can check one was asked.
 function watch(p) {
   p.errors = [];
+  p.dialogs = [];
   p.on("pageerror", e => p.errors.push(e.message));
-  p.on("dialog", d => d.accept());
+  p.on("dialog", d => { p.dialogs.push({ type: d.type(), message: d.message() }); d.accept(); });
   return p;
 }
 
