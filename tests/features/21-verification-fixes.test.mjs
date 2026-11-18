@@ -412,3 +412,32 @@ describe("VF13: the browser's Back stays in the tool while answers are waiting t
   });
 });
 
+describe("VF14: an answer over the length limit is flagged, however it got in", () => {
+  test("a 25,000-character answer kept by leaving through the section list is flagged with its length", async () => {
+    const p = await fresh({ viewport: { width: 1280, height: 900 } });
+    await pick(p, "appearance"); await walk(p, "plaintiff");
+    await p.fill("#ans", "X".repeat(25000)); await p.click("#next");
+    assert.equal(await step(p), "plaintiff", "refused on Continue, as before");
+    await p.click('.rail [data-sec="1"]'); await walk(p, "summary");
+    assert.ok((await flagsFor(p, "plaintiff")).some(f => /^check\|Plaintiff\|This answer is 25,000 characters, more than the 20,000 a question takes\. Shorten it\./.test(f)));
+    await p.context().close();
+  });
+  test("edge: exactly 20,000 characters isn't flagged for length", async () => {
+    const p = await fresh();
+    await inject(p, "respond", { defenses: "A".repeat(20000) });
+    assert.ok(!(await flagsFor(p, "defenses")).some(f => /more than the 20,000/.test(f)));
+    await p.context().close();
+  });
+  test("edge: Fix opens the question, and it still can't be saved until it's shorter", async () => {
+    const p = await fresh();
+    await inject(p, "respond", { defenses: "A".repeat(20001) });
+    await p.click('ul.flags li:has([data-fix="defenses"]) [data-fix]');
+    assert.equal(await step(p), "defenses");
+    await p.click("#next");
+    assert.match(await p.textContent("#err"), /too long/);
+    await p.fill("#ans", "I paid this debt in full."); await p.click("#next");
+    assert.equal(await step(p), "summary");
+    await p.context().close();
+  });
+});
+

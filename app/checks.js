@@ -249,6 +249,10 @@ function runChecks() {
       why: s.id === "courtTypeOther" && /^court[.!]*$/i.test(String(a[s.id]).trim()) ? "The form already prints the word COURT, so this leaves the court type blank. Type the kind of court, like Probate."
         : `You typed "${String(a[s.id]).trim()}". That will print on the form. If you don't know yet, clear it and choose "I'm not sure" so it's flagged here instead.${s.id === "email" && NO_WORDS.test(String(a[s.id]).trim()) && !NOT_KNOWN.test(String(a[s.id]).trim()) ? ` If you don't have one, ${sitKey === "feewaiver" ? "leave this blank" : "type None"}.` : ""}` });
   });
+  // Longer than a question takes: refused on Continue, but it can stay by leaving the question another way.
+  vis.filter(s => String(a[s.id] ?? "").length > ANSWER_MAX).forEach(s =>
+    flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
+      why: `This answer is ${String(a[s.id]).length.toLocaleString("en-US")} characters, more than the ${ANSWER_MAX.toLocaleString("en-US")} a question takes. Shorten it.` }));
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
     handled.add(s.id);
