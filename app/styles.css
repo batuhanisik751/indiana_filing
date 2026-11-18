@@ -177,12 +177,12 @@ ul.flags details.flagwhy .morebody { font-size: .9rem; color: var(--muted); marg
 .formcard h3 { font-size: 1rem; margin: 0 0 .5rem; }
 .formcard h3 small { display: block; font-weight: 400; color: var(--muted); font-size: .85rem; }
 dl.vals { margin: 0; }
-dl.vals div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .75rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+dl.vals > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .75rem; padding: .55rem 0; border-top: 1px solid var(--line); }
 dl.vals dt { font-size: .85rem; color: var(--muted); grid-column: 1; }
 dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: .6rem .5rem; margin: -.6rem -.5rem; }
 /* An answer being changed in place: the box takes the row's full width. */
-dl.vals div.editing dd { grid-column: 1 / -1; white-space: normal; }
+dl.vals > div.editing dd { grid-column: 1 / -1; white-space: normal; }
 .inedit { display: grid; gap: .35rem; margin-top: .25rem; }
 .inedit .need, .inedit .err { margin: 0; }
 .inedit .err { min-height: 0; }

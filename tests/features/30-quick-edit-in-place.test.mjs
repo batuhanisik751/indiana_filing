@@ -21,7 +21,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     assert.equal(await focusedIs("#inEdit"), true);
     assert.equal(await p.evaluate(() => mode), "summary");
     assert.match(await p.$eval("#inEdit", b => b.getAttribute("aria-label")), /^Email address \(Appearance/);
-    assert.equal(await p.$(`dl.vals [data-row="email:0"] [data-fix]`), null, "no Edit link in the row being changed");
+    assert.equal(await p.locator(`dl.vals [data-row="email:0"] [data-fix]`).count(), 0, "no Edit link in the row being changed");
   });
 
   test("Save changes it everywhere it shows, updates the flags and the PDF, and goes back to Edit", async () => {
@@ -29,7 +29,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     assert.equal((await flagsFor(p, "email")).length, 1);
     const key = await p.evaluate(() => pdfState.key);
     await changeHere("email", "pat@gmail.com");
-    assert.equal(await p.$("#inEdit"), null);
+    assert.equal(await p.locator("#inEdit").count(), 0);
     assert.equal(await p.evaluate(() => answers.email), "pat@gmail.com");
     assert.equal(await shown("email"), "pat@gmail.com");
     assert.deepEqual(await flagsFor(p, "email"), []);
@@ -88,7 +88,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     await editHere(p, "plaintiff");
     await p.fill("#inEdit", "Someone Else");
     await p.keyboard.press("Escape");
-    assert.equal(await p.$("#inEdit"), null);
+    assert.equal(await p.locator("#inEdit").count(), 0);
     assert.equal(await p.evaluate(() => answers.plaintiff), "Acme Credit LLC");
   });
 
@@ -101,7 +101,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     await editHere(p, "defenses");
     await p.keyboard.press("Enter");
     await p.keyboard.type("Second line.");
-    assert.ok(await p.$("#inEdit"), "still open");
+    assert.ok((await p.locator("#inEdit").count()) > 0, "still open");
     await p.click("#ieSave");
     assert.equal(await p.evaluate(() => answers.defenses), "I paid this debt in full.\nSecond line.");
   });
@@ -119,7 +119,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     await inject(p, "respond");
     await p.evaluate(() => { document.querySelector('details[data-more="answers"]').open = true; });
     for (const id of ["receiveAt", "county"]) {
-      assert.equal(await p.$(`dl.vals [data-fix="${id}"][data-inline]`), null, id);
+      assert.equal(await p.locator(`dl.vals [data-fix="${id}"][data-inline]`).count(), 0, id);
       await p.click(`dl.vals [data-fix="${id}"]`);
       assert.equal(await p.evaluate(() => mode), "step");
       await p.click("#back"); // Cancel
@@ -209,8 +209,21 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     await p.fill("#inEdit", "Changed");
     await p.click("#toQuestions");
     await p.evaluate(() => { mode = "summary"; render(); });
-    assert.equal(await p.$("#inEdit"), null, "not left open for later");
+    assert.equal(await p.locator("#inEdit").count(), 0, "not left open for later");
     assert.equal(await p.evaluate(() => answers.plaintiff), "Acme Credit LLC");
+  });
+
+  test("the box takes its row's full width, with its buttons on one line under it", async () => {
+    await inject(p, "respond");
+    await editHere(p, "address");
+    const m = await p.evaluate(() => {
+      const row = document.querySelector('dl.vals [data-row="address:0"]').getBoundingClientRect(), box = document.getElementById("inEdit").getBoundingClientRect();
+      const b = ["ieSave", "ieCancel", "ieFull"].map(id => document.getElementById(id).getBoundingClientRect());
+      return { share: box.width / row.width, oneLine: b.every(r => Math.abs(r.top - b[0].top) < 12), below: b[0].top > box.bottom };
+    });
+    assert.ok(m.share > 0.9, `the box is ${Math.round(m.share * 100)}% of the row`);
+    assert.equal(m.oneLine, true);
+    assert.equal(m.below, true);
   });
 
   test("edge: at 320px the box and its buttons fit, with nothing off the side", async () => {
