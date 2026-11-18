@@ -197,10 +197,9 @@ function renderStep() {
   if (cur >= vis.length) cur = vis.length - 1;
   const step = vis[cur];
   const sit = SITUATIONS[sitKey];
-  // E14: moving forward never moves the bar backwards, even when new questions open.
-  let pct = Math.round((cur / vis.length) * 100);
-  if (lastProgress.sit === sitKey && cur > lastProgress.cur) pct = Math.max(pct, lastProgress.pct);
-  lastProgress = { sit: sitKey, cur, pct };
+  // Item 21: the bar fills with the needed answers filled in, the same count as the summary's. A blank, "I'm not sure"
+  // or an optional question leaves it where it is, and going back doesn't empty it. Which question this is is in words.
+  const score = completeness(), pct = score.total ? Math.round((score.filled / score.total) * 100) : 100;
   const v = answers[step.id] ?? "";
   const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
@@ -243,9 +242,9 @@ function renderStep() {
   app.innerHTML = `
     <div class="stepgrid">
     <div class="qmain">
-    <div class="bar" role="progressbar" aria-label="Progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+    <div class="barrow"><div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${pct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div><span class="barcount" aria-hidden="true">${score.filled} of ${score.total} needed answers</span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
-    <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>${cur + 1} of ${vis.length}</span></div>
+    <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>Question ${cur + 1} of ${vis.length}</span></div>
     <h1 class="q" id="q" tabindex="-1">${esc(typeof step.q === "function" ? step.q(answers) : step.q)}</h1>
     <p class="help" id="qhelp">${termify(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
     ${step.more ? moreHtml(`<p class="help">${termify(step.more)}</p>`, "More", `q:${step.id}`, { bodyId: "qmore" }) : ""}

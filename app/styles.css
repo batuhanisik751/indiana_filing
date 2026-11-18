@@ -100,6 +100,10 @@ details.more .morebody p.help { margin: 0; }
 /* progress */
 .bar { height: .5rem; background: var(--line); border-radius: 4px; overflow: hidden; margin-bottom: .5rem; }
 .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
+/* On a question, the needed answers filled in sit beside the bar, in the space the bar already takes, so nothing moves down. */
+.barrow { display: flex; align-items: center; gap: .6rem; height: 1rem; }
+.barrow .bar { flex: 1; margin-bottom: 0; }
+.barcount { font-size: .75rem; line-height: 1rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .barlabel { display: flex; flex-wrap: wrap; gap: 0 .75rem; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
 
 input[type=text], input[type=tel], input[type=email], input[type=date], input[type=time], input[type=number], textarea, select {

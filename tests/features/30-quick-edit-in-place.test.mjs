@@ -171,6 +171,7 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
 
   test("edge: the box keeps what's typed and its cursor while the filled form finishes", async () => {
     await inject(p, "respond");
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 }); // so it can't finish the held one
     // The PDF is made again, and held until the box is open with the cursor placed.
     await p.evaluate(() => { const make = buildPdf; window.__go = null; const held = new Promise(r => { window.__go = r; }); window.buildPdf = async (...a) => { await held; return make(...a); }; pdfState = { key: null }; renderSummary(true); });
     await editHere(p, "plaintiff");

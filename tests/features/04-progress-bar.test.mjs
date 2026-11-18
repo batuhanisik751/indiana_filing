@@ -38,7 +38,7 @@ describe("4. Progress bar", () => {
     const [, filled, of] = (await bar()).label.match(/(\d+) of (\d+)/);
     assert.equal(+filled, +of - 1);
   });
-  test("edge: going back moves it back, and going forward again brings it back", async () => {
+  test("edge: going back and forward again never takes it past where it was", async () => {
     await pick(p, "appearance"); await walk(p, "name");
     const at = (await bar()).now;
     await p.click("#back");
@@ -65,7 +65,7 @@ describe("4. Progress bar", () => {
   });
   test("edge: screen readers get its name and how far along it is", async () => {
     await pick(p, "appearance");
-    assert.equal((await bar()).name, "Progress");
+    assert.equal((await bar()).name, "Needed answers filled in"); // item 21: the same count as on the summary
     await walk(p, "summary");
     const b = await bar();
     assert.equal(b.name, "Needed answers filled in");
