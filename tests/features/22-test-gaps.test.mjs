@@ -251,3 +251,67 @@ describe("TG7: the fee waiver keeps contact details off the PDF with the Attorne
   });
 });
 
+describe("TG8: each answer prints in its own place on the official form", () => {
+  const ready = p => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  // Answers that are easy to find in the PDF's text, one word each at least 4 letters long and found nowhere else.
+  const UNIQUE = { name: "Pat Placewell", plaintiff: "Acme Plaintiffco LLC", address: "1 Uniqueaddr St, Fort Wayne, IN 46802", email: "pat.placewell@example.com",
+    phone: "260-555-0177", fax: "260-555-0166", svc1Name: "Lawyer Servicename", svc1Address: "9 Serviceaddr Ave, Fort Wayne, IN 46802", defenses: "Defensetext about the debt.",
+    otherParty: "Otherparty Holdings", otherPartyAddress: "7 Otheraddr Rd, Fort Wayne, IN 46802", reason: "Reasontext for the new date.", timeNeeded: "Fourteenish days",
+    adults: "Adultname Person", children: "Childname Person", supported: "Supportedname Person", otherPerson: "Respondentname Co" };
+  // For each typed answer: does its text sit inside one of the boxes the tool says it fills (where it highlights it)?
+  const placement = p => p.evaluate(async () => {
+    await loadPreviewTools();
+    const { official } = SITUATIONS[sitKey], off = OFFICIAL[official.packet], pages = official.docs.flatMap(k => off.docs[k].pages);
+    const blank = await whereDoc(off.file), filled = await pdfjsLib.getDocument({ data: pdfState.result.all.slice() }).promise;
+    const cache = {}, itemsOn = async i => (cache[i] ||= (await (await filled.getPage(i + 1)).getTextContent()).items);
+    const out = { checked: [], misplaced: [] };
+    for (const s of visible()) {
+      if (!["text", "textarea", "email", "tel", "select", "date"].includes(s.type) || empty(answers[s.id])) continue;
+      const shown = s.type === "date" ? formDate(answers[s.id]) : String(answers[s.id]);
+      const token = shown.split(/[\s,]+/).find(w => w.length >= 4);
+      const spots = token ? await whereSpots(s, blank) : [];
+      if (!spots.length) continue;
+      let inside = false;
+      for (const { page, rects } of spots) {
+        const at = pages.indexOf(page);
+        if (at < 0) continue;
+        for (const it of await itemsOn(at)) {
+          if (!it.str.includes(token)) continue;
+          const [x, y] = [it.transform[4], it.transform[5]];
+          if (rects.some(r => x >= Math.min(r[0], r[2]) - 6 && x <= Math.max(r[0], r[2]) + 6 && y >= Math.min(r[1], r[3]) - 8 && y <= Math.max(r[1], r[3]) + 8)) inside = true;
+        }
+      }
+      out.checked.push(s.id);
+      if (!inside) out.misplaced.push(`${s.id} (${token})`);
+    }
+    return out;
+  });
+  for (const form of ["respond", "appearance", "continuance", "feewaiver"]) {
+    test(`${form}: every typed answer prints inside the box it fills`, async () => {
+      const p = await fresh();
+      await inject(p, form, { ...UNIQUE, role: "other", incomeKinds: "none", expenseKinds: "none" }); await ready(p);
+      const { checked, misplaced } = await placement(p);
+      assert.ok(checked.length >= 8, `${checked.length} answers checked: ${checked.join(", ")}`);
+      assert.deepEqual(misplaced, []);
+      await p.context().close();
+    });
+  }
+  test("edge: on the Appearance, each answer sits on the same line as its printed label, so no two boxes are swapped", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", UNIQUE); await ready(p);
+    const LABELS = { "My name is": "Placewell", "Email Address": "pat.placewell@example.com", "Phone Number": "260-555-0177", "Fax Number": "260-555-0166", "CASE NUMBER": "02D01-2611-CC-001234" };
+    const off = await p.evaluate(async labels => {
+      await loadPreviewTools();
+      const doc = await pdfjsLib.getDocument({ data: pdfState.result.all.slice() }).promise, items = [];
+      for (let i = 1; i <= 2; i++) for (const it of (await (await doc.getPage(i)).getTextContent()).items) items.push({ page: i, str: it.str, x: it.transform[4], y: it.transform[5] });
+      return Object.entries(labels).filter(([label, value]) => {
+        // The answer can print in more than one place (the name is in the caption too): any copy on the label's line counts.
+        const l = items.find(it => it.str.includes(label));
+        return !l || !items.some(v => v.str.includes(value) && v.page === l.page && Math.abs(l.y - v.y) <= 5 && v.x > l.x);
+      }).map(([label]) => label);
+    }, LABELS);
+    assert.deepEqual(off, []);
+    await p.context().close();
+  });
+});
+
