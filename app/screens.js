@@ -158,6 +158,11 @@ function termify(text, key = sitKey, a = answers) {
 function wireTerms() {
   const box = document.getElementById("termbox");
   if (!box) return;
+  // Closing More closes a definition opened from inside it.
+  app.querySelectorAll("details.more").forEach(d => d.addEventListener("toggle", () => {
+    const shown = !d.open && d.querySelector('button.term[aria-expanded="true"]');
+    if (shown) { shown.setAttribute("aria-expanded", "false"); box.hidden = true; }
+  }));
   app.querySelectorAll("button.term").forEach(b => b.onclick = () => {
     const open = b.getAttribute("aria-expanded") === "true";
     app.querySelectorAll("button.term").forEach(x => x.setAttribute("aria-expanded", "false"));

@@ -308,3 +308,31 @@ describe("BT5: on the continuance, definitions cite the continuance's own instru
     for (const s of await sources()) assert.match(s, /Answer instructions/);
   });
 });
+
+describe("BT6: closing More closes a definition opened from it", () => {
+  // No question's More has a word to tap today (BT1 made "continuance instructions" plain text), so one is given one.
+  async function openFromMore() {
+    await inject(p, "continuance", { role: "other" }); await jump(p, "hearingDate");
+    await p.evaluate(() => { visible()[cur].more = "The defendant can ask for this."; render(); });
+    await p.click('details[data-more^="q:"] > summary');
+    const b = p.locator("#qmore button.term").first();
+    await b.click();
+    assert.equal(await p.isVisible("#termbox"), true);
+    return b;
+  }
+  test("the definition goes, and its word no longer says it's open", async () => {
+    const b = await openFromMore();
+    await p.click('details[data-more^="q:"] > summary');
+    await p.waitForFunction(() => document.getElementById("termbox").hidden);
+    assert.equal(await b.getAttribute("aria-expanded"), "false");
+  });
+  test("edge: a definition opened from the explanation itself stays when More closes", async () => {
+    await inject(p, "continuance", { role: "other" }); await jump(p, "hearingDate");
+    await p.evaluate(() => { visible()[cur].more = "The defendant can ask for this."; visible()[cur].help = "The plaintiff set this date."; render(); });
+    await p.click('details[data-more^="q:"] > summary');
+    await p.locator("#qhelp button.term").first().click();
+    await p.click('details[data-more^="q:"] > summary');
+    await p.waitForTimeout(100);
+    assert.equal(await p.isVisible("#termbox"), true);
+  });
+});
