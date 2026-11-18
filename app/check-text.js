@@ -91,21 +91,42 @@ function privateKind(text, isAddress = false) {
 // Where in an answer the private information is, as [start, end] pieces: each number that's enough by itself to be
 // flagged, or, failing that, the words the flag needs (like "password:" and what follows). Used to select it when the
 // person fixes it and to mark it where the answer is already shown, never to repeat it in a flag. Pieces a few
-// characters apart are one.
-function privateSpans(text, flagged) {
-  const s = String(text ?? "");
-  const blank = (t, spans) => spans.reduce((acc, [a, b]) => acc.slice(0, a) + " ".repeat(b - a) + acc.slice(b), t);
-  const nums = [...s.matchAll(/\d(?:[\d .\/_,:*~\u00b7\u2010-\u2015\u2212-]*\d)?/g)].map(m => [m.index, m.index + m[0].length]);
+// characters apart are one. kindOf is the check itself (privateKind, as that box uses it). skip: pieces whose digits
+// aren't private, like a real case number the check sets aside.
+function privateSpans(text, kindOf, skip = []) {
+  const s = String(text ?? ""), flagged = t => !!kindOf(t);
+  const blank = (t, spans, ch = " ") => spans.reduce((acc, [a, b]) => acc.slice(0, a) + ch.repeat(b - a) + acc.slice(b), t);
+  // Digits are one number only across what the check itself reads as one: a space or line break, a hyphen (spaces
+  // around it too), or one . / _ , : * ~ or ·. So in "$500, 123-45-6789" the 500 is a number of its own.
+  const nums = [...blank(s, skip, "x").matchAll(/\d+(?:(?:\s*[\u2010-\u2015\u2212-]\s*|\s+|[.\/_,:*~\u00b7])\d+)*/g)].map(m => [m.index, m.index + m[0].length]);
+  // A number with another next to it, as in "123-45-6789 2": a Social Security number is 9 digits and a PIN one group
+  // of 4 to 8, so for those the part is just the digits that are still flagged as that. Other kinds stay whole: after
+  // "account", any 6 digits are flagged, so a shorter piece of an account number would be too.
+  const narrow = (c, others) => {
+    const kind = kindOf(blank(s, others));
+    const groups = [...s.slice(c[0], c[1]).matchAll(/\d+/g)].map(m => [c[0] + m.index, c[0] + m.index + m[0].length]);
+    const digits = (i, j) => groups.slice(i, j + 1).reduce((n, [a, b]) => n + b - a, 0);
+    const fits = kind === "ssn" ? (i, j) => digits(i, j) === 9 : kind === "pin" ? (i, j) => i === j && digits(i, j) >= 4 && digits(i, j) <= 8 : null;
+    if (!fits || groups.length < 2) return [c];
+    const out = [];
+    for (let i = 0; i < groups.length; i++) for (let j = i; j < groups.length; j++)
+      if (fits(i, j) && kindOf(blank(s, [...others, [c[0], groups[i][0]], [groups[j][1], c[1]]])) === kind) out.push([groups[i][0], groups[j][1]]);
+    return out.length ? out : [c];
+  };
   // Still flagged with every number taken out: it's a password, with its label.
   let hits = flagged(blank(s, nums)) ? PASSWORD_RES.map(re => re.exec(s)).filter(Boolean).map(m => [m.index, m.index + m[0].length])
-    : nums.filter((c, i) => flagged(blank(s, nums.filter((_, j) => j !== i))));
+    : nums.flatMap((c, i) => { const others = nums.filter((_, j) => j !== i); return flagged(blank(s, others)) ? narrow(c, others) : []; });
   if (!hits.length) {
     const words = [...s.matchAll(/\S+/g)].map(m => [m.index, m.index + m[0].length]);
     hits = words.filter(c => !flagged(blank(s, [c])));
   }
-  return hits.reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a - last[1] <= 3) last[1] = b; else out.push([a, b]); return out; }, []);
+  return hits.sort((x, y) => x[0] - y[0]).reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a - last[1] <= 3) last[1] = Math.max(last[1], b); else out.push([a, b]); return out; }, []);
 }
 const PRIVATE_WHAT = { ssn: "This may be a complete Social Security number.", account: "This may be a complete account or card number.", pin: "This may be a PIN or password." };
+// A real case number in a case number box, as in 49D01-2401-SC-000123, which the privacy check sets aside. Not one
+// ending in a Social Security number, as in Smith-123-45-6789.
+const CASE_TOKEN = /\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, isCaseToken = t => /[A-Z]/i.test(t) && !/(?:^|-)\d{3}-\d{2}-\d{4}$/.test(t);
+const caseTokens = v => [...String(v).matchAll(CASE_TOKEN)].filter(m => isCaseToken(m[0])).map(m => [m.index, m.index + m[0].length]);
 const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumber|fwCaseType)$/; // numbers these boxes are meant to hold
 
 // Words that say the person doesn't know. Typed into a box they'd print on the form, so they count as no answer.

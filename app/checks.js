@@ -200,11 +200,11 @@ function runChecks() {
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
     // A good or foreign phone number isn't an account number, however long.
     const kindOf = v => s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
-      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(/\b[0-9A-Z]{2,}(?:-[0-9A-Z]+){2,}\b/gi, t => (/[A-Z]/i.test(t) && !/(?:^|-)\d{3}-\d{2}-\d{4}$/.test(t) ? " " : t)), false)
+      : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(CASE_TOKEN, t => (isCaseToken(t) ? " " : t)), false)
       : privateKind(v, /address/i.test(s.id));
     const kind = kindOf(v);
     // hit: the part of the answer it's about (see privateSpans), selected when the person fixes it.
-    if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5, hit: privateSpans(v, t => !!kindOf(t)),
+    if (kind) flags.push({ level: "check", title: `Private information: ${s.label}`, fix: s.id, link: RULES.acr5, hit: privateSpans(v, kindOf, CASE_NUMBER_BOXES.test(s.id) ? caseTokens(v) : []),
       why: `${PRIVATE_WHAT[kind]} It will print on the form until you remove it. Access to Court Records Rule 5 says to take these out of court papers unless the case needs them. If yours does, the rule requires filing it on green paper (or as a confidential document if e-filed), plus a copy that leaves it out and an ACR Form.` });
   });
 

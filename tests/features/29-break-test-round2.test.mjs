@@ -1,0 +1,53 @@
+// Fixes from the second break-test, of the features added after looking at other teams' projects (BT23 on).
+import { describe, test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { fresh, close, inject } from "../lib.mjs";
+
+let p;
+before(async () => { p = await fresh(); });
+after(close);
+const marks = () => p.$$eval("dl.vals mark", m => m.map(x => x.textContent));
+const selected = () => p.evaluate(() => { const el = document.getElementById("ans"); return el.value.slice(el.selectionStart, el.selectionEnd); });
+// The privacy flag's Fix for one question (the one that knows the part it's about).
+const fixPrivate = id => p.click(`ul.flags button[data-fix="${id}"][data-hit]`);
+// What the privacy check picks out of one answer: what's marked, and what Fix selects.
+async function part(form, id, value) {
+  await inject(p, form, { [id]: value });
+  const marked = await marks();
+  await fixPrivate(id);
+  return { marked, selected: await selected() };
+}
+
+describe("BT23: the part is only the private number, not the numbers next to it", () => {
+  test("an amount before it, then a comma: Backspace leaves the amount", async () => {
+    assert.deepEqual(await part("respond", "defenses", "I paid $500, 123-45-6789 is my SSN."), { marked: ["123-45-6789"], selected: "123-45-6789" });
+    await p.keyboard.press("Backspace");
+    assert.equal(await p.inputValue("#ans"), "I paid $500,  is my SSN.");
+  });
+  test("a number after it, after a comma", async () => {
+    assert.deepEqual(await part("respond", "defenses", "My SSN is 123-45-6789, 2 kids live with me."), { marked: ["123-45-6789"], selected: "123-45-6789" });
+  });
+  test("a card number with its date and code after it: just the card number", async () => {
+    assert.deepEqual(await part("respond", "defenses", "Card 4111 1111 1111 1111, 12/28, 123 was charged."), { marked: ["4111 1111 1111 1111"], selected: "4111 1111 1111 1111" });
+  });
+  test("in a case number box, the real case number before it is left out", async () => {
+    assert.equal((await part("respond", "caseNumber", "02D01-2611-CC-001234 123-45-6789")).selected, "123-45-6789");
+    assert.equal((await part("respond", "caseNumber", "02D01-2611-CC-001234 4111111111111111")).selected, "4111111111111111");
+  });
+  test("edge: with no comma, a Social Security number or PIN is still just its own digits", async () => {
+    assert.equal((await part("respond", "defenses", "My SSN is 123-45-6789 2 kids live with me.")).selected, "123-45-6789");
+    assert.equal((await part("respond", "defenses", "Before that 2 123-45-6789 was it.")).selected, "123-45-6789");
+    assert.equal((await part("respond", "defenses", "My PIN 1234 5 times.")).selected, "1234");
+  });
+  test("edge: two card numbers with only a space between are both in the part, whole", async () => {
+    assert.deepEqual(await part("respond", "defenses", "Cards 4111 1111 1111 1111 5500 0000 0000 0004 were charged."),
+      { marked: ["4111 1111 1111 1111 5500 0000 0000 0004"], selected: "4111 1111 1111 1111 5500 0000 0000 0004" });
+    await p.keyboard.press("Backspace"); await p.click("#next");
+    assert.ok(!(await p.$$eval(".ftitle", t => t.map(x => x.textContent))).some(t => /^Private information/.test(t)), "both gone");
+  });
+  test("edge: a number written with spaces or dots is still kept whole", async () => {
+    assert.equal((await part("respond", "defenses", "SSN: 123 45 6789, thanks")).selected, "123 45 6789");
+    assert.equal((await part("respond", "defenses", "It is 123.45.6789.")).selected, "123.45.6789");
+    assert.equal((await part("respond", "defenses", "account 1234 5678 9012, 3 times")).selected, "1234 5678 9012");
+  });
+});
