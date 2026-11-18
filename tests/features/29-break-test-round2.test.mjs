@@ -75,3 +75,12 @@ describe("BT24: \"Show every answer\" marks the flagged part where it is, not ev
     assert.deepEqual(await marks(), ["123-45-6789"]);
   });
 });
+
+describe("BT25: every password in an answer is part of it, not just the first", () => {
+  test("two passwords: both marked, the first selected", async () => {
+    assert.deepEqual(await part("respond", "defenses", "password: a1b2c3 and password: z9y8x7"), { marked: ["password: a1b2c3", "password: z9y8x7"], selected: "password: a1b2c3" });
+  });
+  test("edge: two ways of writing it, in the order they're in", async () => {
+    assert.deepEqual((await part("respond", "defenses", "My old password is Hunter2!x. The new password: Abc123.")).marked, ["password is Hunter2!x.", "password: Abc123."]);
+  });
+});

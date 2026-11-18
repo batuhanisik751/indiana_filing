@@ -113,8 +113,8 @@ function privateSpans(text, kindOf, skip = []) {
       if (fits(i, j) && kindOf(blank(s, [...others, [c[0], groups[i][0]], [groups[j][1], c[1]]])) === kind) out.push([groups[i][0], groups[j][1]]);
     return out.length ? out : [c];
   };
-  // Still flagged with every number taken out: it's a password, with its label.
-  let hits = flagged(blank(s, nums)) ? PASSWORD_RES.map(re => re.exec(s)).filter(Boolean).map(m => [m.index, m.index + m[0].length])
+  // Still flagged with every number taken out: it's a password, with its label. Every one, not just the first.
+  let hits = flagged(blank(s, nums)) ? PASSWORD_RES.flatMap(re => [...s.matchAll(new RegExp(re.source, re.flags + "g"))]).map(m => [m.index, m.index + m[0].length])
     : nums.flatMap((c, i) => { const others = nums.filter((_, j) => j !== i); return flagged(blank(s, others)) ? narrow(c, others) : []; });
   if (!hits.length) {
     const words = [...s.matchAll(/\S+/g)].map(m => [m.index, m.index + m[0].length]);
