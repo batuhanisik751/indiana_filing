@@ -40,11 +40,14 @@
 *, *::before, *::after { box-sizing: inherit; }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); font-size: calc(100% * var(--text-scale, 1)); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.125rem; line-height: 1.55; }
-.wrap { max-width: 36rem; margin: 0 auto; padding: 0 1.25rem 3rem; overflow-wrap: break-word; }
+/* The side gutters stay their usual size with bigger text: on a phone, that width is what the bigger text needs. */
+.wrap { max-width: 36rem; margin: 0 auto; padding: 0 calc(1.25rem / var(--text-scale, 1)) 3rem; overflow-wrap: break-word; }
 /* A navy bar the full width of the window: the shadow paints past the column, and the clip keeps it to the header's height. */
 /* Bigger text makes the header grow to 115% at most, so the question still comes first: the header's base size undoes
    the page's text size and applies at most 1.15 of it, and sizes inside the header are in em (the same as before at 100%). */
 header.top { font-size: calc(1rem / var(--text-scale, 1) * min(var(--text-scale, 1), 1.15)); background: var(--hdr-bg); color: var(--hdr-ink); box-shadow: 0 0 0 100vmax var(--hdr-bg); clip-path: inset(0 -100vmax); padding: 1em 0 .5em; margin-bottom: 1.75em; }
+/* Narrower than 340px, even 115% wraps the header's rows (159px tall becomes 253px), so there it stays the usual size. */
+@media (max-width: 339.98px) { header.top { font-size: calc(1rem / var(--text-scale, 1)); } }
 header.top .privacy { color: var(--hdr-muted); }
 header.top button.link { color: var(--hdr-link); }
 header.top :focus-visible { outline-color: var(--hdr-link); }

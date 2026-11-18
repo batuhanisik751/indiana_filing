@@ -226,3 +226,33 @@ describe("BT29: \"How this tool checks your answers\" says only what the checks 
     assert.equal(await noc(), false);
   });
 });
+
+describe("BT30: on the narrowest phones, bigger text doesn't make the header taller", () => {
+  const size = n => p.evaluate(n => { look.size = n; applyDisplay(); }, n);
+  const header = () => p.evaluate(() => Math.round(document.querySelector("header.top").getBoundingClientRect().height));
+  const heights = async () => { const h = []; for (const n of [0, 1, 2, 3]) { await size(n); h.push(await header()); } await size(0); return h; };
+  after(async () => { await size(0); await p.setViewportSize({ width: 1000, height: 900 }); });
+  test("320 to 339px wide: the same height at every text size", async () => {
+    await p.goto(p.url().split("#")[0]); await p.waitForSelector("#app h1");
+    for (const w of [320, 339]) {
+      await p.setViewportSize({ width: w, height: 700 });
+      const h = await heights();
+      assert.ok(h.every(x => x === h[0]), `${w}px: ${h.join(", ")}`);
+    }
+  });
+  test("340px and wider: it grows no more than one row, as at 360px", async () => {
+    for (const w of [340, 360, 390]) {
+      await p.setViewportSize({ width: w, height: 700 });
+      const h = await heights();
+      assert.ok(Math.max(...h) - h[0] <= 60, `${w}px: ${h.join(", ")}`);
+    }
+  });
+  test("edge: the side gutters stay the usual size, and the text inside still grows", async () => {
+    await p.setViewportSize({ width: 375, height: 700 });
+    const at = async n => { await size(n); return p.evaluate(() => [getComputedStyle(document.querySelector(".wrap")).paddingLeft, parseFloat(getComputedStyle(document.querySelector("#app h1")).fontSize)]); };
+    const [usual, big] = [await at(0), await at(3)];
+    assert.equal(big[0], usual[0]);
+    assert.ok(big[1] > usual[1] * 1.4, `${usual[1]} to ${big[1]}`);
+    await size(0);
+  });
+});
