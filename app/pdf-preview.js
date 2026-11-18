@@ -57,12 +57,15 @@ function keepFocus(redraw) {
   const anchor = el && el !== document.body && app.contains(el) ? el : null;
   const top = anchor ? anchor.getBoundingClientRect().top : null, y = window.scrollY;
   const wasPdfNote = el && el.id === "pdfStatus";
+  // An answer being typed in a box on the summary keeps its cursor.
+  const sel = el && el.id === "inEdit" && typeof el.selectionStart === "number" ? [el.selectionStart, el.selectionEnd, el.scrollTop] : null;
   redraw();
   let target = find && find();
   // A6: after "Try again", the status note is replaced by the downloads (or the error).
   if (!target && wasPdfNote) target = document.getElementById("dlAll") || document.getElementById("retryPdf");
   if (target) {
     target.focus({ preventScroll: true });
+    if (sel && typeof target.setSelectionRange === "function") { try { target.setSelectionRange(sel[0], sel[1]); } catch { /* not a text box */ } target.scrollTop = sel[2]; }
     if (top !== null) window.scrollBy(0, target.getBoundingClientRect().top - top); else target.scrollIntoView({ block: "center" });
   } else window.scrollTo(0, y);
 }

@@ -376,8 +376,12 @@ function readInput(step) {
     return;
   }
   if (step.type === "date" && document.getElementById("ans").validity?.badInput) return; // half-typed: keep what was there
-  let val = cleanText(document.getElementById("ans").value).trim();
-  if (step.upper) val = val.toUpperCase();
+  keepTyped(step, document.getElementById("ans").value);
+}
+// A typed answer as it's kept: tidied, and in capitals where the form wants them.
+const typedValue = (step, raw) => { const val = cleanText(raw).trim(); return step.upper ? val.toUpperCase() : val; };
+function keepTyped(step, raw) {
+  const val = typedValue(step, raw);
   // A case number that names another county or court has to be confirmed again.
   if (step.id === "caseNumber" && caseCourt(val)?.name !== caseCourt(answers.caseNumber)?.name) { delete answers.caseConfirm; delete unsure.caseConfirm; caseConfirmFor = null; }
   answers[step.id] = val;

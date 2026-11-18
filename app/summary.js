@@ -52,6 +52,103 @@ function markParts(value, m) {
   for (const [s, e] of [...m.spans].sort((x, y) => x[0] - y[0])) if (s >= at && s < e && e <= value.length) { html += `${esc(value.slice(at, s))}<mark>${esc(value.slice(s, e))}</mark>`; at = e; }
   return html + esc(value.slice(at));
 }
+// Item 17, quick edit: in "Show every answer", Edit changes a typed answer right there, checked the same way as on its
+// question. A choice, and a change that brings up another question, are made on the question itself, which asks it.
+const INLINE_TYPES = new Set(["text", "textarea", "email", "tel", "money", "number", "date"]);
+const editsInPlace = id => INLINE_TYPES.has(steps.find(s => s.id === id)?.type);
+const rowSel = (id, nth) => `dl.vals [data-row="${CSS.escape(`${id}:${nth}`)}"]`;
+function inlineBoxHtml(step, label) {
+  const ie = inlineEdit, v = ie.value, limit = dateLimit(step, visibleAnswers());
+  const attrs = `id="inEdit" aria-label="${esc(label)}" aria-describedby="${ie.err ? "ieErr " : ""}ieNeed"${ie.err ? ' aria-invalid="true"' : ""}`;
+  const box = step.type === "textarea" ? `<textarea ${attrs} class="${step.short ? "short" : ""}" autocomplete="off">${esc(v)}</textarea>`
+    : step.type === "money" ? `<div class="money"><span aria-hidden="true">$</span><input ${attrs} type="text" inputmode="decimal" value="${esc(v)}" autocomplete="off"></div>`
+    : step.type === "number" ? `<input ${attrs} type="text" inputmode="decimal" value="${esc(v)}" autocomplete="off">`
+    : `<input ${attrs} type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"' : ""} value="${esc(v)}" autocomplete="off"${limit ? ` max="${limit.date}"` : ""}>`;
+  const need = `${step.optional ? "Optional. " : ""}${limit ? `It can't be later than your ${limit.name} (${formDate(limit.date)}). ` : ""}Save checks it the same way as the question does.`;
+  return `<div class="inedit">${box}
+            <p class="need" id="ieNeed">${esc(need)}</p>
+            <p class="err" id="ieErr" role="alert">${esc(ie.err || "")}</p>
+            <div class="ienav"><button class="primary small" id="ieSave">Save</button><button class="ghost small" id="ieCancel">Cancel</button><button class="link" id="ieFull">Open the full question</button></div>
+          </div>`;
+}
+// Draw the summary again with one row kept where it is on screen, then do what's next (usually focus that row).
+function redrawSummaryAt(sel, then) {
+  const a = app.querySelector(sel), top = a ? a.getBoundingClientRect().top : null, y = window.scrollY;
+  renderSummary(true); saveProgress(); updatePrivacyNote();
+  const b = app.querySelector(sel);
+  if (b && top !== null) window.scrollBy(0, b.getBoundingClientRect().top - top); else window.scrollTo(0, y);
+  if (then) then();
+}
+const inlineChanged = () => !!inlineEdit && (inlineEdit.erased || inlineEdit.value !== String(answers[inlineEdit.id] ?? ""));
+function openInline(id, nth) {
+  if (inlineEdit && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { document.getElementById("inEdit")?.focus(); return; }
+  inlineEdit = { id, nth, value: String(answers[id] ?? ""), erased: false, err: "" };
+  redrawSummaryAt(rowSel(id, nth), () => {
+    const box = document.getElementById("inEdit");
+    if (!box) return;
+    box.focus({ preventScroll: true });
+    if (box.type !== "date") { const n = box.value.length; box.setSelectionRange(n, n); }
+  });
+}
+function closeInline() {
+  const ie = inlineEdit, sel = rowSel(ie.id, ie.nth);
+  inlineEdit = null;
+  redrawSummaryAt(sel, () => app.querySelector(`${sel} [data-fix]`)?.focus({ preventScroll: true }));
+}
+// On to the question itself, with what was typed in the box, and Cancel there still putting the old answer back.
+function inlineToQuestion(note = "") {
+  const ie = inlineEdit;
+  inlineEdit = null;
+  goFix(ie.id, "vals", ie.nth);
+  const box = document.getElementById("ans");
+  if (!box) return;
+  if (ie.erased) editErased = ie.id; // emptied on the summary: the old answer stays off the device here too
+  if (box.value !== ie.value) { box.value = ie.value; box.dispatchEvent(new Event("input", { bubbles: true })); }
+  if (note) { document.getElementById("qneed").insertAdjacentHTML("beforebegin", `<p class="need" id="inlineNote">${esc(note)}</p>`); announce(note); }
+}
+function saveInline() {
+  const ie = inlineEdit, step = ie && steps.find(s => s.id === ie.id), box = document.getElementById("inEdit");
+  if (!step || !box) return;
+  const refuse = msg => {
+    ie.err = msg; document.getElementById("ieErr").textContent = msg;
+    box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "ieErr ieNeed"); box.focus();
+  };
+  if (step.type === "date" && box.validity?.badInput) return refuse(HALF_DATE);
+  const problem = answerProblem(step, typedValue(step, box.value), true);
+  if (problem) return refuse(problem);
+  ie.value = box.value;
+  // A change that brings up another question (a case number for another county or court) is made on the question.
+  const before = new Set(visible().map(s => s.id)), kept = [answers[step.id], answers.caseConfirm, unsure.caseConfirm, caseConfirmFor];
+  keepTyped(step, box.value);
+  if (visible().some(s => !before.has(s.id))) {
+    const put = (o, k, v) => { if (v === undefined) delete o[k]; else o[k] = v; };
+    put(answers, step.id, kept[0]); put(answers, "caseConfirm", kept[1]); put(unsure, "caseConfirm", kept[2]); caseConfirmFor = kept[3];
+    return inlineToQuestion("This change brings up another question, so it opened on its own page. Save and review there to keep it.");
+  }
+  if (!empty(answers[step.id]) || step.optional) delete unsure[step.id];
+  if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(answers[step.id]);
+  clearedContact = clearedContact.filter(k => k !== step.id);
+  closeInline();
+  announce("Saved. Your filled form and the checks are updated.");
+}
+function wireInline() {
+  const box = document.getElementById("inEdit");
+  if (!box) return;
+  box.addEventListener("input", () => {
+    if (box.validity?.badInput) return; // a half-typed date isn't an answer yet
+    inlineEdit.value = box.value;
+    // Emptying the box takes the old answer off the device right away, as on the question screen. Cancel brings it back.
+    if (!inlineEdit.erased && empty(box.value) && !empty(answers[inlineEdit.id])) { inlineEdit.erased = true; saveProgress(); }
+  });
+  box.addEventListener("keydown", e => {
+    if (e.isComposing) return;
+    if (e.key === "Escape") { e.preventDefault(); closeInline(); }
+    else if (e.key === "Enter" && box.tagName !== "TEXTAREA" && !e.repeat) { e.preventDefault(); saveInline(); }
+  });
+  document.getElementById("ieSave").onclick = saveInline;
+  document.getElementById("ieCancel").onclick = closeInline;
+  document.getElementById("ieFull").onclick = () => inlineToQuestion();
+}
 function renderSummary(rerender = false) {
   summaryDay = todayDay();
   const sit = SITUATIONS[sitKey];
@@ -84,6 +181,18 @@ function renderSummary(rerender = false) {
 
   // Back from an Edit in the list of every answer: the list is open again, so focus can return to that row.
   if (lastEdited && fixFrom === "vals") openMore.add("answers");
+  // Each row's Edit is numbered among the rows for the same answer (a name prints on more than one form).
+  const seen = {};
+  let boxPlaced = false;
+  const rowHtml = (x, g) => {
+    const k = editOf(x.step), nth = k ? (seen[k] = (seen[k] ?? -1) + 1) : -1;
+    const here = !!inlineEdit && k === inlineEdit.id && nth === inlineEdit.nth && k === x.step && editsInPlace(k);
+    if (here) boxPlaced = true;
+    return `
+          <div${k ? ` data-row="${esc(`${k}:${nth}`)}"` : ""}${here ? ' class="editing"' : ""}><dt>${esc(x.label)}</dt>
+          <dd>${here ? inlineBoxHtml(steps.find(s => s.id === k), `${x.label} (${g.form})`) : empty(x.value) ? `<span class="miss">Blank</span>` : markParts(x.value, marked[x.step])}</dd>
+          ${k && !here ? `<button class="link edit" data-fix="${k}" data-nth="${nth}"${k === x.step && editsInPlace(k) ? ' data-inline="1"' : ""} aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`;
+  };
   app.innerHTML = `
     <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
     <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
@@ -116,10 +225,7 @@ function renderSummary(rerender = false) {
     ${moreHtml(`<div class="formgrid">${groups.map(g => `
       <section class="formcard">
         <h3>${esc(g.form)}${formNumber(sit, g.form) ? `<span class="sr-only">, </span><small>Form ${esc(formNumber(sit, g.form))}</small>` : ""}</h3>
-        <dl class="vals">${g.items.map(x => `
-          <div><dt>${esc(x.label)}</dt>
-          <dd>${empty(x.value) ? `<span class="miss">Blank</span>` : markParts(x.value, marked[x.step])}</dd>
-          ${editOf(x.step) ? `<button class="link edit" data-fix="${editOf(x.step)}" aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`).join("")}
+        <dl class="vals">${g.items.map(x => rowHtml(x, g)).join("")}
         </dl>
       </section>`).join("")}</div>`, "Show every answer, with Edit links", "answers", { cls: "section" })}
 
@@ -130,11 +236,16 @@ function renderSummary(rerender = false) {
     <p class="need"><button class="link" id="changeForm">Choose a different form</button></p>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
+  if (inlineEdit && !boxPlaced) inlineEdit = null; // its row is gone (the answer moved or was hidden)
+  wireInline();
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
+    if (b.dataset.inline) return openInline(b.dataset.fix, +b.dataset.nth);
+    if (inlineEdit && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) return document.getElementById("inEdit")?.focus();
+    inlineEdit = null;
     const where = b.closest("ul.flags") ? "flags" : "vals";
     // A flag about part of the answer opens it with that part selected.
     selectOnOpen = b.dataset.hit ? { id: b.dataset.fix, spans: b.dataset.hit.split(",").map(h => h.split("-").map(Number)) } : null;
-    goFix(b.dataset.fix, where, [...app.querySelectorAll(`${where === "flags" ? "ul.flags" : "dl.vals"} [data-fix="${b.dataset.fix}"]`)].indexOf(b));
+    goFix(b.dataset.fix, where, where === "vals" ? +b.dataset.nth : [...app.querySelectorAll(`ul.flags [data-fix="${b.dataset.fix}"]`)].indexOf(b));
   });
   app.querySelectorAll("[data-ics]").forEach(b => b.onclick = () => downloadIcs(b.dataset.ics));
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
@@ -155,8 +266,8 @@ function renderSummary(rerender = false) {
   // (or the review count, if that flag is gone), or the row they changed.
   const back = lastEdited && (fixFrom === "flags"
     ? app.querySelectorAll(`ul.flags [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`ul.flags [data-fix="${lastEdited}"]`) || app.querySelector(".status")
-    : app.querySelectorAll(`dl.vals [data-fix="${lastEdited}"]`)[fixNth] || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
-  if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else app.querySelector("h1").focus();
+    : app.querySelector(`dl.vals [data-fix="${lastEdited}"][data-nth="${fixNth}"]`) || app.querySelector(`dl.vals [data-fix="${lastEdited}"]`));
+  if (back) { back.scrollIntoView({ block: "center" }); back.focus(); } else (document.getElementById("inEdit") || app.querySelector("h1")).focus();
   // A Fix button for a flag from the PDF check may only appear once the check finishes.
   const tapped = lastEdited && fixFrom === "flags" && app.querySelectorAll(`ul.flags [data-fix="${lastEdited}"]`)[fixNth];
   pendingFocus = lastEdited && fixFrom === "flags" && !tapped ? { id: lastEdited, nth: fixNth } : null;

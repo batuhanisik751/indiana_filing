@@ -174,7 +174,8 @@ describe("Fix 3: the two views of the form start closed", () => {
   test("edge: after an Edit from the list, the list is open again, with focus on that row", async () => {
     await start("appearance");
     await sec("answers").locator("summary").click();
-    await p.click('dl.vals [data-fix="phone"]'); await p.fill("#ans", "317-555-0111"); await p.click("#next");
+    await p.click('dl.vals [data-fix="phone"]'); await p.click("#ieFull"); // through the question (item 17 opens it in place first)
+    await p.fill("#ans", "317-555-0111"); await p.click("#next");
     assert.equal(await sec("answers").getAttribute("open"), "");
     assert.equal(await p.evaluate(() => document.activeElement.matches('dl.vals [data-fix="phone"]')), true);
   });

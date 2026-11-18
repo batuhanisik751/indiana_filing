@@ -9,6 +9,7 @@ function render() {
   drawnAt = performance.now();
   dropStaleCaseConfirm();
   draft = null; // a new screen: what was typed has been saved or left
+  if (mode !== "summary") inlineEdit = null; // a box opened on the summary closes with it, as Cancel would
   // Get help sits above the screen. Left open, a phone's next question starts far below the fold.
   if (!helpPanel.hidden) { helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false"); }
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
@@ -41,6 +42,7 @@ window.addEventListener("popstate", () => {
   if (inGuard()) { if (mode === "pick" && helpPanel.hidden && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
   const big = document.querySelector("dialog.pageview[open]");
   if (big) { big.close(); syncHistory(); return; } // Back closes a page shown large, and stays on this screen
+  if (mode === "summary" && inlineEdit) { closeInline(); syncHistory(); return; } // and a box opened on the summary, as Cancel does
   if (!helpPanel.hidden) { setHelp(false); return; }
   if (backToAnswers()) { document.getElementById("backToWork").click(); return; }
   if (mode === "pick") return;

@@ -181,6 +181,13 @@ dl.vals div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2
 dl.vals dt { font-size: .85rem; color: var(--muted); grid-column: 1; }
 dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: .6rem .5rem; margin: -.6rem -.5rem; }
+/* An answer being changed in place: the box takes the row's full width. */
+dl.vals div.editing dd { grid-column: 1 / -1; white-space: normal; }
+.inedit { display: grid; gap: .35rem; margin-top: .25rem; }
+.inedit .need, .inedit .err { margin: 0; }
+.inedit .err { min-height: 0; }
+.ienav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; }
+.ienav button.link { padding: .55rem 0; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }
 .resume { background: var(--surface); border: 2px solid var(--accent); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1.5rem; }

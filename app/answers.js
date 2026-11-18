@@ -34,6 +34,27 @@ function markUnsure(step) {
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
 }
 
+// Why an answer can't go in as typed, in the words shown under its box, or "" when it can. The same for the question
+// screen and for a box opened on the summary. editing: changed from the summary, where Cancel leads back to it.
+const HALF_DATE = "This date isn't complete. Enter the month, day and year, or clear the box.";
+function answerProblem(step, v, editing = false) {
+  if (String(v ?? "").length > ANSWER_MAX) return `This is too long: ${String(v).length.toLocaleString("en-US")} characters. Keep it under ${ANSWER_MAX.toLocaleString("en-US")}.`;
+  // An email that can't work is stopped here, not only flagged at the end. "None" and a blank box still go on.
+  if (step.type === "email" && !empty(v) && !SAYS_NONE.test(String(v).trim()) && !notAnAnswer(step, v)) {
+    const e = emailShape(v);
+    if (EMAIL_CANT_WORK.has(e.kind)) return `${emailWhy(e)} ${sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None."}`;
+  }
+  if ((step.type === "money" || step.type === "number") && !empty(v) && tooBig(v))
+    return "This is too large to be right for this form. Check the number, including the decimal point.";
+  if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
+    return step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.";
+  if (step.type === "date" && !empty(v) && !isDay(v)) return `Check the year. Use all four digits, like ${new Date().getFullYear()}.`;
+  const limit = dateLimit(step, visibleAnswers());
+  if (pastLimit(v, limit))
+    return `This is after your ${limit.name} (${formDate(limit.date)}). Choose that date or an earlier one. If your ${limit.name} changed, ${editing ? "press Cancel and edit it on the summary" : "go back and change it first"}.`;
+  return "";
+}
+
 function save(step) {
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
@@ -43,24 +64,12 @@ function save(step) {
     box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", `err qhelp${document.getElementById("qmore") ? " qmore" : ""} qneed`); box.focus();
   };
   // A date input reports a half-typed date as empty, which would quietly erase the answer.
-  if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse("This date isn't complete. Enter the month, day and year, or clear the box.");
+  if (step.type === "date" && document.getElementById("ans").validity?.badInput) return refuse(HALF_DATE);
   readInput(step);
   const v = answers[step.id];
   if (step.id === "caseNumber" && empty(answers.caseConfirm)) before.delete("caseConfirm"); // asked again, before the county and court
-  if (String(v ?? "").length > ANSWER_MAX) return refuse(`This is too long: ${String(v).length.toLocaleString("en-US")} characters. Keep it under ${ANSWER_MAX.toLocaleString("en-US")}.`);
-  // An email that can't work is stopped here, not only flagged at the end. "None" and a blank box still go on.
-  if (step.type === "email" && !empty(v) && !SAYS_NONE.test(String(v).trim()) && !notAnAnswer(step, v)) {
-    const e = emailShape(v);
-    if (EMAIL_CANT_WORK.has(e.kind)) return refuse(`${emailWhy(e)} ${sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None."}`);
-  }
-  if ((step.type === "money" || step.type === "number") && !empty(v) && tooBig(v))
-    return refuse("This is too large to be right for this form. Check the number, including the decimal point.");
-  if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
-    return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
-  if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);
-  const limit = dateLimit(step, visibleAnswers());
-  if (pastLimit(v, limit))
-    return refuse(`This is after your ${limit.name} (${formDate(limit.date)}). Choose that date or an earlier one. If your ${limit.name} changed, ${returnToSummary ? "press Cancel and edit it on the summary" : "go back and change it first"}.`);
+  const problem = answerProblem(step, v, returnToSummary);
+  if (problem) return refuse(problem);
   // Saving an answer (or, for an optional question, choosing to leave it blank) clears "I'm not sure".
   if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);

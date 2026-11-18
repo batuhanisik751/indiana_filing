@@ -157,4 +157,12 @@ export async function answer(p, value) {
 export async function editAnswer(p, id) {
   await p.evaluate(() => { const d = document.querySelector('details[data-more="answers"]'); if (d) d.open = true; });
   await p.click(`dl.vals [data-fix="${id}"]`);
+  // A typed answer opens in a box right on the summary (item 17); its question is one more tap.
+  if (await p.$("#inEdit")) await p.click("#ieFull");
+}
+// Item 17: open a typed answer in its box on the summary (the nth row showing that answer).
+export async function editHere(p, id, nth = 0) {
+  await p.evaluate(() => { const d = document.querySelector('details[data-more="answers"]'); if (d) d.open = true; });
+  await p.click(`dl.vals [data-fix="${id}"][data-nth="${nth}"]`);
+  await p.waitForSelector("#inEdit");
 }

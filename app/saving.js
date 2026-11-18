@@ -160,7 +160,9 @@ function saveProgress() {
   // Once it has been emptied, the old answer stays out, even as new text is typed.
   if (mode === "step" && draft && empty(draft.value) && returnToSummary) editErased = draft.id;
   const emptied = mode === "step" && draft && (empty(draft.value) || (returnToSummary && editErased === draft.id));
-  const inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
+  let inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
+  // The same for an answer being changed in place on the summary: once its box is emptied, the old answer leaves the copy.
+  if (mode === "summary" && inlineEdit && inlineEdit.erased) inCopy = { ...inCopy, [inlineEdit.id]: "" };
   // What a reload won't bring back, so that page can say it's gone.
   const dropped = [...new Set([...clearedContact, ...steps.filter(s => !keptIds.has(s.id) && guarded(s.id) && !empty(answers[s.id])).map(s => s.id)])];
   const data = { v: 1, sitKey, ...(dropped.length ? { cleared: dropped } : {}), ...(caseConfirmFor ? { caseConfirmFor } : {}), answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
