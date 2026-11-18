@@ -50,7 +50,7 @@ describe("What to have ready", () => {
         assert.match(page, /^\d+$/);
         assert.equal(it.target, "_blank");
         assert.equal(it.sr, " (opens in a new tab)");
-        assert.match(it.link, /^(Answer|Continuance|Fee waiver) instructions, page \d+$|^Verified Motion for Continuance, item [246]$/);
+        assert.match(it.link, /^(Answer|Continuance|Fee waiver) instructions, page \d+$|^Verified Motion for Continuance, item [246]$|^Appearance, item 3$/);
       }
     }
   });
@@ -83,9 +83,9 @@ describe("What to have ready", () => {
   // packets the tool fills (forms/README.md). The fee waiver's instructions PDF is the packet's five pages with notes
   // added, page for page, so its form text is checked on the packet.
   const SAYS = {
-    respond: ["paragraph number", "lose your right", "top of each form", "how to contact you", "every other person involved in the case", "bankruptcy"],
-    appearance: ["top of each form", "how to contact you", "every other person involved in the case", "bankruptcy"],
-    continuance: ["hearing has been scheduled", "written statement", "number of days or weeks", "I spoke to the other party", "how to contact you", "every other person involved in the case", "damages owed"],
+    respond: ["paragraph number", "lose your right", "top of each form", "required below", "every other person involved in the case", "bankruptcy"],
+    appearance: ["top of each form", "required below", "every other person involved in the case", "bankruptcy"],
+    continuance: ["hearing has been scheduled", "written statement", "number of days or weeks", "I spoke to the other party", "required below", "every other person involved in the case", "damages owed"],
     feewaiver: ["case type", "Respondent", "receiving legal service", "related to this case", "eighteen", "per hour", "in the bank", "Monthly Expenses"],
   };
   for (const form of Object.keys(FORMS)) {

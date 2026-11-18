@@ -12,12 +12,15 @@ const READY_SRC = {
   answer: page => ({ text: `Answer instructions, page ${page}`, href: `${LINKS.answerInstructions}#page=${page}` }),
   cont: page => ({ text: `Continuance instructions, page ${page}`, href: `${LINKS.continuanceInstructions}#page=${page}` }),
   contMotion: item => ({ text: `Verified Motion for Continuance, item ${item}`, href: `${LINKS.continuanceInstructions}#page=6` }),
+  // Item 3 of the Appearance in the Answer and Continuance packets, which says the email and phone are required.
+  appearance: packet => ({ text: "Appearance, item 3", href: packet === "cont" ? `${LINKS.continuanceInstructions}#page=4` : `${LINKS.answerInstructions}#page=5` }),
   fw: page => ({ text: `Fee waiver instructions, page ${page}`, href: `${LINKS.feeWaiverInstructions}#page=${page}` }),
 };
-const READY_CONTACT = "Your mailing address, and your email and phone number if you have them";
+const READY_CONTACT = "Your mailing address, and your email and phone number if you have them"; // the fee waiver's Appearance
+const READY_CONTACT_NEEDED = ["Your mailing address, email address and 10-digit phone number", "Item 3 of the Appearance says an email address and a 10-digit phone number are required."];
 const READY_ANSWER_CASE = [
   ["Your court papers, with the county, court, case number and the plaintiff's name", "The instructions say this case information goes in the caption at the top of each form.", READY_SRC.answer(2)],
-  [READY_CONTACT, "The instructions say the Appearance tells the court and the other party how to contact you.", READY_SRC.answer(2)],
+  [...READY_CONTACT_NEEDED, READY_SRC.appearance("answer")],
   ["The name and address of the plaintiff's attorney, or of the plaintiff if they don't have one", "The instructions say you must give a copy of every form you file to every other person involved in the case, and say when and how you gave it.", READY_SRC.answer(4)],
   ["The case numbers of any related cases", "The instructions give examples, like a small claims or bankruptcy case about the same debt. Skip this if there are none.", READY_SRC.answer(4)],
 ];
@@ -82,7 +85,7 @@ const SITUATIONS = {
       ["Your reason for asking for a new date", "The instructions say you need a good reason and need to show it with proof, like a written statement, which the form gives you a place for. The court decides.", READY_SRC.cont(3)],
       ["How many days or weeks you need before a new court date", "Item 4 of the Verified Motion for Continuance asks for the number of days or weeks, not a specific date.", READY_SRC.contMotion(4)],
       ["When you talked to the other party about asking for a new date, and whether they agreed", "Item 6 of the Verified Motion for Continuance asks the date you spoke to them about it, and whether they agreed to your request.", READY_SRC.contMotion(6)],
-      [READY_CONTACT, "The instructions say the Appearance tells the court how to contact you.", READY_SRC.cont(2)],
+      [...READY_CONTACT_NEEDED, READY_SRC.appearance("cont")],
       ["The name and address of the other party, and of anyone else involved in the case", "The instructions say you must give a copy of every form you file to every other person involved in the case, and say when and how you gave it.", READY_SRC.cont(3)],
       ["The case numbers of any related cases", "The instructions give an example: in an eviction case, a separate case about damages owed. Skip this if there are none.", READY_SRC.cont(3)],
     ],

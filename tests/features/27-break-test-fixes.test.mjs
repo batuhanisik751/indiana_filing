@@ -149,7 +149,7 @@ describe("BT3: the ready lists include what each form goes on to ask", () => {
     const w = await whats("continuance");
     assert.ok(w.includes("How many days or weeks you need before a new court date."));
     assert.ok(w.includes("When you talked to the other party about asking for a new date, and whether they agreed."));
-    assert.deepEqual(await p.$$eval("details.ready li a", a => a.map(x => x.textContent.replace(/\s*\(opens in a new tab\)/, "")).filter(t => /item/.test(t))),
+    assert.deepEqual(await p.$$eval("details.ready li a", a => a.map(x => x.textContent.replace(/\s*\(opens in a new tab\)/, "")).filter(t => /^Verified Motion/.test(t))),
       ["Verified Motion for Continuance, item 2", "Verified Motion for Continuance, item 4", "Verified Motion for Continuance, item 6"]);
   });
   test("the fee waiver: the other person's name and related cases, like the other forms", async () => {
@@ -174,5 +174,21 @@ describe("BT3: the ready lists include what each form goes on to ask", () => {
       for (const id of ids) if (COVER[id] && !COVER[id].test(list)) missing.push(`${form}: ${id}`);
     }
     assert.deepEqual(missing, []);
+  });
+});
+
+describe("BT4: the ready list says what the Appearance says about the email and phone", () => {
+  for (const [form, page] of [["respond", 5], ["appearance", 5], ["continuance", 4]]) {
+    test(`${form}: required, as item 3 of the Appearance says, linked to that page`, async () => {
+      await reset(p); await pick(p, form);
+      const li = await p.$$eval("details.ready li", lis => lis.map(l => ({ text: l.textContent, href: l.querySelector("a").getAttribute("href") })).find(l => /email/.test(l.text)));
+      assert.match(li.text, /^Your mailing address, email address and 10-digit phone number\. Item 3 of the Appearance says an email address and a 10-digit phone number are required\./);
+      assert.doesNotMatch(li.text, /if you have them/);
+      assert.match(li.href, new RegExp(`#page=${page}$`));
+    });
+  }
+  test("edge: the fee waiver's Appearance has no such line, so its list keeps \"if you have them\"", async () => {
+    await reset(p); await pick(p, "feewaiver");
+    assert.match(await p.textContent("details.ready"), /Your mailing address, and your email and phone number if you have them\./);
   });
 });
