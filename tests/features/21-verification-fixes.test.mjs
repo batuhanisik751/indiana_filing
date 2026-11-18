@@ -2,7 +2,7 @@
 // on the Issue Map. Each section reproduces its problem first.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP, inject, scoreMatchesFlags } from "../lib.mjs";
+import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP, inject, scoreMatchesFlags, jump, fieldRows } from "../lib.mjs";
 
 after(close);
 
@@ -154,6 +154,53 @@ describe("VF2: fee waiver flags agree with each other when a checked kind has no
     await inject(p, "feewaiver", { incomeKinds: "none", expenseKinds: "housing", housing: "" });
     const f = await p.evaluate(() => runChecks().filter(f => f.title === "Expenses" || f.fix === "housing").map(f => `${f.level}|${f.fix}|${f.why}`));
     assert.deepEqual(f, ["missing|housing|You said your household pays this, but no amount is entered, so it isn't counted in Total Expenses on this sworn form. Enter the monthly amount, or uncheck it in the list of expenses."]);
+    await p.context().close();
+  });
+});
+
+describe("VF12: amounts that can't be right are refused or flagged, and a card number can't print", () => {
+  const onAmount = async (p, id, value) => { await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "" }); await jump(p, id); await p.fill("#ans", value); await p.click("#next"); };
+  test("an amount of a billion dollars or more is refused on the question, with the reason", async () => {
+    const p = await fresh();
+    await onAmount(p, "housing", "99999999999999999.99");
+    assert.equal(await step(p), "housing");
+    assert.match(await p.textContent("#err"), /too large to be right for this form/);
+    await p.context().close();
+  });
+  test("a card number typed as the bank balance is refused, so it can't print on the sworn form", async () => {
+    const p = await fresh();
+    await onAmount(p, "bank", "4111111111111111");
+    assert.equal(await step(p), "bank");
+    await p.context().close();
+  });
+  test("an amount of $100,000 or more is flagged to check", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { expenseKinds: "housing", housing: "150000", incomeKinds: "none" });
+    assert.match((await flagsFor(p, "housing"))[0] || "", /^check\|.*\|\$150,000\.00 is unusually high for this sworn form\. Check the number, including the decimal point\./);
+    await p.context().close();
+  });
+  test("edge: a 9-digit number in an amount box is flagged as possibly private", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { bank: "123456789", incomeKinds: "none", expenseKinds: "none" });
+    assert.ok((await flagsFor(p, "bank")).some(f => /^check\|Private information: Money in the bank\|/.test(f)));
+    await p.context().close();
+  });
+  test("edge: a too-large amount that got in another way prints blank and is Missing, and the score agrees", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { expenseKinds: "housing", housing: "99999999999999999.99", incomeKinds: "none" });
+    assert.equal((await fieldRows(p)).find(([l]) => /^Housing/.test(l))[1], "Left blank");
+    const f = await flagsFor(p, "housing");
+    assert.ok(f.some(x => /^missing\|.*too large to be right for this form/.test(x)), f.join("\n"));
+    assert.ok(!f.some(x => /It will print on the form/.test(x)), "no flag says it prints, since it doesn't");
+    assert.equal(await scoreMatchesFlags(p), true);
+    await p.context().close();
+  });
+  test("edge: ordinary amounts are untouched", async () => {
+    const p = await fresh();
+    for (const v of ["1,200", "12.50", "0", "99,999.99", "999,999,999.99"]) {
+      await onAmount(p, "housing", v);
+      assert.notEqual(await step(p), "housing", v);
+    }
     await p.context().close();
   });
 });

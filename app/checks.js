@@ -142,8 +142,10 @@ function runChecks() {
   const handled = new Set();
 
   // These print on a public form, so they come first.
-  vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel" || s.type === "email").forEach(s => {
+  // Amount boxes too: a 9-digit "amount" may be a Social Security number, and it would print on a sworn form.
+  vis.filter(s => s.type === "text" || s.type === "textarea" || s.type === "tel" || s.type === "email" || s.type === "money").forEach(s => {
     const v = String(a[s.id] ?? "");
+    if (s.type === "money" && !validNum(s, v)) return; // an amount that can't print has its own flag below
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
     // A good or foreign phone number isn't an account number, however long.
     const kind = s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
@@ -246,7 +248,8 @@ function runChecks() {
   // Amounts that aren't numbers can't go on the form.
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
     handled.add(s.id);
-    flags.push({ level: "missing", title: s.label, why: "This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50.", fix: s.id });
+    flags.push({ level: "missing", title: s.label, fix: s.id, why: tooBig(a[s.id]) ? "This is too large to be right for this form, so it's left blank. Check the number, including the decimal point."
+      : "This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50." });
   });
 
   // The three lists count once in the score: at least one has to have something.
@@ -328,6 +331,8 @@ function runChecks() {
     });
     if (has("monthlyHours") && toNum(a.monthlyHours) > 744)
       flags.push({ level: "check", title: "Hours worked per month", fix: "monthlyHours", why: "A month has at most 744 hours, and this number goes into the wages on this sworn form. Check it." });
+    vis.filter(s => s.type === "money" && s.id !== "hourlyRate" && validNum(s, a[s.id]) && toNum(a[s.id]) >= 100000).forEach(s =>
+      flags.push({ level: "check", title: s.label, fix: s.id, why: `$${money(toNum(a[s.id]))} is unusually high for this sworn form. Check the number, including the decimal point.` }));
     if (toNum(a.hourlyRate) >= 100)
       flags.push({ level: "check", title: "Wages per hour", fix: "hourlyRate", why: `$${money(toNum(a.hourlyRate))} an hour is unusually high, and it goes on this sworn form. Check this number, including the decimal point.` });
     // With kinds checked in the list, each checked kind with no amount has its own flag instead.

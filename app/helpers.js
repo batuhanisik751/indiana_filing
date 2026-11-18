@@ -11,8 +11,12 @@ const cleanNum = v => {
   const s = String(v ?? "").trim().replace(/^\$\s*/, "").replace(/^\.(?=\d)/, "0.");
   return (/^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d*)?$/.test(s) ? s.replace(/,/g, "") : s).replace(/(\d)\.$/, "$1");
 };
-const validNum = (step, v) => (step.type === "money" ? AMOUNT_RE : HOURS_RE).test(cleanNum(v));
-const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v));
+// A billion dollars or more can't be right on these forms, and past about 16 digits it couldn't even print as typed.
+// (A card number typed into an amount box is one.) So it's refused, and treated as not a number.
+const AMOUNT_MAX = 1e9;
+const tooBig = v => HOURS_RE.test(cleanNum(v)) && parseFloat(cleanNum(v)) >= AMOUNT_MAX;
+const validNum = (step, v) => (step.type === "money" ? AMOUNT_RE : HOURS_RE).test(cleanNum(v)) && !tooBig(v);
+const isNum = v => !empty(v) && HOURS_RE.test(cleanNum(v)) && !tooBig(v);
 const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
 const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
 const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or phone answers. "idk" isn't that.

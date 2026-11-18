@@ -53,6 +53,8 @@ function save(step) {
     const e = emailShape(v);
     if (EMAIL_CANT_WORK.has(e.kind)) return refuse(`${emailWhy(e)} ${sitKey === "feewaiver" ? "If you don't have an email address, leave this blank." : "If you don't have an email address, type None."}`);
   }
+  if ((step.type === "money" || step.type === "number") && !empty(v) && tooBig(v))
+    return refuse("This is too large to be right for this form. Check the number, including the decimal point.");
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return refuse(step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.");
   if (step.type === "date" && !empty(v) && !isDay(v)) return refuse(`Check the year. Use all four digits, like ${new Date().getFullYear()}.`);
