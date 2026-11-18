@@ -153,3 +153,33 @@ describe("BT27: the selected part is in sight", () => {
     assert.equal(await p.evaluate(() => window.scrollY), 0);
   });
 });
+
+describe("BT28: no flag repeats private information typed into a box", () => {
+  test("the street-address flag names only how the address starts", async () => {
+    await inject(p, "appearance", { address: "None, my password is sunshine", receiveAt: "Choice1", acp: "no" });
+    const t = await p.$eval('ul.flags li:has(.ftitle:text-is("Where you want court papers"))', li => li.textContent);
+    assert.match(t, /street address, but your address starts with "None"\./);
+    assert.doesNotMatch(t, /sunshine/);
+  });
+  test("edge: an address that isn't private is still quoted whole", async () => {
+    await inject(p, "appearance", { address: "No fixed address", receiveAt: "Choice1", acp: "no" });
+    assert.match(await p.$eval('ul.flags li:has(.ftitle:text-is("Where you want court papers"))', li => li.textContent), /you typed "No fixed address" as your address\./);
+  });
+  test("the paragraph checks wait while a list has a private number, and come back once it's out", async () => {
+    await inject(p, "respond", { admitted: "1-3, 5", denied: "4, 5, my SSN 123-45-6789", notEnough: "" });
+    const titles = () => p.evaluate(() => runChecks().map(f => f.title));
+    assert.ok((await titles()).includes("Private information: Paragraphs you deny"));
+    assert.ok(!(await titles()).some(t => /^Paragraphs (?:listed|not)/.test(t)));
+    await inject(p, "respond", { admitted: "1-3, 5", denied: "4, 5", notEnough: "" });
+    assert.ok((await titles()).includes("Paragraphs listed in more than one list"));
+  });
+  test("edge: in every box of every form at once, no flag repeats a password or a Social Security number", async () => {
+    for (const form of ["respond", "appearance", "continuance", "feewaiver"])
+      for (const typed of ["None, my password is sunshine", "None, my SSN is 123-45-6789"]) {
+        const boxes = await p.evaluate(f => SITUATIONS[f].steps().filter(s => ["text", "textarea", "email", "tel", "money"].includes(s.type)).map(s => s.id), form);
+        await inject(p, form, { ...Object.fromEntries(boxes.map(id => [id, typed])), receiveAt: "Choice1", acp: "no" });
+        const said = await p.evaluate(() => runChecks().map(f => `${f.title} ${f.why}`).join("\n"));
+        assert.doesNotMatch(said, /sunshine|6789/, `${form}: ${typed}`);
+      }
+  });
+});

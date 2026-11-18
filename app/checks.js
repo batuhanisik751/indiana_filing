@@ -323,7 +323,9 @@ function runChecks() {
     vis.filter(s => PARAGRAPH_IDS.test(s.id) && !empty(a[s.id]) && !saysNoList(a[s.id]) && !namesParagraphs(a[s.id])).forEach(s =>
       flags.push({ level: "check", title: s.label, why: "This list doesn't seem to name any paragraph numbers, and what you typed will print on the form. Check that it says what you mean.", fix: s.id }));
 
-  if (sitKey === "respond") {
+  // While the privacy check flags one of the lists, these wait: its digits may be a Social Security or account number,
+  // and these flags name paragraph numbers.
+  if (sitKey === "respond" && !flags.some(f => f.link === RULES.acr5 && ["admitted", "denied", "notEnough"].includes(f.fix))) {
     const lists = ["admitted", "denied", "notEnough"].map(k => [k, paragraphNumbers(a[k])]);
     const twice = [...new Set(lists.flatMap(([, n]) => [...n]))].filter(n => lists.filter(([, l]) => l.has(n)).length > 1).sort((x, y) => x - y);
     if (twice.length) flags.push({ level: "check", title: "Paragraphs listed in more than one list", fix: lists.find(([, l]) => twice.some(n => l.has(n)))[0],
@@ -360,8 +362,13 @@ function runChecks() {
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
   if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
-  if (a.receiveAt === "Choice1" && a.acp !== "yes" && startsNo(a.address))
-    flags.push({ level: "check", title: "Where you want court papers", why: `You chose to receive court papers at your street address, but you typed "${String(a.address).trim()}" as your address.`, fix: "receiveAt" });
+  // It quotes the address, unless the privacy check flags it: then only the word it starts with, since no flag repeats
+  // what that check found.
+  if (a.receiveAt === "Choice1" && a.acp !== "yes" && startsNo(a.address)) {
+    const typed = String(a.address).trim();
+    flags.push({ level: "check", title: "Where you want court papers", fix: "receiveAt",
+      why: `You chose to receive court papers at your street address, but ${privateKind(typed, true) ? `your address starts with "${typed.match(/^\S+?(?=[\s,.;:!]|$)/)[0]}"` : `you typed "${typed}" as your address`}.` });
+  }
   if (a.receiveAt === "Choice3" && a.acp !== "yes")
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose the Attorney General confidential address. The form says this option is only available if you have used this address in another court case.", fix: "receiveAt" });
 
