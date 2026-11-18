@@ -507,3 +507,38 @@ describe("BT17: with storage full, the kept look is used and never deleted", () 
     await q.context().close();
   });
 });
+
+describe("BT18: a kept look applies before the page has loaded", () => {
+  // The app's last script never arrives, as on a very slow connection: only the page itself and its head have run.
+  async function stuck(store) {
+    let hold = false;
+    const ctx = await site({ change: rel => (hold && rel === "app/main.js" ? "hold" : null) });
+    const first = await ctx.open();
+    await first.evaluate(s => { localStorage.clear(); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); }, store);
+    hold = true;
+    const q = await ctx.newPage();
+    await q.goto("http://app.test/form-builder-mvp.html", { waitUntil: "commit" });
+    await q.waitForFunction(() => !!document.getElementById("app")); // the page is drawn up to the scripts, which are stuck
+    const look = await q.evaluate(() => ({ scale: document.documentElement.style.getPropertyValue("--text-scale"), contrast: document.documentElement.dataset.contrast || "", loaded: typeof render === "function" }));
+    await ctx.close();
+    return look;
+  }
+  test("with saving on, 130% and high contrast show while the app is still loading", async () => {
+    assert.deepEqual(await stuck({ "icfh-save-pref": "on", "icfh-display-v1": { size: 2, contrast: true } }), { scale: "1.3", contrast: "high", loaded: false });
+  });
+  test("edge: not with saving off, not from an expired copy, and not from an unusable setting", async () => {
+    const usual = { scale: "", contrast: "", loaded: false };
+    assert.deepEqual(await stuck({ "icfh-display-v1": { size: 2, contrast: true } }), usual);
+    assert.deepEqual(await stuck({ "icfh-save-pref": "on", "icfh-display-v1": { size: 2, contrast: true }, "icfh-progress-v1": { v: 1, sitKey: "appearance", answers: { name: "Pat" }, savedAt: Date.now() - 31 * 864e5 } }), usual);
+    assert.deepEqual(await stuck({ "icfh-save-pref": "on", "icfh-display-v1": "{not json" }), usual);
+    assert.deepEqual(await stuck({ "icfh-save-pref": "on", "icfh-display-v1": { size: 9, contrast: "yes" } }), usual);
+  });
+  test("edge: the page's early copy of the sizes, keys and 30 days matches the app's", async () => {
+    await reset(p);
+    const html = await p.evaluate(() => [...document.head.querySelectorAll("script")].map(s => s.textContent).join("\n"));
+    const app = await p.evaluate(() => ({ sizes: TEXT_SIZES, key: DISPLAY_KEY, pref: PREF_KEY, store: STORE_KEY, days: MAX_AGE_DAYS }));
+    assert.ok(html.includes(`sizes = ${JSON.stringify(app.sizes).replace(/,/g, ", ")}`), "sizes");
+    for (const k of [app.key, app.pref, app.store]) assert.ok(html.includes(`"${k}"`), k);
+    assert.ok(html.includes(`${app.days} * 864e5`), "days");
+  });
+});
