@@ -231,3 +231,23 @@ describe("TG6: Cancel keeps an I'm not sure mark, and flags are Missing or Check
   });
 });
 
+describe("TG7: the fee waiver keeps contact details off the PDF with the Attorney General confidential address, on its own", () => {
+  // The form's field map is called directly, with the details given: the questions that would hide them are the first
+  // safety net (tested elsewhere); this is the second one, which must hold by itself.
+  const printed = (p, a) => p.evaluate(a => SITUATIONS.feewaiver.fields(a).flatMap(r => r.pdf.map(o => String(o.value ?? ""))).join(" | "), a);
+  const DETAILS = { name: "Pat Example", address: "123 Secret Home St, Indianapolis, IN 46204", email: "pat.secret@example.com", phone: "317-555-0199", fax: "317-555-0198", acceptEmail: "yes" };
+  test("with it chosen, the address, email, phone and fax print nowhere, even if they were answered", async () => {
+    const p = await fresh();
+    const out = await printed(p, { ...DETAILS, agConfidential: "yes" });
+    for (const v of ["123 Secret Home St", "pat.secret@example.com", "317-555-0199", "317-555-0198"]) assert.ok(!out.includes(v), v);
+    assert.ok(out.includes("Pat Example"), "the name still prints");
+    await p.context().close();
+  });
+  test("edge: without it, they all print, so the test above isn't passing by printing nothing", async () => {
+    const p = await fresh();
+    const out = await printed(p, { ...DETAILS, agConfidential: "no" });
+    for (const v of ["123 Secret Home St", "pat.secret@example.com", "317-555-0199", "317-555-0198"]) assert.ok(out.includes(v), v);
+    await p.context().close();
+  });
+});
+
