@@ -1,5 +1,5 @@
 // Fixes from the class's peer review (November 2026), one section per fix, in the order they were made.
-import { describe, test, before, after } from "node:test";
+import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { fresh, close, inject, step, pick, walk, jump, reset, answer, fieldRows, flagsFor, editAnswer, pdfText, scoreMatchesFlags, launch, APP } from "../lib.mjs";
 
@@ -74,6 +74,9 @@ describe("Fix 1: \"What to do next\" is one line per step, with the rest behind 
 });
 
 describe("Fix 2: each flag is one line, Missing first, with the reason on tap", () => {
+  // A pointer left resting on a flag by an earlier test would open its reason after a moment (hover opens a small
+  // "More" on a computer), and under load that moment can pass before the line is read.
+  beforeEach(() => p.mouse.move(0, 0));
   const row = id => p.locator(`ul.flags li:has([data-fix="${id}"])`).first();
   const shown = loc => loc.evaluate(e => e.innerText);
   test("a missing answer is one line, its title, and why it's needed opens on tap", async () => {
