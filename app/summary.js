@@ -38,17 +38,19 @@ window.addEventListener("focus", redrawIfNewDay);
 window.addEventListener("pageshow", redrawIfNewDay);
 setInterval(redrawIfNewDay, 60000);
 
-// The parts of each answer a flag is about, as text, to mark where the answer is shown in "Show every answer".
+// The parts of each answer a flag is about, where they are in the answer, to mark where it's shown in "Show every answer".
 function markedParts(flags) {
   const out = {}, a = visibleAnswers();
-  for (const f of flags) if (f.hit && f.hit.length && typeof a[f.fix] === "string") (out[f.fix] ||= []).push(...f.hit.map(([s, e]) => a[f.fix].slice(s, e)));
+  for (const f of flags) if (f.hit && f.hit.length && typeof a[f.fix] === "string") (out[f.fix] ||= { raw: a[f.fix], spans: [] }).spans.push(...f.hit);
   return out;
 }
-// A shown answer with those parts marked (when they're in it as shown).
-function markParts(value, parts) {
-  let html = esc(value);
-  for (const p of new Set(parts || [])) if (p.trim()) html = html.split(esc(p)).join(`<mark>${esc(p)}</mark>`);
-  return html;
+// A shown answer with those parts marked where they are, not every copy of the same text ("PIN 1234 ... 1234 Main St.").
+// Only where it's shown as typed (an amount is shown as "$123,456,789.00").
+function markParts(value, m) {
+  if (!m || value !== m.raw) return esc(value);
+  let html = "", at = 0;
+  for (const [s, e] of [...m.spans].sort((x, y) => x[0] - y[0])) if (s >= at && s < e && e <= value.length) { html += `${esc(value.slice(at, s))}<mark>${esc(value.slice(s, e))}</mark>`; at = e; }
+  return html + esc(value.slice(at));
 }
 function renderSummary(rerender = false) {
   summaryDay = todayDay();

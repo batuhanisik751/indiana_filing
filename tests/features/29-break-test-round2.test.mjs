@@ -51,3 +51,27 @@ describe("BT23: the part is only the private number, not the numbers next to it"
     assert.equal((await part("respond", "defenses", "account 1234 5678 9012, 3 times")).selected, "1234 5678 9012");
   });
 });
+
+describe("BT24: \"Show every answer\" marks the flagged part where it is, not every copy", () => {
+  const shown = id => p.$eval(`dl.vals dd:has(mark)`, dd => dd.innerHTML);
+  test("a PIN and the same digits in a street address: only the PIN", async () => {
+    await inject(p, "respond", { defenses: "PIN 1234. I live at 1234 Main St." });
+    assert.equal(await shown(), "PIN <mark>1234</mark>. I live at 1234 Main St.");
+  });
+  test("a year and the same digits as a PIN after it: only the PIN", async () => {
+    await inject(p, "respond", { defenses: "In 2024 my pin was 2024." });
+    assert.equal(await shown(), "In 2024 my pin was <mark>2024</mark>.");
+    await p.click(`ul.flags button[data-fix="defenses"][data-hit]`);
+    assert.deepEqual(await p.evaluate(() => [document.getElementById("ans").selectionStart, document.getElementById("ans").selectionEnd]), [19, 23]);
+  });
+  test("edge: a card number and a PIN that's part of it: two marks, neither inside the other", async () => {
+    await inject(p, "respond", { defenses: "card 4111 1111 1111 1111 and PIN 1111" });
+    assert.equal(await shown(), "card <mark>4111 1111 1111 1111</mark> and PIN <mark>1111</mark>");
+    assert.equal(await p.$("dl.vals mark mark"), null);
+  });
+  test("edge: characters that need escaping are marked and shown as typed", async () => {
+    await inject(p, "respond", { defenses: "<b>&</b> SSN 123-45-6789 & \"done\"" });
+    assert.equal(await p.$eval("dl.vals dd:has(mark)", dd => dd.textContent), "<b>&</b> SSN 123-45-6789 & \"done\"");
+    assert.deepEqual(await marks(), ["123-45-6789"]);
+  });
+});
