@@ -97,6 +97,55 @@ const BLANK_WHY = {
   timeNeeded: ["Item 4 of the Verified Motion for Continuance asks how many days or weeks you need."],
 };
 const RULE8 = { href: "https://rules.incourts.gov/Content/admin/rule8/current.htm", text: "Read Administrative Rule 8" };
+
+// "How this tool checks your answers" on the summary: one line per kind of check below, for the forms it applies to,
+// with the source that says it matters, or saying it's this tool's own check for typing mistakes. Keep it in step
+// with the checks.
+const CHECK_SRC = {
+  answer: { href: LINKS.answerInstructions, text: "Answer instructions" },
+  answerTopic: { href: LINKS.answerTopic, text: "Indiana Legal Help: Answer" },
+  cont: { href: LINKS.continuanceInstructions, text: "Continuance instructions" },
+  fw: { href: LINKS.feeWaiverInstructions, text: "Fee waiver instructions" },
+  // The Appearance itself: its choices for where court papers go.
+  appearance: key => ({ href: key === "feewaiver" ? `${LINKS.feeWaiverInstructions}#page=1` : key === "continuance" ? `${LINKS.continuanceInstructions}#page=4` : `${LINKS.answerInstructions}#page=5`, text: "The Appearance" }),
+};
+const OWN_CHECK = "This tool's own check for typing mistakes.";
+const CASE_FORMS_HOW = ["respond", "appearance", "continuance"];
+const CHECKS_HOW = [
+  { title: "Blank answers", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: "Every answer the official form needs, and every question marked \"I'm not sure.\" Each flag says what needs it: the form itself or a court rule.",
+    src: key => [RULES.tr31, ...(key === "feewaiver" ? [] : [RULES.tr5]), RULES.tr111] },
+  { title: "Private information", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: "Complete Social Security, account and card numbers, PINs and passwords in anything that would print.", src: () => [RULES.acr5] },
+  { title: "Case number", forms: CASE_FORMS_HOW,
+    says: "That it has the shape of an Indiana case number, that its county number and court letter match your county and court, and that its case type is a civil one Administrative Rule 8 lists.", src: () => [RULE8] },
+  { title: "Case type", forms: ["feewaiver"], says: "That the two-letter case type is one Administrative Rule 8 lists.", src: () => [RULE8] },
+  { title: "Kind of case", forms: ["respond"],
+    says: "Whether your case type is small claims, eviction or a family case, where Indiana Legal Help says Answers are not usually filed.", src: () => [CHECK_SRC.answerTopic] },
+  { title: "Your answer to the Complaint", forms: ["respond"],
+    says: "That your lists name paragraph numbers, that no paragraph is in two lists or left out, and that you've listed your defenses. The Answer instructions say a skipped part is taken as true, and defenses not listed now may be lost.", src: () => [CHECK_SRC.answer] },
+  { title: "Your request", forms: ["continuance"],
+    says: "That the time you need is days or weeks, not a date, and whether you've said when you spoke to the other party and whether they agreed, and a date for that talk that's in the future (items 4 and 6 of the Verified Motion for Continuance; item 6 says the talk already happened).", src: () => [CHECK_SRC.cont] },
+  { title: "Amounts", forms: ["feewaiver"],
+    says: "Amounts that aren't numbers, unusually high ones ($100,000 or more, wages of $100 an hour or more, more than 744 hours a month), and income or expenses left out of this sworn form.", src: () => [CHECK_SRC.fw] },
+  { title: "Certificate of Service", forms: CASE_FORMS_HOW,
+    says: "Who got a copy, how and when; that how you sent it fits the form's printed wording and how you're filing; and a service date before the date you sign.", src: () => [RULES.tr5] },
+  { title: "Email", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: `Whether it looks mistyped, like a misspelled email provider, or couldn't work. It can't tell whether an address works. ${OWN_CHECK}` },
+  { title: "Phone and fax", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: key => `Whether it looks like a full U.S. number with area code.${key === "feewaiver" ? "" : " The official Appearance asks for a 10-digit phone number."} ${OWN_CHECK}` },
+  { title: "Addresses", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: `Whether an address may be missing its house or box number, unit number, city, state or ZIP code, and whether the ZIP code fits the state. It can't know every address. ${OWN_CHECK}` },
+  { title: "Dates", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: key => `A year that looks mistyped (a signing${key === "feewaiver" ? "" : ", service or conversation"} date more than 180 days off${key === "feewaiver" ? "" : ", or a court or hearing date more than a year off"})${key === "feewaiver" ? "" : ", a court date that has passed, and a date after the court date it comes before"}. ${OWN_CHECK}` },
+  { title: "Words that would print", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: `Words like "I don't know" or "none" typed into a box, "/s/" typed before your name, and an answer longer than a question takes. ${OWN_CHECK}` },
+  { title: "Where court papers go", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: "Choices that don't match what's entered, like email chosen with no email address, or the Attorney General confidential address without a related case, and contact details cleared to keep a protected address off this device.", src: key => [CHECK_SRC.appearance(key)] },
+  { title: "The filled form", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: "Answers too long for their box (printed smaller, cut off, or continued on a page added at the end) and characters the form's font can't print. This tool checks the PDF it made." },
+];
+const checksHowFor = key => CHECKS_HOW.filter(c => c.forms.includes(key)).map(c => ({ title: c.title, says: typeof c.says === "function" ? c.says(key) : c.says, src: c.src ? c.src(key) : [] }));
 function printingAnyway(s, a) {
   const typed = (PROTECTS[s.id] || []).filter(k => !empty(a[k]));
   return typed.length ? `Your ${contactWords(typed)} will print on the form. If you need ${typed.length > 1 ? "them" : "it"} kept confidential, clear ${typed.length > 1 ? "them" : "it"}. ` : "";

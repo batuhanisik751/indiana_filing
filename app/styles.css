@@ -206,7 +206,8 @@ details.more .morebody { border-left: 3px solid var(--line); padding: .1rem 0 .1
 p.help + details.more.ready, details.more + details.more.ready,
 p.help + .termbox[hidden] + details.more.ready, details.more + .termbox[hidden] + details.more.ready { margin: -.75rem 0 1.25rem; }
 ul.ready { margin: .4rem 0 .2rem; }
-ul.ready small.src { display: block; color: var(--muted); font-size: .85rem; }
+ul.ready small.src, ul.howchecks small.src { display: block; color: var(--muted); font-size: .85rem; }
+ul.howchecks { margin: .4rem 0 .2rem; }
 /* The part of an answer a flag is about, where the answer is shown. */
 dl.vals mark { background: var(--mark); color: var(--paper-ink); border-radius: 3px; padding: 0 .1em; }
 p.hitnote { margin: .35rem 0 0; }
