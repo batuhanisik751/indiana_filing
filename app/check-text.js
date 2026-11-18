@@ -49,8 +49,11 @@ const isReference = (s, at) => {
 const passesCardCheck = n => { const d = n.replace(/\D/g, ""); if (d.length < 13 || d.length > 19) return false; let sum = 0; for (let i = 0; i < d.length; i++) { let x = +d[d.length - 1 - i]; if (i % 2 && (x *= 2) > 9) x -= 9; sum += x; } return sum % 10 === 0; };
 const ACCOUNT_WORD = "accounts?|accts?|acc|a\\/c|routing|rt|aba|cards?|loans?|mortgages?|checking|savings|member|customer";
 const ACCOUNT_LABEL = new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])`, "i");
-// A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word.
+// A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word. Also
+// "my pass is x" when x looks like a password (letters with a digit or symbol, four or more), not "my bus pass is
+// expired", "the pass was 10am-2pm" or "pass is #A12".
 const PASSWORD_RES = [/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S+/i,
+  /\b(?:pass|pwd|pw)\b ?(?:is|was|[:=]) ?(?!#|\d{1,2}(?::\d{2})?\s?[ap]\.?m\b)(?=\S*\p{L})(?=\S*[\d!@$%^&*])\S{4,}/iu,
   /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S+/i,
   /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S+/i];
 function privateKind(text, isAddress = false) {

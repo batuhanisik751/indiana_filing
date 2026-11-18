@@ -1,8 +1,8 @@
 # How well the checks do on a fixed test set
 
-Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-18, at commit d785ae2.
+Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-18, at commit a26661a.
 
-The test set is in [cases.mjs](cases.mjs): 110 filled-in forms. 72 have one planted mistake each, the kind a careful reader would flag. 38 have only correct answers that look a little like mistakes, like a PO box, a phone number written with dots, or a nine-digit invoice number. Each case starts from the same sample answers, which get no flags on their own.
+The test set is in [cases.mjs](cases.mjs): 111 filled-in forms. 72 have one planted mistake each, the kind a careful reader would flag. 39 have only correct answers that look a little like mistakes, like a PO box, a phone number written with dots, or a nine-digit invoice number. Each case starts from the same sample answers, which get no flags on their own.
 
 - **Caught:** a flag on the question with the mistake. For a mistake between two answers, like a paragraph in two lists, a flag on either one.
 - **Missed:** no flag there.
@@ -12,7 +12,7 @@ The test set is in [cases.mjs](cases.mjs): 110 filled-in forms. 72 have one plan
 
 ## Mistakes caught
 
-Overall: **71 of 72 caught (99%)**. The usual ways of writing them: 55 of 55. Harder ways: 16 of 17.
+Overall: **72 of 72 caught (100%)**. The usual ways of writing them: 55 of 55. Harder ways: 17 of 17.
 
 | Kind of check | Usual | Harder | All |
 |---|---|---|---|
@@ -20,7 +20,7 @@ Overall: **71 of 72 caught (99%)**. The usual ways of writing them: 55 of 55. Ha
 | Phone | 5 of 5 | 2 of 2 | 7 of 7 (100%) |
 | Address | 7 of 7 | 2 of 2 | 9 of 9 (100%) |
 | Case number | 5 of 5 | 1 of 1 | 6 of 6 (100%) |
-| Private information | 7 of 7 | 3 of 4 | 10 of 11 (91%) |
+| Private information | 7 of 7 | 4 of 4 | 11 of 11 (100%) |
 | Dates | 6 of 6 | – | 6 of 6 (100%) |
 | Answer lists | 4 of 4 | 1 of 1 | 5 of 5 (100%) |
 | Words that would print | 4 of 4 | 1 of 1 | 5 of 5 (100%) |
@@ -28,13 +28,11 @@ Overall: **71 of 72 caught (99%)**. The usual ways of writing them: 55 of 55. Ha
 | Amounts | 4 of 4 | 1 of 1 | 5 of 5 (100%) |
 | Your request | 2 of 2 | 1 of 1 | 3 of 3 (100%) |
 
-Missed:
-
-- Private information: password written as "pass is" (harder)
+Nothing missed.
 
 ## False alarms
 
-**1 of 38 correct-answer cases got a flag they shouldn't (3%).**
+**1 of 39 correct-answer cases got a flag they shouldn't (3%).**
 
 - fax: none: "Fax number" (Check)
 

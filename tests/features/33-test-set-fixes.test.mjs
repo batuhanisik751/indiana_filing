@@ -72,3 +72,25 @@ describe("I18b: paragraph numbers written as words", () => {
     assert.ok((await flagsFor(p, "notEnough")).some(f => /doesn't seem to name any paragraph numbers/.test(f)));
   });
 });
+
+describe("I18c: a password written as \"my pass is ...\"", () => {
+  const privacy = () => p.evaluate(() => runChecks().filter(f => /^Private information/.test(f.title)).map(f => f.fix));
+  test("\"My pass is hunter2\" and \"pw is Hunter!x\" are flagged, and the flag doesn't repeat them", async () => {
+    for (const defenses of ["My pass is hunter2 and they changed it.", "The pw is Hunter!x, and someone used it."]) {
+      await inject(p, "respond", { defenses });
+      assert.deepEqual(await privacy(), ["defenses"], defenses);
+      assert.doesNotMatch((await p.evaluate(() => runChecks().map(f => `${f.title} ${f.why}`))).join(" "), /hunter2|Hunter!x/i);
+    }
+  });
+  test("Fix selects the password part", async () => {
+    await inject(p, "respond", { defenses: "My pass is hunter2 and they changed it." });
+    await p.click('ul.flags button[data-fix="defenses"][data-hit]');
+    assert.equal(await p.evaluate(() => { const el = document.getElementById("ans"); return el.value.slice(el.selectionStart, el.selectionEnd); }), "pass is hunter2");
+  });
+  test("edge: ordinary uses of \"pass\" aren't flagged", async () => {
+    for (const defenses of ["My bus pass is expired.", "The pass was 10am-2pm only.", "My pass is valid until May.", "My parking pass is #A12.", "A monthly pass is $45.", "I didn't pass, so I was charged."]) {
+      await inject(p, "respond", { defenses });
+      assert.deepEqual(await privacy(), [], defenses);
+    }
+  });
+});

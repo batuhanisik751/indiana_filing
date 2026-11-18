@@ -1,7 +1,5 @@
 {
-  "missed": [
-    "password written as \"pass is\""
-  ],
+  "missed": [],
   "falseAlarms": [
     "fax: none",
     "signing year typed as 2062"

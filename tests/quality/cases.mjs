@@ -136,6 +136,7 @@ export const CASES = [
   { kind: "Correct answers", name: "last four digits of an account", form: "respond", answers: { defenses: "My account ending in 1234 was closed in 2022." }, expect: [] },
   { kind: "Correct answers", name: "a phone number in the defenses", form: "respond", answers: { defenses: "Their office told me by phone (260-555-0100) that it was paid." }, expect: [] },
   { kind: "Correct answers", name: "a case number in the defenses", form: "respond", answers: { defenses: "Case 02D01-2401-SC-000555 already decided this debt." }, expect: [] },
+  { kind: "Correct answers", name: "a bus pass in the defenses", form: "respond", answers: { defenses: "My bus pass is valid until 12/31, and the pass was 10am-2pm only." }, expect: [] },
   { kind: "Correct answers", name: "a street number in the defenses", form: "respond", answers: { defenses: "I moved out of 1234 Main St in May." }, expect: [] },
   { kind: "Correct answers", name: "time needed: 3 weeks", form: "continuance", answers: { timeNeeded: "3 weeks" }, expect: [] },
   { kind: "Correct answers", name: "time needed: 30 days", form: "continuance", answers: { timeNeeded: "30 days" }, expect: [] },
