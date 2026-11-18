@@ -298,8 +298,9 @@ function runChecks() {
   if (has("name") && /^\s*\/s\//i.test(a.name || ""))
     flags.push({ level: "check", title: vis.find(s => s.id === "name").label, fix: "name",
       why: "Your name starts with \"/s/\", and it prints that way wherever your name goes on the form. Type your name without it: if you e-file, this tool puts \"/s/\" before your name on the signature lines." });
-  // Answers like "no" or "none" in fill-in boxes would print on the form.
-  vis.filter(s => s.noWords && saysNoAnswer(a[s.id])).forEach(s =>
+  // Answers like "no" or "none" in fill-in boxes would print on the form. Not "None" for a fax number: the official
+  // Appearance says one isn't required if you don't have one, and "None" says so plainly.
+  vis.filter(s => s.noWords && saysNoAnswer(a[s.id]) && !(s.id === "fax" && SAYS_NONE.test(String(a[s.id]).trim()))).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
   // The continuance instructions leave the court and the case number to staff, but not these letters.
   if (sitKey === "continuance" && has("caseTypeLetters") && empty(a.caseTypeLetters))

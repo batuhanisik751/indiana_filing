@@ -94,3 +94,20 @@ describe("I18c: a password written as \"my pass is ...\"", () => {
     }
   });
 });
+
+describe("I18d: \"None\" in the fax box", () => {
+  test("\"None\" or \"N/A\" for the fax number isn't flagged, on every form that asks for one, and prints as typed", async () => {
+    for (const form of ["respond", "appearance", "continuance", "feewaiver"]) for (const fax of ["None", "N/A", "none."]) {
+      await inject(p, form, { fax, ...(form === "feewaiver" ? { incomeKinds: "wages", expenseKinds: "none" } : {}) });
+      assert.deepEqual(await flagsFor(p, "fax"), [], `${form}: ${fax}`);
+    }
+    await inject(p, "appearance", { fax: "None" });
+    assert.ok((await p.evaluate(() => SITUATIONS[sitKey].fields(visibleAnswers()).filter(r => r.step === "fax").map(r => r.value))).includes("None"));
+  });
+  test("edge: other words in the fax box are still flagged, and \"none\" still is in other boxes", async () => {
+    await inject(p, "appearance", { fax: "I don't know" });
+    assert.equal((await flagsFor(p, "fax")).length, 1);
+    await inject(p, "feewaiver", { incomeKinds: "wages", expenseKinds: "none", fwCaseType: "NONE" });
+    assert.ok((await flagsFor(p, "fwCaseType")).some(f => /You typed "NONE"/.test(f)));
+  });
+});

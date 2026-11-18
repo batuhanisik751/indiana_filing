@@ -1,6 +1,6 @@
 # How well the checks do on a fixed test set
 
-Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-18, at commit a26661a.
+Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-18, at commit 6cadf40.
 
 The test set is in [cases.mjs](cases.mjs): 111 filled-in forms. 72 have one planted mistake each, the kind a careful reader would flag. 39 have only correct answers that look a little like mistakes, like a PO box, a phone number written with dots, or a nine-digit invoice number. Each case starts from the same sample answers, which get no flags on their own.
 
@@ -32,9 +32,9 @@ Nothing missed.
 
 ## False alarms
 
-**1 of 39 correct-answer cases got a flag they shouldn't (3%).**
+**0 of 39 correct-answer cases got a flag they shouldn't (0%).**
 
-- fax: none: "Fax number" (Check)
+None.
 
 On cases with a planted mistake, 1 also got a flag on another, correct answer:
 
