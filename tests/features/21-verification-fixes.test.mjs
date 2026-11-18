@@ -204,3 +204,33 @@ describe("VF12: amounts that can't be right are refused or flagged, and a card n
     await p.context().close();
   });
 });
+
+describe("VF3: a character the form can't print is flagged once per answer", () => {
+  const ready = p => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  const charFlags = (p, id) => p.evaluate(id => pdfFlags().filter(f => f.fix === id && /can't print some characters/.test(f.why)).map(f => `${f.title}|${f.why}`), id);
+  test("a name printed in two places on the continuance gets one flag, titled with its question", async () => {
+    const p = await fresh();
+    await inject(p, "continuance", { name: "Zo\u00eb \u0141ukasz", role: "other" }); await ready(p);
+    const f = await charFlags(p, "name");
+    assert.equal(f.length, 1, f.join("\n"));
+    assert.match(f[0], /^Your full name\|.*"\u0141" \(printed as "L"\)/);
+    await p.context().close();
+  });
+  test("edge: the same on the fee waiver, and for the other party's name on the continuance", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { name: "Zo\u00eb \u0141ukasz", incomeKinds: "none", expenseKinds: "none" }); await ready(p);
+    assert.equal((await charFlags(p, "name")).length, 1);
+    await inject(p, "continuance", { otherParty: "\u0141ukasz Holdings", role: "other" }); await ready(p);
+    assert.equal((await charFlags(p, "otherParty")).length, 1);
+    await p.context().close();
+  });
+  test("edge: the review count goes up by one for it, not two", async () => {
+    const p = await fresh();
+    await inject(p, "continuance", { role: "other" }); await ready(p);
+    const before = await p.evaluate(() => [...runChecks(), ...pdfFlags()].length);
+    await inject(p, "continuance", { name: "Zo\u00eb \u0141ukasz", role: "other" }); await ready(p);
+    assert.equal(await p.evaluate(() => [...runChecks(), ...pdfFlags()].length), before + 1);
+    await p.context().close();
+  });
+});
+

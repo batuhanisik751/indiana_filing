@@ -74,7 +74,8 @@ function pdfFlags() {
   for (const n of pdfState.result.notes) {
     const k = `${n.step}|${n.label}`;
     if (n.kind === "overflow") overflow.set(k, n);
-    else if (n.kind === "chars") { if (!chars.has(k)) chars.set(k, { ...n, list: new Map() }); chars.get(k).list.set(n.ch, n.out); }
+    // One answer can print in several places (a name in the caption and in item 1), but it's one thing to fix.
+    else if (n.kind === "chars") { if (!chars.has(n.step)) chars.set(n.step, { ...n, list: new Map() }); chars.get(n.step).list.set(n.ch, n.out); }
     else if (n.kind === "continued") continued.set(k, n);
     else if (n.kind === "small") { if (!small.has(k) || small.get(k).size > n.size) small.set(k, n); }
   }
@@ -85,7 +86,7 @@ function pdfFlags() {
     ...[...continued.values()].map(n => ({ level: "check", title: n.label, why: `This is longer than the lines on the form, so it continues on a page added at the end of the ${n.doc}, marked "continued on attached page." Check it in the preview below.`, fix: n.step })),
     ...[...chars.values()].map(n => {
       const list = [...n.list].map(([c, o]) => `"${c}" (printed as "${o}")`).join(", ");
-      return { level: "check", title: n.label, why: `The form's font can't print some characters exactly: ${list}. Check that this is how you want it to appear.`, fix: n.step };
+      return { level: "check", title: steps.find(s => s.id === n.step)?.label || n.label, why: `The form's font can't print some characters exactly: ${list}. Check that this is how you want it to appear.`, fix: n.step };
     }),
   ];
 }
