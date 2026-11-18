@@ -45,8 +45,14 @@ function renderSummary(rerender = false) {
   const groups = [];
   fields.forEach(x => { let g = groups.find(g => g.form === x.form); if (!g) groups.push(g = { form: x.form, items: [] }); g.items.push(x); });
   const visIds = new Set(visible().map(s => s.id));
-  // A hidden answer taken from another one (the county, from a confirmed case number) is edited through that one.
-  const editOf = id => !id ? null : visIds.has(id) ? id : visIds.has(steps.find(s => s.id === id)?.editVia) ? steps.find(s => s.id === id).editVia : null;
+  // A hidden answer is edited through the question that hid it: the county through the case number's confirmation,
+  // a fee waiver amount (and the total it starts) through its "Which of these" list.
+  const editOf = id => {
+    if (!id) return null;
+    if (visIds.has(id)) return id;
+    const s = steps.find(x => x.id === id), via = s?.editVia || s?.kind?.[0];
+    return visIds.has(via) ? via : null;
+  };
 
   // Back from an Edit in the list of every answer: the list is open again, so focus can return to that row.
   if (lastEdited && fixFrom === "vals") openMore.add("answers");

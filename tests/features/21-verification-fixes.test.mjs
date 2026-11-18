@@ -315,3 +315,22 @@ describe("VF6: a disabled button looks disabled", () => {
   });
 });
 
+describe("VF7: fee waiver totals always have an Edit link", () => {
+  const totalsEdit = p => p.evaluate(() => {
+    document.querySelector('details[data-more="answers"]').open = true;
+    return [...document.querySelectorAll("dl.vals > div")].filter(d => /Total (Income|Expenses)/.test(d.querySelector("dt").textContent)).map(d => d.querySelector("[data-fix]")?.dataset.fix || "none");
+  });
+  test("with the questions they point to hidden by the checklists, the totals edit through the checklists", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "ssi", ssi: "100", expenseKinds: "none" });
+    assert.deepEqual(await totalsEdit(p), ["incomeKinds", "expenseKinds"]);
+    await p.context().close();
+  });
+  test("edge: with the checklists skipped, they edit the first amount, as before", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "", expenseKinds: "", housing: "500" });
+    assert.deepEqual(await totalsEdit(p), ["hourlyRate", "housing"]);
+    await p.context().close();
+  });
+});
+
