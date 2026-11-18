@@ -192,7 +192,8 @@ function runChecks() {
     const why = emailWhy(e);
     const papers = a.receiveAt === "Choice2" || a.acceptEmail === "yes" ? " You chose to get court papers at this address, so a typo could mean you miss them." : "";
     // A private number has its own flag above. A typo in the domain still needs saying, unless saying it would repeat that number.
-    if (why && !(privateKind(a.email) && (e.kind !== "typo" || privateKind(e.domain)))) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
+    // On the fee waiver, words like "no email" leave the box blank, as its instructions say, so there's nothing to fix.
+    if (why && !(sitKey === "feewaiver" && e.kind === "noemail") && !(privateKind(a.email) && (e.kind !== "typo" || privateKind(e.domain)))) flags.push({ level: "check", title: "Email", why: `${why}${e.kind === "noemail" ? "" : papers}`, fix: "email" });
   }
   // Sent through the e-filing system, a service address can be an email. (By mail, it gets the address check's flag instead.)
   vis.filter(s => /^svc\dAddress$/.test(s.id) && a[s.id.replace("Address", "Method")] === "Indiana E-Filing System" && !empty(a[s.id])).forEach(s => {

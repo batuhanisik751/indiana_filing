@@ -441,3 +441,38 @@ describe("VF14: an answer over the length limit is flagged, however it got in", 
   });
 });
 
+describe("VF15: on the fee waiver, \"None\" as the email leaves the box blank, as its instructions say", () => {
+  const emailRow = p => p.evaluate(() => { const r = SITUATIONS.feewaiver.fields(visibleAnswers()).find(r => r.label === "Email address"); return [String(r.value), r.pdf.map(o => o.value).join("|")]; });
+  const asksAccept = p => p.evaluate(() => visible().some(s => s.id === "acceptEmail"));
+  test("None and n/a print nothing in the email box, and the summary says why", async () => {
+    const p = await fresh();
+    for (const email of ["None", "n/a"]) {
+      await inject(p, "feewaiver", { email, incomeKinds: "none", expenseKinds: "none" });
+      assert.deepEqual(await emailRow(p), ["Left blank (no email)", ""], email);
+      assert.equal(await asksAccept(p), false, email);
+    }
+    await p.context().close();
+  });
+  test("edge: words like \"no email\" don't print either, aren't asked about court papers, and aren't flagged", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { email: "I don't have email", incomeKinds: "none", expenseKinds: "none" });
+    assert.deepEqual(await emailRow(p), ["Left blank (no email)", ""]);
+    assert.equal(await asksAccept(p), false);
+    assert.deepEqual(await flagsFor(p, "email"), []);
+    await p.context().close();
+  });
+  test("edge: a real email still prints, and asks about court papers", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { email: "pat@example.com", incomeKinds: "none", expenseKinds: "none" });
+    assert.deepEqual(await emailRow(p), ["pat@example.com", "pat@example.com"]);
+    assert.equal(await asksAccept(p), true);
+    await p.context().close();
+  });
+  test("edge: on the Appearance, None still prints, since that form says to type it", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { email: "None" });
+    assert.equal(await p.evaluate(() => SITUATIONS.appearance.fields(visibleAnswers()).find(r => r.label === "Email address").pdf[0].value), "None");
+    await p.context().close();
+  });
+});
+

@@ -23,7 +23,8 @@ const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or p
 const NO_NUMBER = /^no\s+(?:phone|telephone|cell|fax)(?:\s+number)?\.?$/i;
 // The name as it goes after "/s/" on an e-filing signature line: a "/s/" typed in front of it isn't doubled.
 const signedName = n => String(n ?? "").replace(/^\s*\/s\/\s*/i, "").trim();
-const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim());
+// An email address was given: not blank, "None" or words like "I don't have email".
+const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim()) && emailShape(a.email).kind !== "noemail";
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
