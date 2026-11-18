@@ -105,6 +105,7 @@ function renderSummary(rerender = false) {
     const where = b.closest("ul.flags") ? "flags" : "vals";
     goFix(b.dataset.fix, where, [...app.querySelectorAll(`${where === "flags" ? "ul.flags" : "dl.vals"} [data-fix="${b.dataset.fix}"]`)].indexOf(b));
   });
+  app.querySelectorAll("[data-ics]").forEach(b => b.onclick = () => downloadIcs(b.dataset.ics));
   document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
   document.getElementById("changeForm").onclick = chooseOtherForm;
   document.getElementById("restart").onclick = () => {

@@ -192,9 +192,9 @@ function nextSteps(key, a) {
   if (key === "continuance") out.push({
     title: "Your court date stays the same until the judge signs an order",
     short: hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed: check it against your papers.`
-      : `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change it.`,
-    body: `${hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed. Check it against your papers. ` : a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
-    links: [SOURCES.newDate, SOURCES.contInstructions, SOURCES.mycase] });
+      : `${a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}${howSoon(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change it.`,
+    body: `${hasPassed(a.hearingDate) ? `The hearing date you entered, ${formDate(a.hearingDate)}, has already passed. Check it against your papers. ` : a.hearingDate ? `Your hearing is still set for ${formDate(a.hearingDate)}${howSoon(a.hearingDate)}. ` : ""}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. Its instructions say the Order is the form the judge must sign to grant your request, and if it's granted, the judge will schedule your hearing for a new date and time. They also say all the forms in the packet are required to file your Motion for Continuance. You can check your case at mycase.in.gov.`,
+    links: [SOURCES.newDate, SOURCES.contInstructions, SOURCES.mycase], date: comingDay(a.hearingDate) });
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
@@ -313,10 +313,10 @@ function nextSteps(key, a) {
   if (key === "respond" || key === "appearance") out.push({
     title: "Go to every court date",
     short: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. The next one is on your papers or at mycase.in.gov.`
-      : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. Indiana Legal Help says only an order signed by the judge can change it.`
+      : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}${howSoon(a.courtDate)}. Indiana Legal Help says only an order signed by the judge can change it.`
       : "Your court date is on your papers or at mycase.in.gov."} ${missLine}`,
-    body: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. Check your papers for your next court date, or look it up at mycase.in.gov. ` : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
-    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? scLinks : [])] });
+    body: `${hasPassed(a.courtDate) ? `The court date you entered, ${formDate(a.courtDate)}, has already passed. Check your papers for your next court date, or look it up at mycase.in.gov. ` : a.courtDate ? `Your next court date: ${formDate(a.courtDate)}${howSoon(a.courtDate)}. ` : "Check your papers for your court date, or look it up at mycase.in.gov. "}Indiana Legal Help says only an order signed by the judge can change a court date or time, and that you should show up to court on the date and time on the court order. ${[missFact, defaultFact, noSourceFact].filter(Boolean).join(" ")}`,
+    links: [SOURCES.mycase, SOURCES.newDate, ...missLinks, ...(defaultFact ? scLinks : [])], date: comingDay(a.courtDate) });
   if (key === "continuance") out.push({
     title: "If you don't go to court",
     short: a.role === "me" ? starterLine : missLine,
@@ -348,6 +348,40 @@ function nextSteps(key, a) {
   return out;
 }
 
+// A court date that is today or later, and a real day of the calendar. Anything else gets no countdown or calendar file.
+function comingDay(v) {
+  if (!isDay(v) || hasPassed(v)) return null;
+  const d = new Date(`${v}T12:00:00`);
+  return dayString(d) === v ? v : null;
+}
+const dayString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const daysFromToday = v => Math.round((new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5);
+// How soon a coming court date is, said right after the date: ", 10 days from today".
+const howSoon = v => { if (!comingDay(v)) return ""; const n = daysFromToday(v); return n === 0 ? ", today" : n === 1 ? ", tomorrow" : `, ${n} days from today`; };
+// The court date as a calendar file, made on this device: nothing is sent anywhere. It says only "Court date", since
+// a phone's calendar can be shared or synced, so no case details go in it. The time isn't asked, so it's an all-day
+// event, with reminders at noon a week before and the day before.
+function courtDateIcs(day) {
+  const next = new Date(`${day}T12:00:00`); next.setDate(next.getDate() + 1);
+  const ymd = v => v.replace(/-/g, "");
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Indiana Court Form Helper//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    "BEGIN:VEVENT", `UID:${ymd(day)}-${Math.random().toString(36).slice(2, 12)}@court-form-helper`, `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${ymd(day)}`, `DTEND;VALUE=DATE:${ymd(dayString(next))}`,
+    "SUMMARY:Court date", "DESCRIPTION:Check the time and place on your court papers.",
+    "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Court date in one week", "TRIGGER:-P6DT12H", "END:VALARM",
+    "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Court date tomorrow", "TRIGGER:-PT12H", "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+}
+function downloadIcs(day) {
+  const url = URL.createObjectURL(new Blob([courtDateIcs(day)], { type: "text/calendar" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = `court-date-${day}.ics`;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  announce("The calendar file is downloading. Open it to add the date to your calendar.");
+}
+
 // Each step is one plain line. A long one keeps its full text and sources, word for word, behind "More, with sources".
 function nextStepsHtml(key, a) {
   const srcs = s => s.links.length ? `<p class="srcs">${s.links.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join(" · ")}</p>` : "";
@@ -356,6 +390,7 @@ function nextStepsHtml(key, a) {
     <ol class="steps">${nextSteps(key, a).map(s => `
       <li><strong>${esc(s.title)}</strong>
         <p>${esc(s.short || s.body)}</p>
+        ${s.date ? `<div class="cal"><button class="link" data-ics="${s.date}">Add it to my calendar</button> <small class="calnote">Made on this device. Nothing is sent, and it says only "Court date".</small></div>` : ""}
         ${s.short ? moreHtml(`<p>${esc(s.body)}</p>${srcs(s)}`, "More, with sources", `step:${s.title}`) : srcs(s)}
       </li>`).join("")}
     </ol>`;

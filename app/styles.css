@@ -184,6 +184,9 @@ details.more .morebody { border-left: 3px solid var(--line); padding: .1rem 0 .1
 p.help + details.more.ready, details.more + details.more.ready { margin: -.75rem 0 1.25rem; }
 ul.ready { margin: .4rem 0 .2rem; }
 ul.ready small.src { display: block; color: var(--muted); font-size: .85rem; }
+ol.steps .cal { margin: .1rem 0 0; }
+ol.steps .cal button.link { font-size: inherit; padding: .4rem 0; min-height: 44px; }
+ol.steps .cal small.calnote { color: var(--muted); font-size: .9rem; }
 details.more .morebody p:first-child { margin-top: 0; }
 /* A whole section that starts closed, like the pages of the filled form: its "More" looks like a button. */
 details.more.section { margin: .25rem 0 1.25rem; }

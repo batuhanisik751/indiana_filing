@@ -62,7 +62,7 @@ describe("Fix 1: \"What to do next\" is one line per step, with the rest behind 
   test("edge: the line carries the person's own facts: the court date, and the clerk's office when filing on paper", async () => {
     await inject(p, "respond", { fileMethod: "paper", county: "Allen" });
     const text = await p.textContent("ol.steps"), date = await p.evaluate(() => formDate(answers.courtDate));
-    assert.ok(text.includes(`Your next court date: ${date}.`));
+    assert.match(text, new RegExp(`Your next court date: ${date.replace(/\//g, "\\/")}, \\d+ days from today\\.`)); // how soon it is: from the court date calendar feature
     assert.ok(text.includes("715 South Calhoun Street, # 201, Fort Wayne, IN 46802, phone 260-449-7245"));
   });
   test("edge: a court date that has passed, and a small claims case type, are said in the line itself", async () => {

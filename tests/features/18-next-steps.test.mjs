@@ -34,7 +34,7 @@ describe("Next steps", () => {
   test("it shows the hearing date entered, and that only a judge's order can change it", async () => {
     await inject(p, "respond");
     const date = await p.evaluate(() => formDate(answers.courtDate));
-    assert.match((await stepNamed("Go to every court date")).line, new RegExp(`^Your next court date: ${date.replace(/\//g, "\\/")}\\. Indiana Legal Help says only an order signed by the judge can change it\\.`));
+    assert.match((await stepNamed("Go to every court date")).line, new RegExp(`^Your next court date: ${date.replace(/\//g, "\\/")}, \\d+ days from today\\. Indiana Legal Help says only an order signed by the judge can change it\\.`));
   });
   test("it says what missing the hearing can mean, in the line itself, not only behind More", async () => {
     await inject(p, "respond", { caseNumber: "", caseConfirm: "" });
@@ -79,7 +79,7 @@ describe("Next steps", () => {
   test("edge: the continuance shows its hearing date, and the fee waiver its fees", async () => {
     await inject(p, "continuance");
     const date = await p.evaluate(() => formDate(answers.hearingDate));
-    assert.ok((await stepNamed("Your court date stays the same until the judge signs an order")).line.includes(`Your hearing is still set for ${date}.`));
+    assert.match((await stepNamed("Your court date stays the same until the judge signs an order")).line, new RegExp(`Your hearing is still set for ${date.replace(/\//g, "\\/")}, \\d+ days from today\\.`));
     await inject(p, "feewaiver", { housing: "500" });
     assert.match((await stepNamed("File these with the forms that start your case")).line, /\$157, or \$185 with sheriff service/);
   });
