@@ -123,7 +123,7 @@ const CHECKS_HOW = [
   { title: "Kind of case", forms: ["respond"],
     says: "Whether your case type is small claims, eviction or a family case, where Indiana Legal Help says Answers are not usually filed.", src: () => [CHECK_SRC.answerTopic] },
   { title: "Your answer to the Complaint", forms: ["respond"],
-    says: "That your lists name paragraph numbers, that no paragraph is in two lists or left out, and that you've listed your defenses. The Answer instructions say a skipped part is taken as true, and defenses not listed now may be lost.", src: () => [CHECK_SRC.answer] },
+    says: "That your lists name paragraph numbers, that no paragraph is in two lists or left out, that a list saying \"all\" isn't next to another list naming paragraphs, and that you've listed your defenses. The Answer instructions say a skipped part is taken as true, and defenses not listed now may be lost.", src: () => [CHECK_SRC.answer] },
   { title: "Your request", forms: ["continuance"],
     says: "That the time you need is days or weeks, not a date, and whether you've said when you spoke to the other party and whether they agreed, and a date for that talk that's in the future (items 4 and 6 of the Verified Motion for Continuance; item 6 says the talk already happened).", src: () => [CHECK_SRC.cont] },
   { title: "Amounts", forms: ["feewaiver"],
@@ -337,6 +337,18 @@ function runChecks() {
     const twice = [...new Set(lists.flatMap(([, n]) => [...n]))].filter(n => lists.filter(([, l]) => l.has(n)).length > 1).sort((x, y) => x - y);
     if (twice.length) flags.push({ level: "check", title: "Paragraphs listed in more than one list", fix: lists.find(([, l]) => twice.some(n => l.has(n)))[0],
       why: `${twice.length > 1 ? `Paragraphs ${twice.slice(0, -1).join(", ")} and ${twice[twice.length - 1]} are` : `Paragraph ${twice[0]} is`} in more than one of your lists. The form warns that you won't be able to challenge the paragraphs you admit later. Check which list each one belongs in.` });
+
+    // A list that says "all" (with no "except" or "the rest") next to another list that names a paragraph: the two can't
+    // both be right. What the list says is quoted only when it's nothing but such words, so nothing private is repeated.
+    const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not)\b/i;
+    const allList = lists.find(([k, n]) => { const v = String(a[k] ?? "").trim(); return !n.size && ALL_SAYS.test(v) && !BUT_SAYS.test(v) && onlyListWords(v); });
+    const inRange = n => [...n].filter(x => x >= 1 && x <= PARAGRAPH_MAX).sort((x, y) => x - y);
+    const named = allList && lists.find(([k, n]) => k !== allList[0] && inRange(n).length);
+    if (named) {
+      const which = k => vis.find(s => s.id === k).label.replace(/^Paragraphs/, "paragraphs"), nums = inRange(named[1]);
+      flags.push({ level: "check", title: "Your lists say different things", fix: allList[0], link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
+        why: `Your list of ${which(allList[0])} says "${String(a[allList[0]]).trim()}", but your list of ${which(named[0])} names ${nums.length > 1 ? `paragraphs ${rangesText(nums)}` : `paragraph ${nums[0]}`}. A paragraph can only be in one list. If you mean all the others, you could write "all except ${rangesText(nums)}".` });
+    }
 
     // A number skipped between the ones listed. "The rest" covers it, and a number this big isn't a paragraph.
     const listed = new Set(lists.flatMap(([, n]) => [...n]).filter(n => n >= 1 && n <= PARAGRAPH_MAX));

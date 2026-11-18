@@ -145,6 +145,8 @@ export const CASES = [
   { kind: "Correct answers", name: "fax: none", form: "appearance", answers: { fax: "None" }, expect: [] },
   { kind: "Correct answers", name: "paragraph lists with \"and\"", form: "respond", answers: { admitted: "1 and 2", denied: "3" }, expect: [] },
   { kind: "Correct answers", name: "paragraph range", form: "respond", answers: { admitted: "1-2", denied: "3" }, expect: [] },
+  { kind: "Correct answers", name: "\"all except 3\" admitted, 3 denied", form: "respond", answers: { admitted: "all except 3", denied: "3" }, expect: [] },
+  { kind: "Correct answers", name: "\"the rest\" admitted, 2 and 3 denied", form: "respond", answers: { admitted: "the rest", denied: "2, 3" }, expect: [] },
   { kind: "Correct answers", name: "court date tomorrow", form: "respond", answers: { courtDate: D(1), signDate: D(0), svc1Date: D(0) }, expect: [] },
 ];
 

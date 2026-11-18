@@ -104,7 +104,7 @@ cd tests && npm run features
 cd tests && node --test features/07-email-check.test.mjs
 ```
 
-`tests/quality/` measures the checks on a fixed test set (item 18 on the MVP list): 107 filled-in forms, 72 with one planted mistake each and 35 with correct answers that look a little like mistakes. On the last run the checks caught 69 of the 72 mistakes and flagged 1 of the 35 correct cases. [quality/REPORT.md](tests/quality/REPORT.md) has the numbers by kind of check, what was missed and why the numbers may be better than real use. `quality.test.mjs` (part of `npm test`) fails if a change catches less or flags more; when a change does better, run `npm run quality` to make the report again.
+`tests/quality/` measures the checks on a fixed test set (item 18 on the MVP list): 109 filled-in forms, 72 with one planted mistake each and 37 with correct answers that look a little like mistakes. On the last run the checks caught 70 of the 72 mistakes and flagged 1 of the 37 correct cases. [quality/REPORT.md](tests/quality/REPORT.md) has the numbers by kind of check, what was missed and why the numbers may be better than real use. `quality.test.mjs` (part of `npm test`) fails if a change catches less or flags more; when a change does better, run `npm run quality` to make the report again.
 
 To test a hosted copy instead of the local file, give its address, for example `BASE_URL=https://indiana-court-form-helper.vercel.app/ npm test`. That also checks the site serves every file and asks search engines not to list it.
 
