@@ -353,3 +353,35 @@ describe("BT7: screen readers hear a definition, and learn of the ready list", (
     assert.ok(!(await described()).some(t => /missing/.test(t)), "every description it names is there");
   });
 });
+
+describe("BT8: the ready list and the word list open only when tapped or clicked", () => {
+  test("on a computer, resting the pointer on the ready list doesn't open it, so the answer box stays put", async () => {
+    const q = await fresh({ viewport: { width: 1280, height: 800 } });
+    await pick(q, "feewaiver");
+    const top = () => q.$eval("#ans, .choices", e => e.getBoundingClientRect().top);
+    const before = await top();
+    await q.hover("details.ready > summary"); await q.waitForTimeout(600);
+    assert.equal(await q.$eval("details.ready", d => d.open), false);
+    assert.equal(await top(), before);
+    await q.click("details.ready > summary");
+    assert.equal(await q.$eval("details.ready", d => d.open), true, "a click still opens it");
+    await q.context().close();
+  });
+  test("the word list doesn't open on hover either, and stays open while the pointer moves away", async () => {
+    const q = await fresh({ viewport: { width: 1280, height: 800 } });
+    await q.click("#helpBtn");
+    await q.hover("#helpWords summary"); await q.waitForTimeout(600);
+    assert.equal(await q.$eval("#helpWords details", d => d.open), false);
+    await q.click("#helpWords summary");
+    await q.mouse.move(5, 700); await q.waitForTimeout(300);
+    assert.equal(await q.$eval("#helpWords details", d => d.open), true);
+    await q.context().close();
+  });
+  test("edge: a small More still opens on hover, as before", async () => {
+    const q = await fresh({ viewport: { width: 1280, height: 800 } });
+    await pick(q, "continuance");
+    await q.hover('details[data-more^="q:"] > summary'); await q.waitForTimeout(600);
+    assert.equal(await q.$eval('details[data-more^="q:"]', d => d.open), true);
+    await q.context().close();
+  });
+});

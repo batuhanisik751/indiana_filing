@@ -83,7 +83,8 @@ const hoverMore = window.matchMedia ? matchMedia("(hover: hover) and (pointer: f
 let hoverTimer = null;
 document.addEventListener("pointerover", e => {
   if (!hoverMore || !hoverMore.matches || e.pointerType !== "mouse") return;
-  const d = e.target.closest && e.target.closest("details.more:not(.section)");
+  // Not a whole section, or a long list (.nohover: the ready list, the word list), which would push the page down.
+  const d = e.target.closest && e.target.closest("details.more:not(.section):not(.nohover)");
   if (!d || d.open || d.contains(e.relatedTarget)) return;
   clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => { if (d.isConnected && !d.open && d.matches(":hover")) { d.dataset.hovered = "1"; d.open = true; } }, 350);

@@ -41,7 +41,7 @@ function renderWords() {
   const forForm = !!sitKey && (mode === "step" || mode === "summary");
   const list = forForm ? GLOSSARY.filter(g => g.fits(sitKey, answers)) : GLOSSARY;
   const box = document.getElementById("helpWords"), was = box.querySelector("details");
-  box.innerHTML = `<details class="more words"${was && was.open ? " open" : ""}><summary>Words on the forms</summary><div class="morebody">
+  box.innerHTML = `<details class="more words nohover"${was && was.open ? " open" : ""}><summary>Words on the forms</summary><div class="morebody">
   <p class="need">What the official instructions say these words mean, word for word.${forForm ? " These are the ones that fit your form." : " Some are written for the person being sued, like the instructions they come from."}</p>
   <dl class="words">${list.map(g => { const d = termDef(g, forForm ? sitKey : null); return `<dt>${esc(g.term)}</dt><dd>\u201c${esc(d.says)}\u201d ${termSource(d)}</dd>`; }).join("")}</dl></div></details>`;
   markNewTabLinks(box);
