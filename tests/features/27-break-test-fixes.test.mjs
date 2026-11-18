@@ -2,7 +2,7 @@
 // one section per ticket, in the order they were fixed.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, reset, pick, walk, inject, jump } from "../lib.mjs";
+import { fresh, close, reset, pick, walk, inject, jump, site } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -456,5 +456,31 @@ describe("BT15: an expired saved copy doesn't bring back its text size and contr
     assert.equal(await p.getAttribute("#contrastBtn", "aria-pressed"), "true");
     assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim()), "1.3");
     await p.evaluate(() => localStorage.clear());
+  });
+});
+
+describe("BT16: saving turned on in another tab keeps this tab's text size and contrast", () => {
+  const stored = q => q.evaluate(() => JSON.parse(localStorage.getItem("icfh-display-v1") || "null"));
+  test("tab B picks 130% and high contrast with saving off; tab A turns saving on; B's look is kept", async () => {
+    const ctx = await site();
+    const a = await ctx.open(), b = await ctx.open();
+    await b.click("#readBtn"); await b.click("#textBigger"); await b.click("#textBigger"); await b.click("#contrastBtn");
+    assert.equal(await stored(b), null, "nothing kept with saving off");
+    await a.click("#saveToggle");
+    await b.waitForFunction(() => localStorage.getItem("icfh-display-v1") !== null);
+    assert.deepEqual(await stored(b), { size: 2, contrast: true });
+    await b.reload(); await b.waitForSelector("#app h1");
+    assert.equal(await b.getAttribute("#contrastBtn", "aria-pressed"), "true");
+    await ctx.close();
+  });
+  test("edge: a tab at the usual look doesn't delete the look another tab kept", async () => {
+    const ctx = await site();
+    const a = await ctx.open(), b = await ctx.open();
+    await a.click("#readBtn"); await a.click("#contrastBtn");
+    await a.click("#saveToggle");
+    await b.waitForFunction(() => localStorage.getItem("icfh-save-pref") === "on");
+    await b.waitForTimeout(200);
+    assert.deepEqual(await stored(a), { size: 0, contrast: true });
+    await ctx.close();
   });
 });

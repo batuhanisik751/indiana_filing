@@ -331,6 +331,7 @@ window.addEventListener("storage", e => {
     const hadCard = !!document.getElementById("resume"), live = sitKey && hasAnswers();
     if (now) {
       saveProgress(); // turned on: save this page's answers
+      if (look.size || look.contrast) keepDisplay(); // and this page's text size and contrast, if it changed them
       // Only if the copy really is this tab's. Another tab's copy of the same form can be there first.
       if (live && saveOk && store.get(STORE_KEY) === lastWritten) { savedHere = true; announce("Saving was turned on in another tab. Your answers are saved on this device."); }
     } else if (hadCard) announce("Saving was turned off in another tab, and the saved answers were deleted.");
