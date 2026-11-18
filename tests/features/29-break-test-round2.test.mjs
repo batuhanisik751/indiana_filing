@@ -183,3 +183,46 @@ describe("BT28: no flag repeats private information typed into a box", () => {
       }
   });
 });
+
+describe("BT29: \"How this tool checks your answers\" says only what the checks do", () => {
+  const FORMS = ["respond", "appearance", "continuance", "feewaiver"];
+  const line = title => p.$eval(`ul.howchecks li:has(strong:text-is("${title}."))`, li => li.textContent);
+  const titles = () => p.evaluate(() => runChecks().map(f => f.title));
+  test("Dates names only the dates the form asks for", async () => {
+    for (const form of FORMS) {
+      await inject(p, form);
+      const has = await p.evaluate(f => { const ids = SITUATIONS[f].steps().map(s => s.id); return { conversation: ids.includes("spokeDate"), "hearing date": ids.includes("hearingDate"), "court date": ids.includes("courtDate"), service: ids.some(id => /^svc\dDate$/.test(id)) }; }, form);
+      const says = await line("Dates");
+      for (const [words, asked] of Object.entries(has)) assert.equal(says.includes(words), asked, `${form}: ${words}`);
+    }
+  });
+  test("a conversation date in the future is in the continuance's Dates, and it is flagged", async () => {
+    const d = new Date(); d.setDate(d.getDate() + 10);
+    await inject(p, "continuance", { spokeDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` });
+    assert.match(await line("Dates"), /a conversation date in the future/);
+    assert.ok((await titles()).includes("Date you spoke to the other party"));
+  });
+  test("where court papers go: each example the line gives is flagged", async () => {
+    await inject(p, "respond");
+    assert.match(await line("Where court papers go"), /email chosen with no email address, the street address chosen with an address like "None," or the Attorney General confidential address/);
+    for (const over of [{ receiveAt: "Choice2", email: "" }, { receiveAt: "Choice1", address: "None", acp: "no" }, { receiveAt: "Choice3", acp: "no" }]) {
+      await inject(p, "respond", over);
+      assert.ok((await titles()).includes("Where you want court papers"), JSON.stringify(over));
+    }
+  });
+  test("the fee waiver, which doesn't ask where papers go, has its own line, and its example is flagged", async () => {
+    await inject(p, "feewaiver");
+    assert.equal(await p.$("ul.howchecks li:has(strong:text-is('Where court papers go.'))"), null);
+    assert.doesNotMatch(await line("Confidential address"), /email/);
+    await inject(p, "feewaiver", { agConfidential: "yes", related: "no" });
+    assert.ok((await titles()).includes("Attorney General confidential address"));
+  });
+  test("the Notice of Claim check is in the case number line, and it is flagged as the line says", async () => {
+    for (const form of ["respond", "appearance", "continuance"]) { await inject(p, form); assert.match(await line("Case number"), /If you said your main paper is a Notice of Claim, also that the case type is small claims \(SC\) or eviction \(EV\)/, form); }
+    await inject(p, "appearance", { caseNumber: "02D01-2611-CC-001234" });
+    const noc = () => p.evaluate(() => { globalThis.eval("fromTriage = true; triage = { paper: 'notice' };"); return runChecks().some(f => /Notice of Claim/.test(f.why)); });
+    assert.equal(await noc(), true);
+    await inject(p, "appearance", { caseNumber: "02D01-2611-SC-001234" });
+    assert.equal(await noc(), false);
+  });
+});

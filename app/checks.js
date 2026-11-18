@@ -118,7 +118,7 @@ const CHECKS_HOW = [
   { title: "Private information", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: "Complete Social Security, account and card numbers, PINs and passwords in anything that would print.", src: () => [RULES.acr5] },
   { title: "Case number", forms: CASE_FORMS_HOW,
-    says: "That it has the shape of an Indiana case number, that its county number and court letter match your county and court, and that its case type is a civil one Administrative Rule 8 lists.", src: () => [RULE8] },
+    says: "That it has the shape of an Indiana case number, that its county number and court letter match your county and court, and that its case type is a civil one Administrative Rule 8 lists. If you said your main paper is a Notice of Claim, also that the case type is small claims (SC) or eviction (EV): the Small Claims Manual says a Notice of Claim starts a small claims case.", src: () => [RULE8] },
   { title: "Case type", forms: ["feewaiver"], says: "That the two-letter case type is one Administrative Rule 8 lists.", src: () => [RULE8] },
   { title: "Kind of case", forms: ["respond"],
     says: "Whether your case type is small claims, eviction or a family case, where Indiana Legal Help says Answers are not usually filed.", src: () => [CHECK_SRC.answerTopic] },
@@ -137,15 +137,22 @@ const CHECKS_HOW = [
   { title: "Addresses", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: `Whether an address may be missing its house or box number, unit number, city, state or ZIP code, and whether the ZIP code fits the state. It can't know every address. ${OWN_CHECK}` },
   { title: "Dates", forms: ["respond", "appearance", "continuance", "feewaiver"],
-    says: key => `A year that looks mistyped (a signing${key === "feewaiver" ? "" : ", service or conversation"} date more than 180 days off${key === "feewaiver" ? "" : ", or a court or hearing date more than a year off"})${key === "feewaiver" ? "" : ", a court date that has passed, and a date after the court date it comes before"}. ${OWN_CHECK}` },
+    // Only the dates each form asks for: the continuance's court date is its hearing date, and only it has a conversation date.
+    says: key => {
+      if (key === "feewaiver") return `A date that doesn't look right, and a signing date more than 180 days off, which may be a mistyped year. ${OWN_CHECK}`;
+      const court = key === "continuance" ? "hearing date" : "court date", others = key === "continuance" ? "signing, service or conversation date" : "signing or service date";
+      return `A date that doesn't look right; a year that looks mistyped (a ${others} more than 180 days off, or a ${court} more than a year off); a ${court} that has passed${key === "continuance" ? "; a conversation date in the future" : ""}; and a ${others} after the ${court}. ${OWN_CHECK}`;
+    } },
   { title: "Words that would print", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: `Words like "I don't know" or "none" typed into a box, "/s/" typed before your name, and an answer longer than a question takes. ${OWN_CHECK}` },
-  { title: "Where court papers go", forms: ["respond", "appearance", "continuance", "feewaiver"],
-    says: "Choices that don't match what's entered, like email chosen with no email address, or the Attorney General confidential address without a related case, and contact details cleared to keep a protected address off this device.", src: key => [CHECK_SRC.appearance(key)] },
+  // The fee waiver doesn't ask where court papers go: it has the Attorney General confidential address box.
+  { title: key => (key === "feewaiver" ? "Confidential address" : "Where court papers go"), forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: key => (key === "feewaiver" ? "The Attorney General confidential address checked with no related case listed, and contact details cleared to keep a protected address off this device."
+      : "Choices that don't match what's entered: email chosen with no email address, the street address chosen with an address like \"None,\" or the Attorney General confidential address without having used it in another case. Also contact details cleared to keep a protected address off this device."), src: key => [CHECK_SRC.appearance(key)] },
   { title: "The filled form", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: "Answers too long for their box (printed smaller, cut off, or continued on a page added at the end) and characters the form's font can't print. This tool checks the PDF it made." },
 ];
-const checksHowFor = key => CHECKS_HOW.filter(c => c.forms.includes(key)).map(c => ({ title: c.title, says: typeof c.says === "function" ? c.says(key) : c.says, src: c.src ? c.src(key) : [] }));
+const checksHowFor = key => CHECKS_HOW.filter(c => c.forms.includes(key)).map(c => ({ title: typeof c.title === "function" ? c.title(key) : c.title, says: typeof c.says === "function" ? c.says(key) : c.says, src: c.src ? c.src(key) : [] }));
 function printingAnyway(s, a) {
   const typed = (PROTECTS[s.id] || []).filter(k => !empty(a[k]));
   return typed.length ? `Your ${contactWords(typed)} will print on the form. If you need ${typed.length > 1 ? "them" : "it"} kept confidential, clear ${typed.length > 1 ? "them" : "it"}. ` : "";
