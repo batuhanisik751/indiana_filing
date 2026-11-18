@@ -2,7 +2,7 @@
 // on the Issue Map. Each section reproduces its problem first.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED } from "../lib.mjs";
+import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP } from "../lib.mjs";
 
 after(close);
 
@@ -91,6 +91,30 @@ describe("VF11: pressing Enter twice doesn't skip the next question", () => {
     await walk(p, "phone");
     await p.waitForTimeout(700); await p.focus("#ans"); await p.keyboard.press("Enter");
     assert.notEqual(await step(p), "phone", "a deliberate Enter later skips, as before");
+    await p.context().close();
+  });
+});
+
+describe("VF1: with JavaScript off, no button shows that can't work", () => {
+  async function noScript() { const ctx = await (await launch()).newContext({ javaScriptEnabled: false }); const p = await ctx.newPage(); await p.goto(APP); return { ctx, p }; }
+  test("Get help, saving, Clear my data and the logo button are hidden, and the name still shows", async () => {
+    const { ctx, p } = await noScript();
+    for (const id of ["helpBtn", "saveToggle", "clearData", "saveMine", "homeBtn"]) assert.equal(await p.locator(`#${id}`).isVisible(), false, id);
+    assert.equal(await p.locator("header span.brand").textContent(), "Indiana Court Form Helper"); // the plain name, in place of the button
+    assert.equal(await p.locator("header span.brand").isVisible(), true);
+    await ctx.close();
+  });
+  test("edge: the page says to open More free help, and it opens", async () => {
+    const { ctx, p } = await noScript();
+    assert.match(await p.textContent("main"), /open "More free help\."/);
+    await p.click("#footHelp > summary");
+    assert.equal(await p.locator("#footHelp a").first().isVisible(), true);
+    await ctx.close();
+  });
+  test("edge: with JavaScript on, they all show as before, and the plain name isn't doubled", async () => {
+    const p = await fresh();
+    for (const id of ["helpBtn", "saveToggle", "clearData", "homeBtn"]) assert.equal(await p.locator(`#${id}`).isVisible(), true, id);
+    assert.equal(await p.getByText("Indiana Court Form Helper", { exact: true }).count(), 1);
     await p.context().close();
   });
 });

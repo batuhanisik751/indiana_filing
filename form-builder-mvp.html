@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Indiana Court Form Helper (MVP)</title>
 <link rel="stylesheet" href="app/styles.css">
+<!-- With JavaScript off, buttons that need it would do nothing, so they don't show. The footer's help still works. -->
+<noscript><style>#helpBtn, #saveToggle, #clearData, #saveMine, #homeBtn { display: none !important; }</style></noscript>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="toprow">
-      <button class="brand" id="homeBtn" type="button" aria-label="Indiana Court Form Helper: go to the first screen"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 9.5 12 4l9 5.5"/><path d="M4 21h16M5 18h14M6.5 10.5v7M10 10.5v7M14 10.5v7M17.5 10.5v7"/></svg></span>Indiana Court Form Helper</button>
+      <button class="brand" id="homeBtn" type="button" aria-label="Indiana Court Form Helper: go to the first screen"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 9.5 12 4l9 5.5"/><path d="M4 21h16M5 18h14M6.5 10.5v7M10 10.5v7M14 10.5v7M17.5 10.5v7"/></svg></span>Indiana Court Form Helper</button><noscript><span class="brand">Indiana Court Form Helper</span></noscript>
       <button class="helpbtn" id="helpBtn" type="button" aria-expanded="false" aria-controls="helpPanel">Get help</button>
     </div>
     <div class="saverow">
