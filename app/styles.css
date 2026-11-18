@@ -68,13 +68,14 @@ footer ul { list-style: none; padding: 0; margin: 0 0 .75rem; }
 footer li { margin: 0 0 .25rem; padding: .35rem 0; }
 footer li a { position: relative; }
 .privacy { font-size: .85rem; color: var(--muted); }
-.headbtns { display: flex; flex-wrap: wrap; gap: 0 1.25rem; margin-left: auto; }
-/* Text size and contrast sit on Get help's row, so the header is no taller on a phone. */
-.toprow { column-gap: .75rem; row-gap: .25rem; }
-.readtools { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; margin-left: auto; color: var(--hdr-muted); font-size: .9rem; }
-.readtools button { min-width: 2.25rem; min-height: 2.75rem; padding: 0 .25rem; text-align: center; }
-@media (max-width: 600px) { .readtools .readlabel { display: none; } }
-@media (max-width: 360px) { .readtools .hc-high { display: none; } #contrastBtn { text-transform: capitalize; } }
+.headbtns { display: flex; flex-wrap: wrap; gap: 0 1rem; margin-left: auto; }
+/* Text size and contrast: one small "Aa" beside the saving links, where a phone's header already has room, opens a
+   row of controls at the end of the header (the header grows only while it's open). */
+#readBtn { min-width: 2rem; text-align: center; }
+.readtools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0 .9rem; color: var(--hdr-muted); font-size: .9rem; padding-top: .15rem; }
+.readtools[hidden] { display: none; }
+@media (max-width: 360px) { .readtools .readlabel { display: none; } } /* so the controls fit one row */
+.readtools button { min-width: 2.75rem; min-height: 2.75rem; padding: 0 .25rem; text-align: center; }
 .readtools button:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 .readtools #contrastBtn[aria-pressed="true"] { text-decoration-style: double; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

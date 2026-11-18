@@ -97,6 +97,13 @@ if (savingOn()) {
   } catch { /* unreadable: the usual look */ }
 } else if (!storageFull) store.del(DISPLAY_KEY);
 applyDisplay();
+// "Aa" opens and closes the row of controls; Escape closes it from inside, back on "Aa".
+const readBtn = document.getElementById("readBtn"), readTools = document.getElementById("readTools");
+function setReadTools(open, refocus) { readTools.hidden = !open; readBtn.setAttribute("aria-expanded", String(open)); if (refocus) readBtn.focus(); }
+readBtn.onclick = () => setReadTools(readTools.hidden);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !readTools.hidden && (readTools.contains(document.activeElement) || document.activeElement === readBtn)) setReadTools(false, true);
+});
 const sizeBtn = (id, step, other) => document.getElementById(id).onclick = () => {
   look.size = Math.max(0, Math.min(TEXT_SIZES.length - 1, look.size + step));
   applyDisplay(); keepDisplay();

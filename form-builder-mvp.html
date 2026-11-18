@@ -6,24 +6,24 @@
 <title>Indiana Court Form Helper (MVP)</title>
 <link rel="stylesheet" href="app/styles.css">
 <!-- With JavaScript off, buttons that need it would do nothing, so they don't show. The footer's help still works. -->
-<noscript><style>#helpBtn, #saveToggle, #clearData, #saveMine, #homeBtn, #readTools { display: none !important; }</style></noscript>
+<noscript><style>#helpBtn, #saveToggle, #clearData, #saveMine, #homeBtn, #readBtn, #readTools { display: none !important; }</style></noscript>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="toprow">
       <button class="brand" id="homeBtn" type="button" aria-label="Indiana Court Form Helper: go to the first screen"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 9.5 12 4l9 5.5"/><path d="M4 21h16M5 18h14M6.5 10.5v7M10 10.5v7M14 10.5v7M17.5 10.5v7"/></svg></span>Indiana Court Form Helper</button><noscript><span class="brand">Indiana Court Form Helper</span></noscript>
-      <div class="readtools" id="readTools" role="group" aria-label="Text size and contrast">
-        <span class="readlabel" aria-hidden="true">Text</span>
-        <button class="link cleardata" id="textSmaller" type="button">A&minus;<span class="sr-only"> smaller text</span></button>
-        <button class="link cleardata" id="textBigger" type="button">A+<span class="sr-only"> bigger text</span></button>
-        <button class="link cleardata" id="contrastBtn" type="button" aria-pressed="false"><span class="hc-high">High </span>contrast</button>
-      </div>
       <button class="helpbtn" id="helpBtn" type="button" aria-expanded="false" aria-controls="helpPanel">Get help</button>
     </div>
     <div class="saverow">
       <span class="privacy" id="privacy">Nothing you type is sent anywhere.</span>
-      <span class="headbtns"><button class="link cleardata" id="saveMine" type="button" hidden>Save this tab's answers</button><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
+      <span class="headbtns"><button class="link cleardata" id="readBtn" type="button" aria-expanded="false" aria-controls="readTools">Aa<span class="sr-only"> text size and contrast</span></button><button class="link cleardata" id="saveMine" type="button" hidden>Save this tab's answers</button><button class="link cleardata" id="saveToggle" type="button"></button><button class="link cleardata" id="clearData" type="button">Clear my data</button></span>
+    </div>
+    <div class="readtools" id="readTools" role="group" aria-label="Text size and contrast" hidden>
+      <span class="readlabel" aria-hidden="true">Text size</span>
+      <button class="link cleardata" id="textSmaller" type="button">A&minus;<span class="sr-only"> smaller text</span></button>
+      <button class="link cleardata" id="textBigger" type="button">A+<span class="sr-only"> bigger text</span></button>
+      <button class="link cleardata" id="contrastBtn" type="button" aria-pressed="false">High contrast</button>
     </div>
   </header>
   <section class="helppanel" id="helpPanel" hidden aria-labelledby="helpTitle">

@@ -218,3 +218,37 @@ describe("BT11: focus stays on \"Add it to my calendar\" when the summary redraw
     await q.context().close();
   });
 });
+
+describe("BT13: text size and contrast add no height to the header on phones", () => {
+  test("\"Aa\" beside the saving links adds nothing, at every common phone width and on a computer", async () => {
+    const taller = [];
+    for (const w of [320, 360, 375, 390, 393, 412, 414, 430, 480, 600, 1280]) {
+      const q = await fresh({ viewport: { width: w, height: 800 } });
+      const hh = () => q.evaluate(() => document.querySelector("header").getBoundingClientRect().height);
+      const withAa = await hh();
+      await q.evaluate(() => { document.getElementById("readBtn").style.display = "none"; });
+      if (withAa - await hh() > 0.5) taller.push(`${w}px: ${withAa} vs ${await hh()}`);
+      await q.context().close();
+    }
+    assert.deepEqual(taller, []);
+  });
+  test("\"Aa\" opens and closes the row, and says so; Escape closes it and goes back to \"Aa\"", async () => {
+    await reset(p);
+    assert.equal(await p.getAttribute("#readBtn", "aria-expanded"), "false");
+    await p.click("#readBtn");
+    assert.equal(await p.getAttribute("#readBtn", "aria-expanded"), "true");
+    assert.equal(await p.isVisible("#textBigger"), true);
+    await p.focus("#textBigger"); await p.keyboard.press("Escape");
+    assert.equal(await p.isHidden("#readTools"), true);
+    assert.equal(await p.evaluate(() => document.activeElement.id), "readBtn");
+    await p.click("#readBtn"); await p.click("#readBtn");
+    assert.equal(await p.isHidden("#readTools"), true);
+  });
+  test("edge: the open row stays open across screens, so several steps can be taken", async () => {
+    await reset(p); await p.click("#readBtn");
+    await pick(p, "appearance");
+    assert.equal(await p.isVisible("#readTools"), true);
+    await p.click("#textBigger"); await p.click("#textBigger");
+    assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim()), "1.3");
+  });
+});
