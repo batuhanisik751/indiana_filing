@@ -2,7 +2,7 @@
 // on the Issue Map. Each section reproduces its problem first.
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP } from "../lib.mjs";
+import { fresh, site, close, pick, walk, step, editAnswer, flagsFor, SAVED, launch, APP, inject, scoreMatchesFlags } from "../lib.mjs";
 
 after(close);
 
@@ -115,6 +115,45 @@ describe("VF1: with JavaScript off, no button shows that can't work", () => {
     const p = await fresh();
     for (const id of ["helpBtn", "saveToggle", "clearData", "homeBtn"]) assert.equal(await p.locator(`#${id}`).isVisible(), true, id);
     assert.equal(await p.getByText("Indiana Court Form Helper", { exact: true }).count(), 1);
+    await p.context().close();
+  });
+});
+
+describe("VF2: fee waiver flags agree with each other when a checked kind has no amount", () => {
+  const incomeFlags = p => p.evaluate(() => runChecks().filter(f => f.title === "Income" || /^(hourlyRate|unemployment|tanf|ssi|childSupportIn|otherIncome)$/.test(f.fix)).map(f => `${f.level}|${f.fix}|${f.why}`));
+  test("wages checked with no wage: one flag, asking for the hourly wage, and no Income flag suggesting None of these", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "wages", hourlyRate: "", monthlyHours: "", expenseKinds: "none" });
+    const f = await incomeFlags(p);
+    assert.equal(f.length, 1, f.join("\n"));
+    assert.match(f[0], /^missing\|hourlyRate\|You said your household gets wages, but no hourly wage is entered, so wages aren't counted in Total Income on this sworn form\. Enter the hourly wage, or uncheck Wages from work in the list of kinds of income\.$/);
+    assert.equal(await scoreMatchesFlags(p), true);
+    await p.context().close();
+  });
+  test("edge: two kinds checked and both blank: one flag each, nothing contradicting them, and the score agrees", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "wages,unemployment", hourlyRate: "", monthlyHours: "", unemployment: "", expenseKinds: "none" });
+    const f = await incomeFlags(p);
+    assert.deepEqual(f.map(x => x.split("|")[1]), ["hourlyRate", "unemployment"]);
+    assert.ok(!f.some(x => /stay blank|None of these/.test(x)), f.join("\n"));
+    assert.match(f[1], /isn't counted in Total Income on this sworn form\. Enter the monthly amount, or uncheck it in the list of kinds of income\./);
+    assert.equal(await scoreMatchesFlags(p), true);
+    await p.context().close();
+  });
+  test("edge: with the list skipped and nothing entered, the Income flag is as before", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "", hourlyRate: "", monthlyHours: "", expenseKinds: "none" });
+    const f = await incomeFlags(p);
+    assert.equal(f.length, 1);
+    assert.match(f[0], /^missing\|incomeKinds\|No income is entered .* choose "None of these"/);
+    assert.equal(await scoreMatchesFlags(p), true);
+    await p.context().close();
+  });
+  test("edge: an expense checked with no amount says it isn't counted in Total Expenses", async () => {
+    const p = await fresh();
+    await inject(p, "feewaiver", { incomeKinds: "none", expenseKinds: "housing", housing: "" });
+    const f = await p.evaluate(() => runChecks().filter(f => f.title === "Expenses" || f.fix === "housing").map(f => `${f.level}|${f.fix}|${f.why}`));
+    assert.deepEqual(f, ["missing|housing|You said your household pays this, but no amount is entered, so it isn't counted in Total Expenses on this sworn form. Enter the monthly amount, or uncheck it in the list of expenses."]);
     await p.context().close();
   });
 });

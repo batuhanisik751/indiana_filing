@@ -1,6 +1,11 @@
 // The score on the summary, and every flag it shows.
 // How many of the answers this form needs are in. What isn't is flagged on the summary: as "Missing",
 // or for the ones below, which can be left blank, as something to check.
+// Real kinds checked in a fee waiver "Which of these" list. "None of these" isn't one.
+const kindsChosen = (a, gate) => {
+  const keys = (steps.find(s => s.id === gate)?.options || []).map(o => o[0]).filter(k => k !== "none");
+  return String(a[gate] ?? "").split(",").some(k => keys.includes(k));
+};
 function completeness() {
   const a = visibleAnswers(), vis = visible();
   const badNum = s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id]);
@@ -11,9 +16,13 @@ function completeness() {
     total++;
     if (vis.some(s => PARAGRAPH_IDS.test(s.id) && listsParagraphs(s, a))) filled++;
   }
-  if (sitKey === "feewaiver") { // items 6 and 8 of the sworn motion print blank without these. Income and expenses count once each
-    total += 2;
-    filled += [[EARNED_IDS, a.incomeKinds], [EXPENSE_IDS, a.expenseKinds]].filter(([ids, kinds]) => kinds === "none" || anyAmount(a, ids)).length;
+  if (sitKey === "feewaiver") { // items 6 and 8 of the sworn motion print blank without these. Income and expenses count once each,
+    // unless kinds are checked in their list: then each checked kind's amount counts on its own (see need above).
+    for (const [ids, gate] of [[EARNED_IDS, "incomeKinds"], [EXPENSE_IDS, "expenseKinds"]]) {
+      if (kindsChosen(a, gate)) continue;
+      total++;
+      if (a[gate] === "none" || anyAmount(a, ids)) filled++;
+    }
   }
   return { total, filled };
 }
@@ -321,9 +330,10 @@ function runChecks() {
       flags.push({ level: "check", title: "Hours worked per month", fix: "monthlyHours", why: "A month has at most 744 hours, and this number goes into the wages on this sworn form. Check it." });
     if (toNum(a.hourlyRate) >= 100)
       flags.push({ level: "check", title: "Wages per hour", fix: "hourlyRate", why: `$${money(toNum(a.hourlyRate))} an hour is unusually high, and it goes on this sworn form. Check this number, including the decimal point.` });
-    if (!anyAmount(a, EARNED_IDS) && a.incomeKinds !== "none")
+    // With kinds checked in the list, each checked kind with no amount has its own flag instead.
+    if (!anyAmount(a, EARNED_IDS) && a.incomeKinds !== "none" && !kindsChosen(a, "incomeKinds"))
       flags.push({ level: "missing", title: "Income", why: "No income is entered for you or the people you support, so item 6 and Total Income stay blank on this sworn form. If there is none, choose \"None of these\" in the list of kinds of income, so the form shows $0.00.", fix: "incomeKinds" });
-    if (!anyAmount(a, EXPENSE_IDS) && a.expenseKinds !== "none")
+    if (!anyAmount(a, EXPENSE_IDS) && a.expenseKinds !== "none" && !kindsChosen(a, "expenseKinds"))
       flags.push({ level: "missing", title: "Expenses", why: "No expenses are entered, so item 8 and Total Expenses stay blank on this sworn form. If there are none, choose \"None of these\" in the list of expenses, so the form shows $0.00.", fix: "expenseKinds" });
     [["adults", "People over 18 who live with you", "Item 3 of the Verified Motion for Fee Waiver asks who you live with who is over 18."],
      ["children", "People under 18 who live with you", "Item 4 of the Verified Motion for Fee Waiver asks who you live with who is under 18."],
@@ -365,8 +375,9 @@ function runChecks() {
   vis.forEach(s => {
     if (handled.has(s.id) || (s.optional && !chosenKind(s, a))) return;
     if (empty(a[s.id])) flags.push({ level: "missing", title: s.label, fix: s.id, blank: true, ...(s.optional
-      ? { why: s.kind[0] === "incomeKinds" ? "You said your household gets this, but no amount is entered, so it's left out of Total Income on this sworn form. Enter the monthly amount, or uncheck it in the list of kinds of income."
-        : "You said your household pays this, but no amount is entered, so it's left out of Total Expenses on this sworn form. Enter the monthly amount, or uncheck it in the list of expenses." }
+      ? { why: s.id === "hourlyRate" ? "You said your household gets wages, but no hourly wage is entered, so wages aren't counted in Total Income on this sworn form. Enter the hourly wage, or uncheck Wages from work in the list of kinds of income."
+        : s.kind[0] === "incomeKinds" ? "You said your household gets this, but no amount is entered, so it isn't counted in Total Income on this sworn form. Enter the monthly amount, or uncheck it in the list of kinds of income."
+        : "You said your household pays this, but no amount is entered, so it isn't counted in Total Expenses on this sworn form. Enter the monthly amount, or uncheck it in the list of expenses." }
       : blankWhy(s)) });
   });
   const unsureIds = new Set(flags.filter(f => f.unsure).map(f => f.fix));

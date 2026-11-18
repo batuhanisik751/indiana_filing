@@ -475,7 +475,7 @@ describe("Fix 7B: the fee waiver asks which kinds of income and expenses apply, 
   });
   test("edge: a checked kind with no amount is flagged Missing, and the score agrees", async () => {
     await inject(p, "feewaiver", { incomeKinds: "wages,ssi", ssi: "", expenseKinds: "housing", housing: "500" });
-    assert.match((await flagsFor(p, "ssi"))[0] || "", /^missing\|.*\|You said your household gets this, but no amount is entered, so it's left out of Total Income/);
+    assert.match((await flagsFor(p, "ssi"))[0] || "", /^missing\|.*\|You said your household gets this, but no amount is entered, so it isn't counted in Total Income/);
     assert.equal(await scoreMatchesFlags(p), true);
   });
   test("edge: None of these and the other boxes rule each other out", async () => {
