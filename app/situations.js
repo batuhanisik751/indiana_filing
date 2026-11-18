@@ -11,7 +11,7 @@ const SIGN_HELP = {
 const READY_SRC = {
   answer: page => ({ text: `Answer instructions, page ${page}`, href: `${LINKS.answerInstructions}#page=${page}` }),
   cont: page => ({ text: `Continuance instructions, page ${page}`, href: `${LINKS.continuanceInstructions}#page=${page}` }),
-  contMotion: { text: "Verified Motion for Continuance, item 2", href: `${LINKS.continuanceInstructions}#page=6` },
+  contMotion: item => ({ text: `Verified Motion for Continuance, item ${item}`, href: `${LINKS.continuanceInstructions}#page=6` }),
   fw: page => ({ text: `Fee waiver instructions, page ${page}`, href: `${LINKS.feeWaiverInstructions}#page=${page}` }),
 };
 const READY_CONTACT = "Your mailing address, and your email and phone number if you have them";
@@ -29,6 +29,7 @@ const SITUATIONS = {
     bring: "Have the Complaint you received: the Answer goes through its numbered paragraphs.",
     ready: [
       ["The Complaint you received", "The Answer instructions say you must respond to each part (paragraph number) of it, and that the court will take any part you skip as true.", READY_SRC.answer(1)],
+      ["Your defenses, if you have any", "The Answer instructions say you must list your defenses in this initial Answer, and that if you do not list them now, you may lose your right to use them later in the case.", READY_SRC.answer(3)],
       ...READY_ANSWER_CASE,
     ],
     sections: ["Your case", "About you", "How the court reaches you", "Your answer", "Sending a copy", "Signing"],
@@ -57,7 +58,9 @@ const SITUATIONS = {
     bring: "Have your household's monthly income and expenses, and how much you have in the bank.",
     ready: [
       ["The county where you'll file, and the kind of court and case if you know them", "The instructions say to leave the court type and the case type blank if you don't know them.", READY_SRC.fw(1)],
+      ["The name of the other person in your case, if there is one", "The instructions say to leave it blank if no other person is involved, like in a name change.", READY_SRC.fw(1)],
       [READY_CONTACT, "Item 2 of the Appearance asks where the court can send you papers and case information.", READY_SRC.fw(1)],
+      ["The case numbers of any related cases", "Item 4 of the Appearance asks for the caption and case number of each one. Skip this if there are none.", READY_SRC.fw(1)],
       ["The names of the people you live with, and which of them you support", "Items 3 to 5 of the Verified Motion for Fee Waiver ask for the adults, the children under 18, and the people you support.", READY_SRC.fw(3)],
       ["The monthly income, before taxes, of everyone you support", "Item 6 lists wages (hourly pay and hours worked each month), unemployment, TANF, SSI or SSD, child support and other income.", READY_SRC.fw(3)],
       ["How much money you have in the bank", "Item 7 asks for it.", READY_SRC.fw(3)],
@@ -75,8 +78,10 @@ const SITUATIONS = {
     title: "Continuance",
     bring: "Have the papers with your hearing date and case number.",
     ready: [
-      ["The papers with your hearing date and case number", "Item 2 of the Verified Motion for Continuance asks when your hearing is scheduled.", READY_SRC.contMotion],
+      ["Your court papers, with the hearing date, the case number, and the county and court", "Item 2 of the Verified Motion for Continuance asks when your hearing is scheduled, and the top of the form asks to match the other court forms in your case.", READY_SRC.contMotion(2)],
       ["Your reason for asking for a new date", "The instructions say you need a good reason and need to show it with proof, like a written statement, which the form gives you a place for. The court decides.", READY_SRC.cont(3)],
+      ["How many days or weeks you need before a new court date", "Item 4 of the Verified Motion for Continuance asks for the number of days or weeks, not a specific date.", READY_SRC.contMotion(4)],
+      ["When you talked to the other party about asking for a new date, and whether they agreed", "Item 6 of the Verified Motion for Continuance asks the date you spoke to them about it, and whether they agreed to your request.", READY_SRC.contMotion(6)],
       [READY_CONTACT, "The instructions say the Appearance tells the court how to contact you.", READY_SRC.cont(2)],
       ["The name and address of the other party, and of anyone else involved in the case", "The instructions say you must give a copy of every form you file to every other person involved in the case, and say when and how you gave it.", READY_SRC.cont(3)],
       ["The case numbers of any related cases", "The instructions give an example: in an eviction case, a separate case about damages owed. Skip this if there are none.", READY_SRC.cont(3)],

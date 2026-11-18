@@ -137,3 +137,42 @@ describe("BT2: Get help's word list has the words that fit the form being filled
     assert.equal(await p.$$eval("#helpWords a", a => a.every(x => x.target === "_blank" && /opens in a new tab/.test(x.textContent))), true);
   });
 });
+
+describe("BT3: the ready lists include what each form goes on to ask", () => {
+  const whats = async form => { await reset(p); await pick(p, form); return p.$$eval("details.ready li strong", s => s.map(x => x.textContent)); };
+  test("the Answer: your defenses, which the instructions say you may lose if you don't list them now", async () => {
+    const w = await whats("respond");
+    assert.ok(w.includes("Your defenses, if you have any."), w.join(" | "));
+    assert.match(await p.textContent("details.ready"), /if you do not list them now, you may lose your right to use them later in the case\./);
+  });
+  test("the continuance: how much time, and talking to the other party first", async () => {
+    const w = await whats("continuance");
+    assert.ok(w.includes("How many days or weeks you need before a new court date."));
+    assert.ok(w.includes("When you talked to the other party about asking for a new date, and whether they agreed."));
+    assert.deepEqual(await p.$$eval("details.ready li a", a => a.map(x => x.textContent.replace(/\s*\(opens in a new tab\)/, "")).filter(t => /item/.test(t))),
+      ["Verified Motion for Continuance, item 2", "Verified Motion for Continuance, item 4", "Verified Motion for Continuance, item 6"]);
+  });
+  test("the fee waiver: the other person's name and related cases, like the other forms", async () => {
+    const w = await whats("feewaiver");
+    assert.ok(w.includes("The name of the other person in your case, if there is one."));
+    assert.ok(w.includes("The case numbers of any related cases."));
+  });
+  test("edge: every question each form asks is covered by something on its list", async () => {
+    // Each question id, and the words in the list that cover it. Questions that come from an earlier answer (a
+    // confirmation, a choice between options, signing) need nothing ready.
+    const COVER = { caseNumber: /case number/, county: /county/, courtType: /court/, plaintiff: /plaintiff/i, name: /./, address: /mailing address/, email: /email/, phone: /phone/,
+      admitted: /Complaint/, denied: /Complaint/, notEnough: /Complaint/, defenses: /defenses/, svc1Name: /name and address/, svc1Address: /name and address/, relatedNumbers: /related cases/,
+      hearingDate: /hearing date/, reason: /reason/, timeNeeded: /days or weeks/, spokeDate: /talked to the other party/, otherAgreed: /whether they agreed/, otherParty: /other party/,
+      otherPartyAddress: /other party/, otherPerson: /other person/, adults: /people you live with/, children: /people you live with/, supported: /which of them you support/,
+      hourlyRate: /monthly income/, monthlyHours: /monthly income/, bank: /in the bank/, housing: /monthly expenses/ };
+    const missing = [];
+    for (const form of ["respond", "continuance", "feewaiver"]) {
+      await inject(p, form, { related: "yes", incomeKinds: "wages", expenseKinds: "housing" });
+      const ids = await p.evaluate(() => visible().map(s => s.id));
+      await reset(p); await pick(p, form);
+      const list = await p.textContent("details.ready");
+      for (const id of ids) if (COVER[id] && !COVER[id].test(list)) missing.push(`${form}: ${id}`);
+    }
+    assert.deepEqual(missing, []);
+  });
+});
