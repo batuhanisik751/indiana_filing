@@ -204,3 +204,30 @@ describe("TG5: two checks that had no test", () => {
   });
 });
 
+describe("TG6: Cancel keeps an I'm not sure mark, and flags are Missing or Check as they should be", () => {
+  test("Cancel on an edit of a question marked I'm not sure keeps the mark and its flag", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { phone: "" }, { phone: true });
+    await p.click('ul.flags li:has([data-fix="phone"]) [data-fix]');
+    await p.fill("#ans", "317-555-0111"); await p.click("#back"); // Cancel
+    assert.equal(await step(p), "summary");
+    assert.equal(await p.evaluate(() => [unsure.phone === true, answers.phone].join("|")), "true|");
+    assert.ok((await flagsFor(p, "phone")).some(f => /^missing\|.*\|You marked this "I'm not sure\."/.test(f)));
+    await p.context().close();
+  });
+  test("edge: a needed question marked I'm not sure is Missing; an optional one is a Check", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { phone: "", fax: "" }, { phone: true, fax: true });
+    assert.ok((await flagsFor(p, "phone")).every(f => f.startsWith("missing|")));
+    assert.ok((await flagsFor(p, "fax")).length > 0 && (await flagsFor(p, "fax")).every(f => f.startsWith("check|")));
+    await p.context().close();
+  });
+  test("edge: a needed blank answer is Missing; an optional blank one isn't flagged at all", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { name: "", fax: "" });
+    assert.ok((await flagsFor(p, "name")).some(f => f.startsWith("missing|")));
+    assert.deepEqual(await flagsFor(p, "fax"), []);
+    await p.context().close();
+  });
+});
+
