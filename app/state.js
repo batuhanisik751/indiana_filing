@@ -89,12 +89,13 @@ function applyDisplay() {
 }
 // Only a change from the usual look is kept, and only with saving on.
 function keepDisplay() {
+  if (!storageWorks) return; // blocked, or full: nothing can be kept, and what's kept stays (like the answers)
   if (savingOn() && (look.size || look.contrast)) store.set(DISPLAY_KEY, JSON.stringify(look)); else store.del(DISPLAY_KEY);
 }
 // A saved copy too old to use turns saving off (in readSaved), and with it the previous person's look: so it's
 // checked first, and an expired copy's look is never applied.
 if (savingOn()) readSaved();
-if (savingOn()) {
+if (savingOn() || storageFull) { // full storage can still be read, like the saved answers
   try {
     const d = JSON.parse(store.get(DISPLAY_KEY) || "null");
     if (d && Number.isInteger(d.size) && d.size > 0 && d.size < TEXT_SIZES.length) look.size = d.size;

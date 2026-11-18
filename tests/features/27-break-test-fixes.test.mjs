@@ -485,3 +485,25 @@ describe("BT16: saving turned on in another tab keeps this tab's text size and c
     await ctx.close();
   });
 });
+
+describe("BT17: with storage full, the kept look is used and never deleted", () => {
+  test("it's applied when the page opens, and pressing A+ leaves it on the device", async () => {
+    const q = await fresh();
+    await q.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("icfh-save-pref", "on");
+      localStorage.setItem("icfh-display-v1", JSON.stringify({ size: 1, contrast: true }));
+      localStorage.setItem("icfh-progress-v1", JSON.stringify({ v: 1, sitKey: "appearance", answers: { name: "Pat Example" }, unsure: {}, savedAt: Date.now() - 864e5 }));
+    });
+    // From now on the browser refuses to store anything, as when storage is full.
+    await q.addInitScript(() => { Storage.prototype.setItem = function () { throw new DOMException("full", "QuotaExceededError"); }; });
+    await q.reload(); await q.waitForSelector("#app h1");
+    assert.equal(await q.evaluate(() => storageFull), true);
+    assert.equal(await q.getAttribute("#contrastBtn", "aria-pressed"), "true");
+    assert.equal(await q.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim()), "1.15");
+    await q.click("#readBtn"); await q.click("#textBigger");
+    assert.deepEqual(await q.evaluate(() => JSON.parse(localStorage.getItem("icfh-display-v1"))), { size: 1, contrast: true }, "still there");
+    assert.equal(await q.evaluate(() => localStorage.getItem("icfh-save-pref")), "on");
+    await q.context().close();
+  });
+});
