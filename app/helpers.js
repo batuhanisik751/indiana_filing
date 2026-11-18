@@ -21,6 +21,8 @@ const toNum = v => (isNum(v) ? parseFloat(cleanNum(v)) : 0);
 const NO_WORDS = /^(no|none|n\/a|n\.a|na|nope|not applicable|unknown|don'?t know|do not know|not sure|idk|-+)\.?$/i;
 const SAYS_NONE = /^(none|n\/a|n\.a|na)\.?$/i; // how someone with no email or phone answers. "idk" isn't that.
 const NO_NUMBER = /^no\s+(?:phone|telephone|cell|fax)(?:\s+number)?\.?$/i;
+// The name as it goes after "/s/" on an e-filing signature line: a "/s/" typed in front of it isn't doubled.
+const signedName = n => String(n ?? "").replace(/^\s*\/s\/\s*/i, "").trim();
 const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim());
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");

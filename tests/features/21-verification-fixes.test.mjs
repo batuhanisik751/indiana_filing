@@ -269,3 +269,31 @@ describe("VF4: an emoji prints as one question mark, and the flag shows the emoj
   });
 });
 
+describe("VF5: a name typed with /s/ isn't signed twice, and is flagged", () => {
+  const ready = p => p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+  test("e-filing with \"/s/ Pat Example\" as the name signs \"/s/ Pat Example\", not \"/s/ /s/ Pat Example\"", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { name: "/s/ Pat Example", fileMethod: "efile" }); await ready(p);
+    const text = await pdfText(p);
+    assert.ok(!text.includes("/s/ /s/"), "not doubled");
+    assert.ok(text.includes("/s/ Pat Example"));
+    await p.context().close();
+  });
+  test("the name is flagged, saying it prints that way in the name boxes", async () => {
+    const p = await fresh();
+    for (const fileMethod of ["efile", "paper"]) {
+      await inject(p, "appearance", { name: "/s/ Pat Example", fileMethod });
+      assert.ok((await flagsFor(p, "name")).some(f => /^check\|Your full name\|Your name starts with "\/s\/"/.test(f)), fileMethod);
+    }
+    await p.context().close();
+  });
+  test("edge: the next steps name the signature without the doubled /s/, and an ordinary name isn't flagged", async () => {
+    const p = await fresh();
+    await inject(p, "appearance", { name: "/S/  Pat Example", fileMethod: "efile" });
+    assert.match(await p.textContent("ol.steps"), /signed with "\/s\/ Pat Example"/);
+    await inject(p, "appearance", { name: "Pat Example", fileMethod: "efile" });
+    assert.deepEqual(await flagsFor(p, "name"), []);
+    await p.context().close();
+  });
+});
+

@@ -112,8 +112,8 @@ function signatureFields(a, key) {
   const efile = a.fileMethod === "efile";
   // Characters the font can't print are already flagged on your name, so not again here.
   return [{ ...f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
-    efile ? (empty(a.name) ? "" : `/s/ ${a.name}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
-    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${a.name}` })) : []), quietChars: true }];
+    efile ? (empty(a.name) ? "" : `/s/ ${signedName(a.name)}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${signedName(a.name)}` })) : []), quietChars: true }];
 }
 
 // To the cent, half a cent up, so the total matches adding up the printed lines.

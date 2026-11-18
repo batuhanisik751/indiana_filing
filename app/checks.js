@@ -228,6 +228,10 @@ function runChecks() {
     flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id,
       why: `${missing.length ? `This address may be missing the ${list}. A full address looks like 123 Main St, Indianapolis, IN 46204.` : ""}${missing.length && note ? " " : ""}${note}` });
   });
+  // "/s/" is the e-filing signature this tool adds itself. Typed into the name, it prints in every name box.
+  if (has("name") && /^\s*\/s\//i.test(a.name || ""))
+    flags.push({ level: "check", title: vis.find(s => s.id === "name").label, fix: "name",
+      why: "Your name starts with \"/s/\", and it prints that way wherever your name goes on the form. Type your name without it: if you e-file, this tool puts \"/s/\" before your name on the signature lines." });
   // Answers like "no" or "none" in fill-in boxes would print on the form.
   vis.filter(s => s.noWords && saysNoAnswer(a[s.id])).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));

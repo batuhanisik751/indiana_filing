@@ -212,7 +212,7 @@ function nextSteps(key, a) {
     ? { title: "Your signature",
         body: empty(a.name)
           ? "Your name is blank, so there's no signature on the form yet. Add your name, and the form will be signed with \"/s/\" and your name, which the E-Filing User Guide allows for e-filed documents."
-          : `Your forms are signed with "/s/ ${a.name}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`,
+          : `Your forms are signed with "/s/ ${signedName(a.name)}" on ${lines}. The E-Filing User Guide allows this for e-filed documents.`,
         links: [SOURCES.efileGuide] }
     : { title: "Sign by hand", body: `Indiana Legal Help says forms must be signed before they are filed. Filing on paper, ${lines} ${lines === "the signature line" ? "is" : "are"} left for you to sign by hand after you print.`, links: [SOURCES.inPerson] });
 
