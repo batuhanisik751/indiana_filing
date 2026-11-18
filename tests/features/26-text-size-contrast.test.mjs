@@ -37,11 +37,11 @@ describe("Bigger text and high contrast", () => {
     for (let i = 0; i < 3; i++) { await tap(p, "#textBigger"); sizes.push(Math.round(await bodySize(p) / base * 100)); }
     assert.deepEqual(sizes, [115, 130, 150]);
     assert.equal(await p.isDisabled("#textBigger"), true);
-    assert.equal(await p.evaluate(() => document.activeElement.id), "textSmaller", "focus moves to the button that still works");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "textBigger", "focus stays on the button (BT14)");
     assert.equal(await said(p), "Text size 150 percent.");
     for (let i = 0; i < 3; i++) await tap(p, "#textSmaller");
     assert.equal(await bodySize(p), base);
-    assert.equal(await p.evaluate(() => document.activeElement.id), "textBigger");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "textSmaller");
   });
 
   test("High contrast turns text and borders black, and says it's on", async () => {

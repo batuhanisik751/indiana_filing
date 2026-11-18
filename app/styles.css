@@ -80,7 +80,7 @@ header.top button.link.cleardata { font-size: .85em; padding: .706em 0; }
 .readtools[hidden] { display: none; }
 @media (max-width: 360px) { .readtools .readlabel { display: none; } } /* so the controls fit one row */
 .readtools button { min-width: 3.235em; min-height: 2.75rem; padding: 0 .294em; text-align: center; }
-.readtools button:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
+.readtools button[aria-disabled="true"] { opacity: .55; cursor: not-allowed; text-decoration: none; }
 .readtools #contrastBtn[aria-pressed="true"] { text-decoration-style: double; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 1rem; }

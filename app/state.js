@@ -81,8 +81,10 @@ function applyDisplay() {
   const root = document.documentElement;
   if (look.size) root.style.setProperty("--text-scale", TEXT_SIZES[look.size]); else root.style.removeProperty("--text-scale");
   if (look.contrast) root.dataset.contrast = "high"; else delete root.dataset.contrast;
-  document.getElementById("textSmaller").disabled = look.size === 0;
-  document.getElementById("textBigger").disabled = look.size === TEXT_SIZES.length - 1;
+  // At the end of the range a button is marked unavailable but keeps focus, so one Enter too many does nothing
+  // (rather than moving focus to the other button, where it would undo a step).
+  document.getElementById("textSmaller").setAttribute("aria-disabled", String(look.size === 0));
+  document.getElementById("textBigger").setAttribute("aria-disabled", String(look.size === TEXT_SIZES.length - 1));
   document.getElementById("contrastBtn").setAttribute("aria-pressed", String(look.contrast));
 }
 // Only a change from the usual look is kept, and only with saving on.
@@ -104,14 +106,14 @@ readBtn.onclick = () => setReadTools(readTools.hidden);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !readTools.hidden && (readTools.contains(document.activeElement) || document.activeElement === readBtn)) setReadTools(false, true);
 });
-const sizeBtn = (id, step, other) => document.getElementById(id).onclick = () => {
-  look.size = Math.max(0, Math.min(TEXT_SIZES.length - 1, look.size + step));
+const sizeBtn = (id, step) => document.getElementById(id).onclick = () => {
+  const to = look.size + step;
+  if (to < 0 || to >= TEXT_SIZES.length) return announce(to < 0 ? "Text size is already the usual size." : `Text size is already at its biggest, ${Math.round(TEXT_SIZES[look.size] * 100)} percent.`);
+  look.size = to;
   applyDisplay(); keepDisplay();
-  // At the end of the range this button turns off, so focus moves to the one that still works.
-  if (document.getElementById(id).disabled) document.getElementById(other).focus();
   announce(`Text size ${Math.round(TEXT_SIZES[look.size] * 100)} percent.`);
 };
-sizeBtn("textBigger", 1, "textSmaller"); sizeBtn("textSmaller", -1, "textBigger");
+sizeBtn("textBigger", 1); sizeBtn("textSmaller", -1);
 document.getElementById("contrastBtn").onclick = () => {
   look.contrast = !look.contrast;
   applyDisplay(); keepDisplay();

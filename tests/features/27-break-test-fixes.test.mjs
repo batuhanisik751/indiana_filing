@@ -408,3 +408,32 @@ describe("BT9: tests for three breaks that went unnoticed", () => {
     assert.equal(await p.isDisabled("#textSmaller"), true, "and it isn't applied");
   });
 });
+
+describe("BT14: one Enter too many at the end of the range does nothing", () => {
+  const scale = () => p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text-scale").trim() || "1");
+  const lastSaid = () => p.evaluate(() => new Promise(r => setTimeout(() => r(document.getElementById("announce").textContent), 120)));
+  test("A+ pressed four times from the keyboard stays at 150%, keeps focus, and says it's at its biggest", async () => {
+    await p.evaluate(() => localStorage.clear()); await reset(p);
+    await p.click("#readBtn"); await p.focus("#textBigger");
+    for (let i = 0; i < 4; i++) await p.keyboard.press("Enter");
+    assert.equal(await scale(), "1.5");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "textBigger");
+    assert.equal(await p.getAttribute("#textBigger", "aria-disabled"), "true");
+    assert.equal(await lastSaid(), "Text size is already at its biggest, 150 percent.");
+  });
+  test("A- at the usual size stays there, keeps focus, and says so", async () => {
+    await p.evaluate(() => localStorage.clear()); await reset(p);
+    await p.click("#readBtn"); await p.focus("#textSmaller");
+    await p.keyboard.press("Enter");
+    assert.equal(await scale(), "1");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "textSmaller");
+    assert.equal(await lastSaid(), "Text size is already the usual size.");
+  });
+  test("edge: holding Enter on A+ only ever goes up", async () => {
+    await p.evaluate(() => localStorage.clear()); await reset(p);
+    await p.click("#readBtn"); await p.focus("#textBigger");
+    const seen = [];
+    for (let i = 0; i < 8; i++) { await p.keyboard.press("Enter"); seen.push(await scale()); }
+    assert.deepEqual(seen, ["1.15", "1.3", "1.5", "1.5", "1.5", "1.5", "1.5", "1.5"]);
+  });
+});
