@@ -35,11 +35,20 @@ const holdsAnswers = () => Object.values(mode === "step" && draft ? { ...answers
 const helpBtn = document.getElementById("helpBtn"), helpPanel = document.getElementById("helpPanel");
 const footerHelp = document.querySelector("footer ul");
 if (footerHelp) document.getElementById("helpList").innerHTML = footerHelp.innerHTML;
-// The word list, after the places to get help.
-document.getElementById("helpWords").innerHTML = `<details class="more words"><summary>Words on the forms</summary><div class="morebody">
-  <p class="need">What the official instructions say these words mean, word for word.</p>
-  <dl class="words">${GLOSSARY.map(g => `<dt>${esc(g.term)}</dt><dd>\u201c${esc(g.says)}\u201d <small class="src">Source: <a href="${g.src.href}" target="_blank" rel="noopener">${esc(g.src.text)}</a></small></dd>`).join("")}</dl></div></details>`;
+// The word list, after the places to get help: the words whose definitions fit the form being filled and the person
+// filling it, or, before a form is chosen, every word, saying that some are written for the person being sued.
+function renderWords() {
+  const forForm = !!sitKey && (mode === "step" || mode === "summary");
+  const list = forForm ? GLOSSARY.filter(g => g.fits(sitKey, answers)) : GLOSSARY;
+  const box = document.getElementById("helpWords"), was = box.querySelector("details");
+  box.innerHTML = `<details class="more words"${was && was.open ? " open" : ""}><summary>Words on the forms</summary><div class="morebody">
+  <p class="need">What the official instructions say these words mean, word for word.${forForm ? " These are the ones that fit your form." : " Some are written for the person being sued, like the instructions they come from."}</p>
+  <dl class="words">${list.map(g => `<dt>${esc(g.term)}</dt><dd>\u201c${esc(g.says)}\u201d <small class="src">Source: <a href="${g.src.href}" target="_blank" rel="noopener">${esc(g.src.text)}</a></small></dd>`).join("")}</dl></div></details>`;
+  markNewTabLinks(box);
+}
+renderWords();
 function setHelp(open) {
+  if (open) renderWords();
   helpPanel.hidden = !open; helpBtn.setAttribute("aria-expanded", String(open));
   (open ? document.getElementById("helpTitle") : helpBtn).focus();
   syncHistory();

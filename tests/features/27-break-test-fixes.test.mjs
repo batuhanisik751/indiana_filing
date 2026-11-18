@@ -106,3 +106,34 @@ describe("BT10: the court date countdown keeps up with the day when the page sta
     await q.context().close();
   });
 });
+
+describe("BT2: Get help's word list has the words that fit the form being filled", () => {
+  const listed = async () => { await p.click("#helpBtn"); return p.$$eval("#helpWords dt", d => d.map(x => x.textContent)); };
+  const note = () => p.textContent("#helpWords p.need");
+  test("a continuance the person started: no \"suing you\" words", async () => {
+    await inject(p, "continuance", { role: "me" });
+    assert.deepEqual(await listed(), ["Defendant", "Appearance", "Continuance", "Related cases", "Certificate of Service", "Perjury"]);
+    assert.match(await note(), /These are the ones that fit your form\.$/);
+  });
+  test("the fee waiver: no Plaintiff, Complaint, Answer, Defenses or Certificate of Service", async () => {
+    await inject(p, "feewaiver");
+    assert.deepEqual(await listed(), ["Appearance", "Related cases", "Perjury"]);
+  });
+  test("the Appearance and Answer: everything but Continuance", async () => {
+    await inject(p, "respond");
+    assert.deepEqual(await listed(), ["Plaintiff", "Defendant", "Complaint", "Answer", "Defenses", "Appearance", "Related cases", "Certificate of Service", "Perjury"]);
+  });
+  test("edge: before a form is chosen, every word, saying some are written for the person being sued", async () => {
+    await reset(p);
+    assert.equal((await listed()).length, 10);
+    assert.match(await note(), /Some are written for the person being sued, like the instructions they come from\.$/);
+  });
+  test("edge: changing who started the case changes the list the next time Get help opens", async () => {
+    await inject(p, "continuance", { role: "other" });
+    assert.ok((await listed()).includes("Plaintiff"));
+    await p.click("#helpClose");
+    await p.evaluate(() => { answers.role = "me"; render(); });
+    assert.ok(!(await listed()).includes("Plaintiff"));
+    assert.equal(await p.$$eval("#helpWords a", a => a.every(x => x.target === "_blank" && /opens in a new tab/.test(x.textContent))), true);
+  });
+});
