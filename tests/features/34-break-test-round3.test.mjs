@@ -234,3 +234,53 @@ describe("BT34. Tapping an answer on a page shown large opens that answer, not t
     assert.equal(`Change: ${await q.textContent("#pvEditTitle")}`, at.label);
   });
 });
+
+describe("BT35. What's typed in a box on the summary comes back after a reload", () => {
+  const reload = async q => { await q.reload(); await q.waitForSelector("#app h1"); if (await q.locator("#resume").count()) await q.click("#resume"); await q.waitForSelector("#inEdit"); };
+  test("typed and not saved: after a reload the box is open with it, focused, and Cancel keeps the old answer", async () => {
+    const q = await savingPage();
+    await inject(q, "respond");
+    await q.evaluate(() => saveProgress());
+    await editHere(q, "plaintiff");
+    await q.fill("#inEdit", "Acme Credit Holdings LLC");
+    await reload(q);
+    assert.equal(await q.$eval("#inEdit", b => b.value), "Acme Credit Holdings LLC");
+    assert.equal(await q.evaluate(() => document.activeElement.id), "inEdit");
+    assert.equal(await q.evaluate(() => [mode, answers.plaintiff].join("|")), "summary|Acme Credit LLC");
+    await q.click("#ieCancel");
+    assert.equal(await q.evaluate(() => answers.plaintiff), "Acme Credit LLC");
+    assert.equal(await saved(q, "plaintiff"), "Acme Credit LLC");
+  });
+  test("Save after the reload saves what was typed", async () => {
+    const q = await savingPage();
+    await inject(q, "respond");
+    await q.evaluate(() => saveProgress());
+    await editHere(q, "email");
+    await q.fill("#inEdit", "pat.new@example.com");
+    await reload(q);
+    await q.click("#ieSave");
+    assert.equal(await q.evaluate(() => [mode, answers.email, inlineEdit].join("|")), "summary|pat.new@example.com|");
+    assert.equal(await saved(q, "email"), "pat.new@example.com");
+  });
+  test("emptied, then typed: after a reload the box says the erased answer isn't kept, and Cancel leaves it blank", async () => {
+    const q = await savingPage();
+    await inject(q, "respond");
+    await q.evaluate(() => saveProgress());
+    await editHere(q, "plaintiff");
+    await q.fill("#inEdit", "");
+    await q.fill("#inEdit", "Acme");
+    assert.equal(await saved(q, "plaintiff"), "", "the old answer stays off the device");
+    await reload(q);
+    assert.equal(await q.$eval("#inEdit", b => b.value), "Acme");
+    assert.match(await q.textContent("#ieNeed"), /The answer you erased before reloading isn't kept\. Cancel leaves this blank\./);
+    await q.click("#ieCancel");
+    assert.equal(await q.evaluate(() => answers.plaintiff), "");
+  });
+  test("edge: with saving off nothing typed is kept anywhere", async () => {
+    await inject(p, "respond");
+    await editHere(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    assert.equal(await p.evaluate(k => localStorage.getItem(k), SAVED), null);
+    await p.click("#ieCancel");
+  });
+});

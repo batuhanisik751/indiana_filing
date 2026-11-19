@@ -73,7 +73,7 @@ function inlineBoxHtml(step, label) {
     : step.type === "money" ? `<div class="money"><span aria-hidden="true">$</span><input ${attrs} type="text" inputmode="decimal" value="${esc(v)}" autocomplete="off"></div>`
     : step.type === "number" ? `<input ${attrs} type="text" inputmode="decimal" value="${esc(v)}" autocomplete="off">`
     : `<input ${attrs} type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"' : ""} value="${esc(v)}" autocomplete="off"${limit ? ` max="${limit.date}"` : ""}>`;
-  const need = `${step.optional ? "Optional. " : ""}${limit ? `It can't be later than your ${limit.name} (${formDate(limit.date)}). ` : ""}Save checks it the same way as the question does.`;
+  const need = `${ie.reloaded && ie.erased ? "The answer you erased before reloading isn't kept. Cancel leaves this blank. " : ""}${step.optional ? "Optional. " : ""}${limit ? `It can't be later than your ${limit.name} (${formDate(limit.date)}). ` : ""}Save checks it the same way as the question does.`;
   return `<div class="inedit">${box}
             <p class="need" id="ieNeed">${esc(need)}</p>
             <p class="err" id="ieErr" role="alert">${esc(ie.err || "")}</p>
@@ -169,7 +169,8 @@ function wireInline(root = app) {
     if (box.validity?.badInput) return; // a half-typed date isn't an answer yet
     inlineEdit.value = box.value;
     // Emptying the box takes the old answer off the device right away, as on the question screen. Cancel brings it back.
-    if (!inlineEdit.erased && empty(box.value) && !empty(answers[inlineEdit.id])) { inlineEdit.erased = true; saveProgress(); }
+    if (!inlineEdit.erased && empty(box.value) && !empty(answers[inlineEdit.id])) inlineEdit.erased = true;
+    saveProgress(); // what's typed is kept through a reload, as on the question
   });
   box.addEventListener("keydown", e => {
     if (e.isComposing) return;

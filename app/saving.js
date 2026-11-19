@@ -168,6 +168,8 @@ function saveProgress() {
   const data = { v: 1, sitKey, ...(dropped.length ? { cleared: dropped } : {}), ...(caseConfirmFor ? { caseConfirmFor } : {}), answers: Object.fromEntries(keptNow.map(s => [s.id, inCopy[s.id]])), unsure: Object.fromEntries(Object.entries(unsure).filter(([k]) => keptIds.has(k))),
     cur, mode: fromSummary ? "summary" : "step", triage: triageBeforeEdit && mode !== "step" && mode !== "summary" ? triageBeforeEdit : triage,
     fromTriage, fromNotSure, draft: mode === "step" ? draft : null,
+    // What's typed in a box opened on the summary is kept too, as the question keeps it (an emptied answer stays out above).
+    ...(mode === "summary" && inlineEdit && typeof inlineEdit.value === "string" ? { inline: { id: inlineEdit.id, nth: Math.max(0, inlineEdit.nth), value: inlineEdit.value, ...(inlineEdit.erased ? { erased: true } : {}) } } : {}),
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, ...(empty(editOriginal.value) ? {} : { erased: true }) } : editOriginal } : null };
   // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
   const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
@@ -262,6 +264,12 @@ function restoreSaved(d, keep) {
       ? { id: o.id, value: o.value, unsure: o.unsure === true, ...(o.erased === true ? { erased: true } : {}), before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
   }
   mode = d.mode === "summary" ? "summary" : "step";
+  // A box opened on the summary comes back open, with what was typed in it.
+  const ie = d.inline;
+  if (mode === "summary" && ie && typeof ie === "object" && ids.has(ie.id) && typeof ie.value === "string" && editsInPlace(ie.id)) {
+    inlineEdit = { id: ie.id, nth: Number.isInteger(ie.nth) && ie.nth > 0 ? ie.nth : 0, value: ie.value, erased: ie.erased === true, err: "", reloaded: true };
+    openMore.add("answers");
+  }
   if (keep) keep();
   render();
 }
