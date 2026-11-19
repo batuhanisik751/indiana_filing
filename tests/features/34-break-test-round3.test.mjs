@@ -184,3 +184,53 @@ describe("BT33. A case number changed in place asks about the county and court a
     assert.equal(await p.evaluate(() => [mode, answers.caseNumber, answers.caseConfirm].join("|")), "summary|02D01-2611-CC-001299|yes");
   });
 });
+
+describe("BT34. Tapping an answer on a page shown large opens that answer, not the one next to it", () => {
+  // For every answer on the page: what's under the middle of it is that answer, or another one whose own box is there too.
+  const middles = q => q.evaluate(async () => {
+    const all = [...document.querySelectorAll("dialog.pageview .pvspot")], wrong = [];
+    for (const s of all) {
+      s.scrollIntoView({ block: "center" }); await new Promise(r => requestAnimationFrame(r));
+      const r = s.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+      const box = hit && hit.getBoundingClientRect();
+      if (hit !== s && !(hit?.classList.contains("pvspot") && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom)) wrong.push(`${s.getAttribute("aria-label")} -> ${hit?.getAttribute("aria-label") || hit?.tagName}`);
+    }
+    return { count: all.length, wrong };
+  });
+  for (const [w, h, form, n, more] of [[320, 568, "respond", 1], [320, 568, "continuance", 1], [375, 667, "feewaiver", 5, { incomeKinds: "wages,ss", expenseKinds: "rent,food" }], [1000, 900, "feewaiver", 5, { incomeKinds: "wages,ss", expenseKinds: "rent,food" }], [1000, 900, "appearance", 1]])
+    test(`${w}px, ${form} page ${n}: the middle of every answer is that answer`, async () => {
+      const q = await fresh({ viewport: { width: w, height: h }, hasTouch: true });
+      await inject(q, form, more || {});
+      await openPage(q, n);
+      const m = await middles(q);
+      assert.ok(m.count > 3, `${m.count} answers`);
+      assert.deepEqual(m.wrong, []);
+    });
+  test("a finger on the email address at 320px opens the email address", async () => {
+    const q = await fresh({ viewport: { width: 320, height: 568 }, hasTouch: true });
+    await inject(q, "respond");
+    await openPage(q, 1);
+    const at = await q.evaluate(async () => { const s = document.querySelector('dialog.pageview .pvspot[data-id="email"]'); s.scrollIntoView({ block: "center" }); await new Promise(r => requestAnimationFrame(r)); const r = s.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    await q.touchscreen.tap(...at);
+    await q.waitForSelector("#pvEdit");
+    assert.equal(await q.textContent("#pvEditTitle"), "Email address");
+  });
+  test("edge: the margin around a small answer still opens it where no other answer is", async () => {
+    const q = await fresh({ viewport: { width: 320, height: 568 }, hasTouch: true });
+    await inject(q, "respond");
+    await openPage(q, 1);
+    const at = await q.evaluate(async () => {
+      const all = [...document.querySelectorAll("dialog.pageview .pvspot")];
+      for (const s of all) {
+        s.scrollIntoView({ block: "center" }); await new Promise(r => requestAnimationFrame(r));
+        const r = s.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top - 4; // 4px above it
+        if (document.elementFromPoint(x, y) === s && !all.some(o => o !== s && (b => x >= b.left && x <= b.right && y >= b.top - 6 && y <= b.bottom + 6)(o.getBoundingClientRect()))) return { x, y, label: s.getAttribute("aria-label") };
+      }
+      return null;
+    });
+    assert.ok(at, "a small answer with room around it");
+    await q.touchscreen.tap(at.x, at.y);
+    await q.waitForSelector("#pvEdit");
+    assert.equal(`Change: ${await q.textContent("#pvEditTitle")}`, at.label);
+  });
+});

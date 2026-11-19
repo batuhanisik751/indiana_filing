@@ -266,12 +266,12 @@ dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
 .pvbar h2.sub { margin: 0; font-size: 1.05rem; }
 .pvnav { display: flex; flex-wrap: wrap; gap: .5rem; }
 .pvbody { flex: 1; min-height: 0; overflow: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
-.pvpage { position: relative; }
-.pvpage canvas { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
+.pvpage { position: relative; z-index: 0; } /* its own layers: the answers, then the margins around them, then the page */
+.pvpage canvas { position: relative; z-index: -2; display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
 /* Item 17: an answer on a page of the filled form, to tap and change, and the box that opens over the page. */
 .pvhint { margin: 0 0 .5rem; }
 .pvspot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 2px; outline: 2px dashed rgba(30, 90, 128, .55); outline-offset: 1px; cursor: pointer; }
-.pvspot::after { content: ""; position: absolute; inset: -6px; } /* a bigger place to tap than a small box */
+.pvspot::after { content: ""; position: absolute; inset: -6px; z-index: -1; } /* a bigger place to tap than a small box, under any answer it reaches */
 .pvspot:hover, .pvspot.on { background: rgba(255, 196, 0, .35); outline: 2px solid #B45309; }
 .pvspot:focus-visible { outline: 3px solid var(--accent); background: rgba(255, 196, 0, .35); }
 .pvspot:disabled { cursor: progress; background: transparent; outline-style: dotted; }
