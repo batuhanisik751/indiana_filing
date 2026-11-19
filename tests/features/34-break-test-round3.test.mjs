@@ -367,3 +367,51 @@ describe("BT38. On a 320px phone, a box opened on the summary fits the screen", 
     assert.deepEqual(over, []);
   });
 });
+
+describe("BT39. A date half typed in a box on the summary isn't wiped when the summary is drawn again", () => {
+  test("the filled form finishing while the month is typed: the box and cursor stay, and the rest of the date can be typed", async () => {
+    await inject(p, "continuance");
+    await p.evaluate(() => { window.__realBuild = buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1500)).then(() => window.__realBuild(...a))"); pdfState = { key: null }; ensurePdf(); renderSummary(true); });
+    await editHere(p, "hearingDate");
+    await p.evaluate(() => { document.getElementById("inEdit").value = ""; });
+    await p.focus("#inEdit");
+    await p.keyboard.type("12");
+    const box = await p.$("#inEdit");
+    assert.equal(await p.evaluate(() => [document.getElementById("inEdit").validity.badInput, pdfState.busy].join()), "true,true");
+    await p.waitForFunction(() => !pdfState.busy, null, { timeout: 120000 });
+    await p.waitForTimeout(200);
+    assert.equal(await box.evaluate(b => b.isConnected && document.activeElement === b && b.validity.badInput), true, "the same box, still half typed");
+    await p.keyboard.type("112026"); // the date box's own order of parts: day and month, or month and day
+    const typed = await p.$eval("#inEdit", b => b.value);
+    assert.ok(["2026-11-12", "2026-12-11"].includes(typed), typed);
+    await p.waitForFunction(() => /ready|review|Nothing/.test(document.querySelector(".status")?.textContent || "")); // drawn again once the date is whole
+    assert.equal(await p.evaluate(() => [document.activeElement.id, document.getElementById("inEdit").value].join("|")), `inEdit|${typed}`);
+    await p.click("#ieSave");
+    assert.equal(await p.evaluate(() => answers.hearingDate), typed);
+    await p.evaluate(() => globalThis.eval("buildPdf = window.__realBuild"));
+  });
+  test("edge: Save pressed down while the summary waits to be drawn again still saves", async () => {
+    await inject(p, "continuance");
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await editHere(p, "hearingDate");
+    await p.evaluate(() => { document.getElementById("inEdit").value = ""; });
+    await p.keyboard.type("12");
+    await p.evaluate(() => keepFocus(() => renderSummary(true))); // waits
+    await p.keyboard.type("112026");
+    const typed = await p.$eval("#inEdit", b => b.value);
+    const at = await p.$eval("#ieSave", b => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    await p.waitForTimeout(1300);
+    await p.mouse.move(...at); await p.mouse.down();
+    await p.waitForTimeout(600); // past the moment it would have been drawn again
+    await p.mouse.up();
+    assert.equal(await p.evaluate(() => [answers.hearingDate, inlineEdit].join("|")), `${typed}|`);
+  });
+  test("edge: with a whole date in the box, the summary is drawn again as usual and the box keeps it", async () => {
+    await inject(p, "continuance");
+    await editHere(p, "hearingDate");
+    await p.fill("#inEdit", "2026-12-23");
+    await p.evaluate(() => keepFocus(() => renderSummary(true)));
+    assert.equal(await p.evaluate(() => [document.activeElement.id, document.getElementById("inEdit").value].join("|")), "inEdit|2026-12-23");
+    await p.click("#ieCancel");
+  });
+});
