@@ -90,3 +90,75 @@ describe("BT41. A bus, boarding or parking pass isn't taken for a password", () 
     assert.deepEqual(hit.map(([s, e]) => "I paid. My pass is hunter2 if the court needs it.".slice(s, e)), ["pass is hunter2"]);
   });
 });
+
+describe("BT32. A box on a page shown large isn't lost when the page changes", () => {
+  // Answers the next confirm() with Cancel instead of OK.
+  const cancelNext = q => { q.removeAllListeners("dialog"); q.once("dialog", d => { q.dialogs.push({ type: d.type(), message: d.message() }); d.dismiss(); q.on("dialog", d2 => { q.dialogs.push({ type: d2.type(), message: d2.message() }); d2.accept(); }); }); };
+  const pageNo = q => q.$eval("#pvTitle", h => +h.textContent.match(/Page (\d+)/)[1]);
+  test("Next page with a changed box asks first; OK lets the box go, and later taps open at once", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await tap(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    const asked = p.dialogs.length;
+    await p.click("#pvNext");
+    assert.equal(p.dialogs.length, asked + 1);
+    assert.match(p.dialogs.at(-1).message, /Discard your change to "Plaintiff"/);
+    await p.waitForFunction(() => /Page 2 /.test(document.getElementById("pvTitle").textContent) && document.querySelector("dialog.pageview .pvpage canvas"));
+    assert.equal(await p.evaluate(() => inlineEdit), null);
+    assert.equal(await p.evaluate(() => answers.plaintiff), "Acme Credit LLC");
+    await p.click("#pvPrev");
+    await p.waitForSelector("dialog.pageview .pvspot");
+    await tap(p, "plaintiff");
+    assert.equal(p.dialogs.length, asked + 1, "no question about a box that's gone");
+    assert.equal(await p.$eval("#inEdit", b => b.value), "Acme Credit LLC");
+    await p.keyboard.press("Escape");
+    await p.keyboard.press("Escape");
+  });
+
+  test("Cancel on that question stays on the page with the box and what was typed", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await tap(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    cancelNext(p);
+    await p.click("#pvNext");
+    assert.equal(await pageNo(p), 1);
+    assert.equal(await p.$eval("#inEdit", b => b.value), "Acme Credit Holdings LLC");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "inEdit");
+    await p.keyboard.press("Escape");
+    await p.keyboard.press("Escape");
+  });
+
+  test("an unchanged box closes with the page turn without a question", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await tap(p, "plaintiff");
+    const asked = p.dialogs.length;
+    await p.click("#pvNext");
+    assert.equal(p.dialogs.length, asked);
+    assert.equal(await p.evaluate(() => inlineEdit), null);
+    await p.keyboard.press("Escape");
+  });
+
+  test("while the page is made again after a Save, its answers can't be tapped; then they can", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await p.evaluate(() => { window.__realBuild = buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1500)).then(() => window.__realBuild(...a))"); });
+    await tap(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    await p.click("#ieSave");
+    assert.equal(await p.locator("dialog.pageview .pvspot:not([disabled])").count(), 0);
+    assert.ok(await p.locator("dialog.pageview .pvspot[disabled]").count() > 0);
+    await p.locator('dialog.pageview .pvspot[data-id="email"]').first().click({ force: true });
+    assert.equal(await p.evaluate(() => inlineEdit), null, "no box opened");
+    // Turning the page while waiting shows that page held too.
+    await p.click("#pvNext");
+    await p.waitForFunction(() => /Page 2 /.test(document.getElementById("pvTitle").textContent) && document.querySelector("dialog.pageview .pvhint"));
+    assert.match(await p.textContent("dialog.pageview .pvhint"), /Making the page again/);
+    await p.waitForFunction(() => !pdfState.busy && document.querySelector("dialog.pageview .pvspot:not([disabled])"), null, { timeout: 120000 });
+    assert.equal(await p.evaluate(() => answers.plaintiff), "Acme Credit Holdings LLC");
+    await p.evaluate(() => globalThis.eval("buildPdf = window.__realBuild"));
+    await p.keyboard.press("Escape");
+  });
+});

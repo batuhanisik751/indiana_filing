@@ -97,7 +97,8 @@ function pdfFlags() {
 
 // A page shown large, over the summary or question: "Enlarge" under a page opens it. Close, Escape or Back closes it.
 // render(n, cssWidth) draws page n and resolves to { canvas, marks }, marks being highlight markup placed in percent.
-function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, shown }) {
+// beforeTurn, if given, is asked before Previous or Next turns the page, and can say no.
+function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, shown, beforeTurn }) {
   document.querySelector("dialog.pageview")?.remove();
   const dlg = document.createElement("dialog");
   dlg.className = "pageview";
@@ -127,7 +128,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, s
   };
   // The button pressed can become disabled at the first or last page, and focus shouldn't fall to the top of the page.
   // show() sets that before it starts drawing, so focus moves at once.
-  const step = (to, from, other) => () => { show(to()); if (from.disabled) other.focus(); };
+  const step = (to, from, other) => () => { if (beforeTurn && !beforeTurn()) return; show(to()); if (from.disabled) other.focus(); };
   if (prev) { prev.onclick = step(() => at - 1, prev, next); next.onclick = step(() => at + 1, next, prev); }
   dlg.querySelector("#pvClose").onclick = () => dlg.close();
   dlg.addEventListener("close", () => {
@@ -177,11 +178,21 @@ function showFilledPage(pdf, n, opener, focusId = null) {
     shown: (i, page, body) => {
       dlg.pvAt = i;
       const list = pageSpots(result, i), attached = result?.allPages?.[i - 1]?.attached;
-      body.insertAdjacentHTML("afterbegin", `<p class="draftnote pvhint">${list.length ? "To change an answer, tap it on the page." : attached ? "This page continues answers from the form. Change them where they start, on the form's own page." : "Nothing on this page can be changed here."}</p>`);
-      page.querySelectorAll(".pvspot").forEach(b => b.onclick = () => openPdfEdit(dlg, page, list[+b.dataset.spot], b, () => { waiting = list[+b.dataset.spot].id; window.addEventListener("pdfready", reopen); }));
+      body.insertAdjacentHTML("afterbegin", `<p class="draftnote pvhint">${waiting ? "Making the page again with your change…" : list.length ? "To change an answer, tap it on the page." : attached ? "This page continues answers from the form. Change them where they start, on the form's own page." : "Nothing on this page can be changed here."}</p>`);
+      page.querySelectorAll(".pvspot").forEach(b => b.onclick = () => openPdfEdit(dlg, page, list[+b.dataset.spot], b, () => { waiting = list[+b.dataset.spot].id; window.addEventListener("pdfready", reopen); hold(); }));
+      if (waiting) hold();
       if (focusId) { const s = page.querySelector(`.pvspot[data-id="${CSS.escape(focusId)}"]`); if (s) s.focus(); focusId = null; }
     },
+    // Previous or Next lets go of a box open on the page, as Cancel would, asking first if it was changed.
+    beforeTurn: () => {
+      if (!inlineEdit || inlineEdit.where !== "pdf") return true;
+      if (inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { dlg.querySelector("#inEdit")?.focus(); return false; }
+      dropInline();
+      return true;
+    },
   });
+  // While the page is being made again with a change, its answers can't be tapped: the page is about to be replaced.
+  const hold = () => dlg.querySelectorAll(".pvspot").forEach(b => { b.disabled = true; });
   // Closing the page, or Back, closes a box on it as Cancel would.
   dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") dropInline(); });
   dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit")) { e.preventDefault(); closePdfEdit(dlg); } });
