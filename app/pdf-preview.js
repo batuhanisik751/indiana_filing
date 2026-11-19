@@ -162,10 +162,11 @@ function showFilledPage(pdf, n, opener, focusId = null) {
     const at = dlg.pvAt || n;
     if (!pdfState.result || pdfState.error) {
       dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but the form couldn't be made again. Close this page to see why.</p>`;
+      dlg.querySelector("#pvClose").focus(); // what was focused is gone
       return;
     }
     pdfjsLib.getDocument({ data: pdfState.result.all.slice() }).promise.then(doc => { showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
-      .catch(e => { console.error(e); dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but this page couldn't be shown again. Close it to see your form.</p>`; });
+      .catch(e => { console.error(e); dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but this page couldn't be shown again. Close it to see your form.</p>`; dlg.querySelector("#pvClose").focus(); });
   };
   const dlg = showPageLarge({
     count: pdf.numPages, at: n, opener,

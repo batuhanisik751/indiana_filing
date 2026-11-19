@@ -151,8 +151,9 @@ function saveInline() {
     inlineEdit = null;
     ie.onSaved();
     renderSummary(true); saveProgress(); updatePrivacyNote();
+    // Focus goes to this line (the button pressed is gone), then to the answer once the page is shown again.
     const box = document.getElementById("pvEdit");
-    if (box) box.innerHTML = `<p class="need" role="status">Saved. Making the page again with your change…</p>`;
+    if (box) { box.innerHTML = `<p class="need" id="pvSaving" tabindex="-1">Saved. Making the page again with your change…</p>`; document.getElementById("pvSaving").focus({ preventScroll: true }); }
     announce("Saved. Making the page again with your change.");
     if (!pdfState.busy) window.dispatchEvent(new Event("pdfready")); // nothing changed on the form, so nothing to wait for
     return;

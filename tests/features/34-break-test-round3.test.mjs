@@ -284,3 +284,33 @@ describe("BT35. What's typed in a box on the summary comes back after a reload",
     await p.click("#ieCancel");
   });
 });
+
+describe("BT36. After Save in a box on a page shown large, focus doesn't fall to the page", () => {
+  const focused = q => q.evaluate(() => { const a = document.activeElement; return a === document.body ? "BODY" : a.id || a.className; });
+  test("it goes to the line saying the page is being made again, then to the answer", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await p.evaluate(() => { window.__realBuild = buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1200)).then(() => window.__realBuild(...a))"); });
+    await tap(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    await p.click("#ieSave");
+    assert.equal(await focused(p), "pvSaving");
+    assert.match(await p.textContent("#pvSaving"), /Making the page again/);
+    await p.waitForFunction(() => document.activeElement?.classList.contains("pvspot"), null, { timeout: 120000 });
+    assert.equal(await p.evaluate(() => document.activeElement.dataset.id), "plaintiff");
+    await p.evaluate(() => globalThis.eval("buildPdf = window.__realBuild"));
+    await p.keyboard.press("Escape");
+  });
+  test("edge: if the form can't be made again, focus goes to Close, beside the message", async () => {
+    await inject(p, "respond");
+    await openPage(p, 1);
+    await p.evaluate(() => { window.__realBuild = buildPdf; globalThis.eval("buildPdf = () => new Promise((r, no) => setTimeout(() => no(new Error('test: no form')), 300))"); });
+    await tap(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    await p.click("#ieSave");
+    await p.waitForFunction(() => /couldn't be made again/.test(document.querySelector("dialog.pageview .pvbody")?.textContent || ""), null, { timeout: 60000 });
+    assert.equal(await focused(p), "pvClose");
+    await p.evaluate(() => globalThis.eval("buildPdf = window.__realBuild"));
+    await p.keyboard.press("Escape");
+  });
+});
