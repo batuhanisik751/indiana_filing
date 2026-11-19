@@ -49,11 +49,15 @@ const isReference = (s, at) => {
 const passesCardCheck = n => { const d = n.replace(/\D/g, ""); if (d.length < 13 || d.length > 19) return false; let sum = 0; for (let i = 0; i < d.length; i++) { let x = +d[d.length - 1 - i]; if (i % 2 && (x *= 2) > 9) x -= 9; sum += x; } return sum % 10 === 0; };
 const ACCOUNT_WORD = "accounts?|accts?|acc|a\\/c|routing|rt|aba|cards?|loans?|mortgages?|checking|savings|member|customer";
 const ACCOUNT_LABEL = new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])`, "i");
+// "my pass is x" counts when the pass is the person's own or an account's ("my pass", "login pass", or "pass" starting
+// a sentence), not a bus, boarding, parking or season pass. And x has to look like a password: four or more characters,
+// letters with a digit or symbol, and not an amount ("$45/mo", "30/mo"), a date, a time ("noon-4pm"), "7-day" or "#A12".
+const PASS_OWNER = "(?:^|[.,;:!?()] ?|\\b(?:my|your|his|her|their|our|the|its|and|login|log-in|account|portal|email|e-mail|wifi|wi-fi|online|app|website|site|computer|phone|user)\\s)";
+const PW_VALUE = "(?![#$])(?!\\S*\\/)(?!\\S*\\d\\s?[ap]\\.?m\\b)(?!\\d+-\\p{L})(?=\\S*\\p{L})(?=\\S*[\\d!@$%^&*])\\S{4,}";
 // A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word. Also
-// "my pass is x" when x looks like a password (letters with a digit or symbol, four or more), not "my bus pass is
-// expired", "the pass was 10am-2pm" or "pass is #A12".
-const PASSWORD_RES = [/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?\S+/i,
-  /\b(?:pass|pwd|pw)\b ?(?:is|was|[:=]) ?(?!#|\d{1,2}(?::\d{2})?\s?[ap]\.?m\b)(?=\S*\p{L})(?=\S*[\d!@$%^&*])\S{4,}/iu,
+// "my pass is x", as above. An amount after "pw:" or "pwd:" ("PWD: $40", a water bill) isn't one.
+const PASSWORD_RES = [/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?(?!\$ ?\d)\S+/i,
+  new RegExp(`(?:(?<=${PASS_OWNER})pass|\\b(?:pwd|pw))\\b ?(?:is|was|[:=]) ?${PW_VALUE}`, "iu"),
   /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S+/i,
   /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S+/i];
 function privateKind(text, isAddress = false) {
