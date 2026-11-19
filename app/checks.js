@@ -291,13 +291,14 @@ function runChecks() {
   // Phone and fax: only the shape. This tool can't tell whether a number works. A private number has its own flag above.
   [["phone", "phone", "Phone number"], ["fax", "fax", "Fax number"]].forEach(([id, word, title]) => {
     const v = String(a[id] ?? "").trim();
-    if (!has(id) || !v || saysNoAnswer(v) || SAYS_NONE.test(v) || NO_NUMBER.test(v) || (privateKind(v, true) && !["", "foreign"].includes(phoneShape(v)))) return;
-    const kind = phoneShape(v);
+    if (!has(id) || !v || saysNoAnswer(v) || SAYS_NONE.test(v) || NO_NUMBER.test(v) || (id === "fax" && saysNoFax(v)) || (privateKind(v, true) && !["", "foreign"].includes(phoneShape(v)))) return;
+    const kind = /\d/.test(v) ? phoneShape(v) : "words";
     // The Appearance forms ask for 10 digits. The fee waiver's form doesn't say, and neither does a fax box.
     const asks = id === "phone" && sitKey !== "feewaiver" ? "The official form asks for a 10-digit phone number, including the area code." : "";
     const why = { impossible: `This has 10 digits, but it doesn't look like a real U.S. ${word} number. Check it for typos.`,
       foreign: `This looks like a number outside the U.S. ${asks || "Check it for typos."}`,
       letters: `This has letters in it. Write the number in digits, including the area code.`,
+      words: `You typed words, not a ${word} number, and they will print on the form. Type the number, or leave it blank if you don't have one.`,
       long: asks || `This has more digits than one ${word} number. Check it for typos.`,
       short: asks || `This doesn't look like a full ${word} number with area code. Check it for typos.` }[kind];
     if (why) flags.push({ level: "check", title, why, fix: id });
@@ -318,9 +319,9 @@ function runChecks() {
   if (has("name") && /^\s*\/s\//i.test(a.name || ""))
     flags.push({ level: "check", title: vis.find(s => s.id === "name").label, fix: "name",
       why: "Your name starts with \"/s/\", and it prints that way wherever your name goes on the form. Type your name without it: if you e-file, this tool puts \"/s/\" before your name on the signature lines." });
-  // Answers like "no" or "none" in fill-in boxes would print on the form. Not "None" for a fax number: the official
-  // Appearance says one isn't required if you don't have one, and "None" says so plainly.
-  vis.filter(s => s.noWords && saysNoAnswer(a[s.id]) && !(s.id === "fax" && SAYS_NONE.test(String(a[s.id]).trim()))).forEach(s =>
+  // Answers like "no" or "none" in fill-in boxes would print on the form. Not "None" or "No fax" for a fax number: the
+  // official Appearance says one isn't required if you don't have one, and those say so plainly.
+  vis.filter(s => s.noWords && saysNoAnswer(a[s.id]) && !(s.id === "fax" && saysNoFax(a[s.id]))).forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
   // The continuance instructions leave the court and the case number to staff, but not these letters.
   if (sitKey === "continuance" && has("caseTypeLetters") && empty(a.caseTypeLetters))

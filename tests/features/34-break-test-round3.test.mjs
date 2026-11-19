@@ -546,3 +546,24 @@ describe("BT46. A number word after \"to\" in a sentence isn't read as a paragra
     assert.deepEqual(await listFlags("one to four", "three"), ["Paragraphs listed in more than one list"]);
   });
 });
+
+describe("BT47. Other ways of saying there's no fax number aren't flagged, and words get a fitting message", () => {
+  test("\"Not applicable\", \"No fax\", \"No\", \"nope\", \"N / A\", \"I don't have one\" and ones with a remark", async () => {
+    for (const [form, fax] of [["appearance", "Not applicable"], ["appearance", "No fax"], ["respond", "no fax number"], ["continuance", "No"], ["feewaiver", "nope"], ["appearance", "None!"], ["appearance", "None - I don't have one"], ["appearance", "n/a (no fax)"], ["appearance", "N / A"], ["appearance", "I don’t have one"]]) {
+      await inject(p, form, { fax });
+      assert.deepEqual(await flagsFor(p, "fax"), [], `${form}: ${fax}`);
+    }
+  });
+  test("other words say they're words, not that the number is short; \"I don't know\" and a short number as before", async () => {
+    await inject(p, "appearance", { fax: "Same as phone" });
+    assert.deepEqual(await flagsFor(p, "fax"), ["check|Fax number|You typed words, not a fax number, and they will print on the form. Type the number, or leave it blank if you don't have one."]);
+    await inject(p, "appearance", { fax: "I don't know" });
+    assert.match((await flagsFor(p, "fax")).join(), /You typed "I don't know"/);
+    await inject(p, "appearance", { fax: "555-01" });
+    assert.match((await flagsFor(p, "fax")).join(), /doesn't look like a full fax number/);
+  });
+  test("edge: \"No\" in the phone box is still flagged: a phone number is needed", async () => {
+    await inject(p, "appearance", { phone: "No" });
+    assert.match((await flagsFor(p, "phone")).join(), /You typed "No"/);
+  });
+});

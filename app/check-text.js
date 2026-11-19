@@ -148,6 +148,14 @@ const CASE_NUMBER_BOXES = /^(caseNumber|caseTypeLetters|relatedNumbers|rel\dNumb
 const NOT_KNOWN = /^(?:i'?m not sure|i am not sure|not sure|unsure|idk|i don'?t know|don'?t know|i do not know|do not know|unknown|no idea|no clue|no,? i don'?t know|\?+)[.!]*$/i;
 const CODE_BOXES = /^(caseNumber|caseTypeLetters|fwCaseType)$/; // these have their own checks
 const saysNoAnswer = v => { const t = String(v ?? "").replace(/\u2019/g, "'").trim(); return NO_WORDS.test(t) || NOT_KNOWN.test(t) || NO_NUMBER.test(t); };
+// How someone with no fax number says so: "None", "N/A", "N / A", "Not applicable", "No", "No fax", "I don't have one",
+// or one of those with a remark after it ("None - I don't have one", "n/a (no fax)"). Not "I don't know".
+const saysNoFax = v => {
+  const t = String(v ?? "").replace(/\u2019/g, "'").trim();
+  if (/\d/.test(t) || NOT_KNOWN.test(t)) return false;
+  const head = t.replace(/\s+[-\u2013\u2014(:;].*$|[(,;:].*$/, "").replace(/\s*\/\s*/g, "/").replace(/[.!]+$/, "").trim();
+  return NO_WORDS.test(head) || NO_NUMBER.test(head) || /^(?:no fax(?: number| machine)?|(?:i )?(?:don'?t|do not) have (?:one|a fax(?: number| machine)?)|none here)$/i.test(head);
+};
 const NAME_BOXES = /^(name|plaintiff|otherParty|otherPerson|svc\dName)$/;
 function notAnAnswer(s, v) {
   const t = String(v ?? "").replace(/\u2019/g, "'").trim();
