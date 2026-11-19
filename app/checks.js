@@ -37,11 +37,15 @@ UNIT_WORDS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
 TENS_WORDS.forEach((t, i) => { NUMBER_WORDS[t] = (i + 2) * 10; UNIT_WORDS.forEach((u, j) => { NUMBER_WORDS[`${t} ${u}`] = (i + 2) * 10 + j + 1; }); });
 "first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth twentieth".split(" ").forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
 const NUMBER_WORD = Object.keys(NUMBER_WORDS).sort((x, y) => y.length - x.length).map(w => w.replace(" ", "[-\\s]")).join("|"); // "twenty-one" before "twenty"
-const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(/]|[-\u2013](?=\\s*(?:${NUMBER_WORD})\\b)|\\b(?:and|or|through|thru|to|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${NUMBER_WORD})\\b(?=\\s*(?:$|[,;&).\\/\\-\u2013]|\\b(?:and|or|through|thru|to|are|is|were|was)\\b))`, "gi");
+const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(/]|\\b(?:and|or|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${NUMBER_WORD})\\b(?=\\s*(?:$|[,;&).\\/\\-\u2013]|\\b(?:and|or|through|thru|to|are|is|were|was)\\b))`, "gi");
 const wordValue = w => NUMBER_WORDS[w.toLowerCase().replace(/[-\s]+/, " ")];
 // "the first five" is paragraphs 1 to 5 ("the first five of them" too, but not "the first of them").
 const FIRST_N = new RegExp(`\\b(?:the )?first (${NUMBER_WORD}|\\d{1,3})\\b`, "gi");
-const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-${/^\d/.test(w) ? w : wordValue(w)}`).replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${wordValue(w)}`);
+// The end of a range: "one to four", "one-four", "2 through twenty". A word after "to" in a sentence ("I only agreed to one", "the
+// rent went up to twelve") isn't a paragraph.
+const RANGE_END_WORD = new RegExp(`(\\d\\s*(?:[-\u2013]|to|through|thru)\\s*)(${NUMBER_WORD})\\b`, "gi");
+const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-${/^\d/.test(w) ? w : wordValue(w)}`).replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${wordValue(w)}`)
+  .replace(RANGE_END_WORD, (m, before, w) => `${before}${wordValue(w)}`);
 // The numbers in text like "1, 3-5" or "1 through 3".
 function numbersIn(t, out = new Set()) {
   for (const m of t.matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {

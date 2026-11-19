@@ -534,3 +534,15 @@ describe("BT45. Paragraph numbers in words are read after twenty, before a verb,
     assert.deepEqual(await listFlags("1, 2", "3", "One paragraph is about a different debt."), ["Paragraphs you can't admit or deny"]);
   });
 });
+
+describe("BT46. A number word after \"to\" in a sentence isn't read as a paragraph", () => {
+  const listFlags = async (admitted, denied) => { await inject(p, "respond", { admitted, denied, notEnough: "" }); return p.evaluate(() => runChecks().filter(f => ["admitted", "denied", "notEnough"].includes(f.fix)).map(f => f.title)); };
+  test("\"I only agreed to one\" and \"the rent went up to twelve\" get no paragraph flag", async () => {
+    assert.deepEqual(await listFlags("1, 2, 3", "4. I only agreed to one."), []);
+    assert.deepEqual(await listFlags("1-4", "5, the rent went up to twelve"), []);
+  });
+  test("edge: ranges in words still read: \"one to four\", \"1 through six\", \"twenty-one through twenty-three\"", async () => {
+    assert.deepEqual(await p.evaluate(() => ["one to four", "1 through six", "1, 2, twenty-one through twenty-three", "one-four"].map(t => [...paragraphNumbers(t)].join(","))), ["1,2,3,4", "1,2,3,4,5,6", "1,2,21,22,23", "1,2,3,4"]);
+    assert.deepEqual(await listFlags("one to four", "three"), ["Paragraphs listed in more than one list"]);
+  });
+});
