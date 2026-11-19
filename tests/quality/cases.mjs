@@ -7,8 +7,9 @@
 // answer that looks a little like a mistake, to count false alarms.
 //
 // A mistake case is "caught" when every entry in `expect` gets a flag. A flag on another question the form showed
-// before the change (and that the form's own sample answers don't already get) is a false alarm. A question the
-// change itself brings up, like the case type letters when the case number isn't complete, isn't counted.
+// before the change (and that the form's own sample answers don't already get), or on a question the case itself
+// answered, is a false alarm. A question the change brings up and the case leaves alone, like the case type letters
+// when the case number isn't complete, isn't counted.
 //
 // Kinds: the kind of check the case is for, as the report groups them. "hard" cases are the same kinds of mistakes
 // written in less usual ways, which a simple check could miss.
@@ -150,6 +151,13 @@ export const CASES = [
   { kind: "Correct answers", name: "\"all except 3\" admitted, 3 denied", form: "respond", answers: { admitted: "all except 3", denied: "3" }, expect: [] },
   { kind: "Correct answers", name: "\"the rest\" admitted, 2 and 3 denied", form: "respond", answers: { admitted: "the rest", denied: "2, 3" }, expect: [] },
   { kind: "Correct answers", name: "court date tomorrow", form: "respond", answers: { courtDate: D(1), signDate: D(0), svc1Date: D(0) }, expect: [] },
+  // Added from break-test round 3 (BT41-BT48), so these weak spots stay measured. Not held out: written after the fixes.
+  { kind: "Correct answers", name: "a bus pass as another expense", form: "feewaiver", answers: { expenseKinds: "otherCosts", otherCosts: "45", otherCostsDesc: "Bus pass is $45/mo" }, expect: [] },
+  { kind: "Correct answers", name: "a boarding pass in the reason", form: "continuance", answers: { reason: "I will be out of state for my mother's surgery. My boarding pass is DL1452 for that morning." }, expect: [] },
+  { kind: "Correct answers", name: "\"all except 3 through 5\" admitted, 3-5 denied", form: "respond", answers: { admitted: "all except 3 through 5", denied: "3-5" }, expect: [] },
+  { kind: "Correct answers", name: "\"No fax\" in the fax box", form: "appearance", answers: { fax: "No fax" }, expect: [] },
+  { kind: "Private information", name: "\"passwd:\" before a password", form: "respond", answers: { defenses: "I paid in full. passwd: Hunter22" }, expect: ["defenses"], hard: true },
+  { kind: "Answer lists", name: "\"one, two and three are true\" admitted, \"three\" denied", form: "respond", answers: { admitted: "Paragraphs one, two and three are true", denied: "three" }, expect: [["admitted", "denied"]], hard: true },
 ];
 
 // Each form filled with the usual sample answers and nothing else: the starting point every case is compared with.

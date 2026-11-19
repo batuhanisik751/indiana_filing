@@ -28,7 +28,9 @@ export async function measure(p) {
     const { flags } = await flagsFor(p, c.form, { ...(BASE[c.form] || {}), ...resolve(c.answers) });
     const ids = new Set(flags.map(f => f.id)), expected = c.expect.flat();
     const missed = c.expect.filter(e => ![e].flat().some(id => ids.has(id))).map(e => [e].flat().join(" or "));
-    const extra = flags.filter(f => !expected.includes(f.id) && !base[c.form].has(f.id) && shown[c.form].has(f.id));
+    // A question the change brought up counts too when the case answered it (BT48): a flag on a box the case filled in.
+    const answered = new Set(Object.entries(c.answers).filter(([, v]) => v !== "" && v != null).map(([k]) => k));
+    const extra = flags.filter(f => !expected.includes(f.id) && !base[c.form].has(f.id) && (shown[c.form].has(f.id) || answered.has(f.id)));
     results.push({ ...c, mistake: c.expect.length > 0, caught: missed.length === 0, missed, extra });
   }
   return { base: Object.fromEntries(Object.entries(base).map(([k, v]) => [k, [...v]])), results };
@@ -60,7 +62,7 @@ The test set is in [cases.mjs](cases.mjs): ${results.length} filled-in forms. ${
 
 - **Caught:** a flag on the question with the mistake. For a mistake between two answers, like a paragraph in two lists, a flag on either one.
 - **Missed:** no flag there.
-- **False alarm:** a flag on a question whose answer is correct. A question the mistake itself brings up isn't counted: an incomplete case number brings up the case type letters, and asking for them is right.
+- **False alarm:** a flag on a question whose answer is correct. A question the case itself brings up isn't counted unless the case answers it: an incomplete case number brings up the case type letters, and asking for them is right, but a flag on an expense description the case filled in is counted.
 
 "Harder" cases are the same kinds of mistakes written in less usual ways.
 
@@ -85,6 +87,7 @@ ${alarmsMistake.length ? `On cases with a planted mistake, ${alarmsMistake.lengt
 ## What these numbers don't say
 
 - **Who wrote the cases.** The same team wrote the checks, so the cases may lean toward what the checks were built for. Mistakes from real filings would likely be caught less often.
+- **Cases written by someone else.** On 2026-11-18 an independent tester wrote 42 cases without seeing these (27 mistakes, 15 correct answers): the checks caught 25 of the 27 and falsely flagged 1 of the 15 (2, counting a box the case itself filled in, which this set didn't count then). The tester's targeted attempts found more, fixed as BT41 to BT47; six of those are now in this set, so this set is no longer held out from them.
 - **What's left out.** The checks on the made PDF aren't counted here: an answer too long for its box, and characters the form's font can't print. They're tested in \`features/17-download-pdf.test.mjs\`.
 - **What no check can know.** Whether an address or phone number is real, or whether an answer is right for the case. Those aren't in the set.
 - **How the test uses this.** \`quality.test.mjs\` fails if a mistake caught here is missed later, or a correct answer gets a new flag. It also fails when a change makes the numbers better, so this report can be made again to match.
