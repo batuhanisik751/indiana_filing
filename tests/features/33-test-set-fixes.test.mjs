@@ -29,10 +29,13 @@ describe("I18a: a list that says \"all\" next to another list that names paragra
     }
   });
   test("edge: a list with a number in it isn't an \"all\" list, and a sentence isn't quoted", async () => {
-    for (const admitted of ["all of 1 to 3", "I admit all of it because the store said so"]) {
-      await inject(p, "respond", { admitted, denied: "4", notEnough: "" });
-      assert.ok(!(await flagsFor(p, "admitted")).some(f => f.startsWith(SAYS)), admitted);
-    }
+    await inject(p, "respond", { admitted: "all of 1 to 3", denied: "4", notEnough: "" });
+    assert.ok(!(await flagsFor(p, "admitted")).some(f => f.startsWith(SAYS)));
+    // BT44: a sentence saying all of them is an "all" list too; it's described, not repeated.
+    await inject(p, "respond", { admitted: "I admit all of it because the store said so", denied: "4", notEnough: "" });
+    const why = (await flagsFor(p, "admitted")).filter(f => f.startsWith(SAYS)).join();
+    assert.match(why, /seems to say all of them/);
+    assert.doesNotMatch(why, /store/);
   });
   test("edge: it waits while a list is flagged for private information, so no number is repeated", async () => {
     await inject(p, "respond", { admitted: "all of them", denied: "123-45-6789", notEnough: "" });

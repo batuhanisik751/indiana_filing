@@ -177,9 +177,15 @@ const onlyListWords = v => { const w = String(v ?? "").match(/[\p{L}']+/gu) || [
 const EXCEPT_NUM = "(?:(?:paragraphs?|paras?|nos?\\.?|numbers?|#|\u00b6|\u00a7)\\s*)?(?:the\\s+)?#?\\d+(?:st|nd|rd|th)?";
 const EXCEPT_RANGE = `${EXCEPT_NUM}(?:\\s*(?:[-\u2013\u2014]+|to|through|thru|until)\\s*${EXCEPT_NUM})?`;
 const EXCEPT_PART = `\\b(?:except(?: for)?|but(?: not)?|other than|excluding|apart from|aside from|besides|save(?: for)?)\\s+${EXCEPT_RANGE}(?:\\s*(?:,\\s*and|,|and|or|&)\\s*${EXCEPT_RANGE})*`;
-const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}`, "gi");
+// How many there are, after "all": "all 12", "all 12 paragraphs", "all 12 of them". Not "all 3 through 5".
+const ALL_COUNT = "(?<=\\b(?:all|every one of|each of)(?: (?:of )?the)? )\\d+(?=\\s*(?:paragraphs?|paras?|allegations?|of them|$|[,.;!]))";
+const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}|${ALL_COUNT}`, "gi");
 const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, " "); // "$500", "page 12", "3/15/2024", "5pm" and "except 3" aren't paragraphs in this list
-const namesParagraphs = v => [...paragraphNumbers(v)].some(n => n >= 1 && n <= PARAGRAPH_MAX) || onlyListWords(notAmounts(v)); // "paid in 2019" has no paragraph in it; "all apart from 3" does
+// A list that says all of them, in whatever words: "all", "I agree with all of it", "every single one", "all 12". Not
+// "all except 3", "the rest" or "not all".
+const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
+const saysAll = v => { const t = String(v ?? "").trim(); return ALL_SAYS.test(t) && !BUT_SAYS.test(t) && !saysNoList(t) && !paragraphNumbers(t).size; };
+const namesParagraphs = v => [...paragraphNumbers(v)].some(n => n >= 1 && n <= PARAGRAPH_MAX) || onlyListWords(notAmounts(v)) || saysAll(v); // "paid in 2019" has no paragraph in it; "all apart from 3" does
 const PARAGRAPH_MAX = 500;
 const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);
 const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) && !saysNoList(a[s.id]) && namesParagraphs(a[s.id]);

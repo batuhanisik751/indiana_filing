@@ -352,21 +352,20 @@ function runChecks() {
 
     // A list that says "all" (with no "except" or "the rest") next to another list that names a paragraph: the two can't
     // both be right. What the list says is quoted only when it's nothing but such words, so nothing private is repeated.
-    const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
-    const allList = lists.find(([k, n]) => { const v = String(a[k] ?? "").trim(); return !n.size && ALL_SAYS.test(v) && !BUT_SAYS.test(v) && onlyListWords(v); });
+    const allList = lists.find(([k]) => saysAll(a[k]));
     const inRange = n => [...n].filter(x => x >= 1 && x <= PARAGRAPH_MAX).sort((x, y) => x - y);
     const named = allList && lists.find(([k, n]) => k !== allList[0] && inRange(n).length);
     if (named) {
       const which = k => vis.find(s => s.id === k).label.replace(/^Paragraphs/, "paragraphs"), nums = inRange(named[1]);
       flags.push({ level: "check", title: "Your lists say different things", fix: allList[0], link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
-        why: `Your list of ${which(allList[0])} says "${String(a[allList[0]]).trim()}", but your list of ${which(named[0])} names ${nums.length > 1 ? `paragraphs ${rangesText(nums)}` : `paragraph ${nums[0]}`}. A paragraph can only be in one list. If you mean all the others, you could write "all except ${rangesText(nums)}".` });
+        why: `Your list of ${which(allList[0])} ${onlyListWords(notAmounts(a[allList[0]])) ? `says "${String(a[allList[0]]).trim()}"` : "seems to say all of them"}, but your list of ${which(named[0])} names ${nums.length > 1 ? `paragraphs ${rangesText(nums)}` : `paragraph ${nums[0]}`}. A paragraph can only be in one list. If you mean all the others, you could write "all except ${rangesText(nums)}".` });
     }
 
     // A number skipped between the ones listed. "The rest" covers it, and a number this big isn't a paragraph.
     const listed = new Set(lists.flatMap(([, n]) => [...n]).filter(n => n >= 1 && n <= PARAGRAPH_MAX));
     const skipped = [];
     for (let i = 1, top = Math.max(0, ...listed); i < top; i++) if (!listed.has(i)) skipped.push(i);
-    if (skipped.length && !lists.some(([k]) => unsure[k] || onlyListWords(notAmounts(numberWordsAsDigits(a[k])))))
+    if (skipped.length && !lists.some(([k]) => unsure[k] || onlyListWords(notAmounts(numberWordsAsDigits(a[k]))) || saysAll(a[k])))
       flags.push({ level: "check", title: "Paragraphs not in any list", fix: "admitted", link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
         why: `${skipped.length > 1 ? `Paragraphs ${rangesText(skipped)} aren't` : `Paragraph ${skipped[0]} isn't`} in any of your lists. Indiana Legal Help's instructions say that if you skip a part of the Complaint, the court will take it as true. This tool can't see your Complaint, so check these numbers against it.` });
   }

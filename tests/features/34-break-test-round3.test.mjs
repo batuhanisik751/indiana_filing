@@ -484,3 +484,29 @@ describe("BT43. Passwords written in other ways are caught", () => {
       assert.deepEqual(await privacy(t), [], t);
   });
 });
+
+describe("BT44. A list that says \"all\" in other words is read as all of them", () => {
+  const listFlags = async (admitted, denied) => { await inject(p, "respond", { admitted, denied, notEnough: "" }); return p.evaluate(() => runChecks().filter(f => ["admitted", "denied", "notEnough"].includes(f.fix)).map(f => f.title)); };
+  test("next to a named paragraph, each gets \"Your lists say different things\", and nothing else", async () => {
+    for (const t of ["All 12", "all 12 paragraphs", "I agree with all of it", "Every single one", "All paragraphs are accurate", "Yes, all", "all of em"])
+      assert.deepEqual(await listFlags(t, "3"), ["Your lists say different things"], t);
+  });
+  test("what's quoted: only list words; other words are described, not repeated", async () => {
+    await listFlags("All 12", "3");
+    assert.match((await flagsFor(p, "admitted")).join(), /says "All 12"/);
+    await listFlags("I agree with all of it", "3");
+    const why = (await flagsFor(p, "admitted")).join();
+    assert.match(why, /seems to say all of them/);
+    assert.doesNotMatch(why, /agree/);
+  });
+  test("on its own, it's a list like any other: no flag; and \"all 12\" doesn't name paragraph 12", async () => {
+    assert.deepEqual(await listFlags("I agree with all of it", ""), []);
+    assert.deepEqual(await listFlags("All 12", ""), []);
+    assert.deepEqual(await p.evaluate(() => [...paragraphNumbers("All 12")]), []);
+  });
+  test("edge: \"not all\", \"all 3 through 5\" and a sentence with no numbers are read as before", async () => {
+    assert.deepEqual(await listFlags("1, 2, all 3 through 5", "6"), []);
+    await inject(p, "respond", { admitted: "1, 2", denied: "I do not agree with all of it", notEnough: "3" });
+    assert.deepEqual(await p.evaluate(() => runChecks().filter(f => f.fix === "denied").map(f => f.title)), ["Paragraphs you deny"]);
+  });
+});
