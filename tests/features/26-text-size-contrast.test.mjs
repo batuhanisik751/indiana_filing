@@ -16,7 +16,8 @@ const said = q => q.waitForFunction(() => document.getElementById("announce").te
 async function clean(q) { await q.evaluate(() => localStorage.clear()); await q.reload(); await q.waitForSelector("#app h1"); }
 const savingOnNow = q => q.evaluate(() => savingOn());
 // The controls are in a row that "Aa" opens.
-const tap = async (q, sel) => { if (await q.$eval("#readTools", d => d.hidden)) await q.click("#readBtn"); await q.click(sel); };
+// Pressed from the keyboard: Safari doesn't focus a button that's clicked, and focus staying put (BT14) is for keyboards.
+const tap = async (q, sel) => { if (await q.$eval("#readTools", d => d.hidden)) await q.click("#readBtn"); await q.focus(sel); await q.keyboard.press("Enter"); };
 
 describe("Bigger text and high contrast", () => {
   test("the header has them on every screen, and they start at the usual look", async () => {

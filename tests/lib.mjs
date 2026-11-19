@@ -1,11 +1,14 @@
-// Shared helpers. Every test drives the real page in Chromium.
+// Shared helpers. Every test drives the real page in a real browser: Chromium, or WebKit with BROWSER=webkit.
 // BASE_URL=https://... runs the tests against a hosted copy instead of the local file.
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const { chromium } = createRequire(import.meta.url)("playwright");
+// BROWSER=webkit runs them in WebKit, the engine inside Safari (install it with `npx playwright install webkit`).
+export const BROWSER = process.env.BROWSER || "chromium";
+const engine = createRequire(import.meta.url)("playwright")[BROWSER];
+if (!["chromium", "webkit"].includes(BROWSER)) throw new Error(`BROWSER must be chromium or webkit, not "${BROWSER}"`);
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const BASE_URL = process.env.BASE_URL || "";
 export const APP = BASE_URL || "file://" + path.join(ROOT, "form-builder-mvp.html");
@@ -14,7 +17,7 @@ const VIEW = { width: 1000, height: 900 };
 
 let browser = null;
 const opened = []; // every page the tests opened, to check for errors at the end
-export async function launch() { browser ||= await chromium.launch(); return browser; }
+export async function launch() { browser ||= await engine.launch(); return browser; }
 // Closes the browser, then fails the test file if any page threw an error that no test expected. A page that breaks
 // on purpose (a missing file, someone else's script) sets p.allowErrors = true.
 export async function close() {

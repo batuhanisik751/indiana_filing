@@ -2,11 +2,12 @@
   "name": "indiana-filing-tests",
   "private": true,
   "type": "module",
-  "description": "Tests for the Indiana Court Form Helper, run in real Chromium. See ../README.md.",
+  "description": "Tests for the Indiana Court Form Helper, run in real Chromium (or WebKit, the engine inside Safari). See ../README.md.",
   "scripts": {
     "test": "node --test --test-concurrency=1",
     "features": "node --test --test-concurrency=1 \"features/*.test.mjs\"",
-    "quality": "node quality/run.mjs"
+    "quality": "node quality/run.mjs",
+    "webkit": "BROWSER=webkit node --test --test-concurrency=1"
   },
   "devDependencies": {
     "playwright": "1.63.0"
