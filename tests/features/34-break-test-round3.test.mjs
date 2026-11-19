@@ -466,3 +466,21 @@ describe("BT42. Paragraphs after \"except\" are taken out of the list, however t
     assert.deepEqual(await listFlags("1, 2, 3", "3, 4"), ["Paragraphs listed in more than one list"]);
   });
 });
+
+describe("BT43. Passwords written in other ways are caught", () => {
+  const privacy = async text => { await inject(p, "respond", { defenses: text }); return (await flagsFor(p, "defenses")).filter(f => /Private information/.test(f)); };
+  test("\"is:\", \"passwd\", \"pass word\", \"pass code\", \" - \", \"pass's\", \"#\", after a user name, and \"password for the portal is\"", async () => {
+    for (const t of ["I paid. pass is: Hunter22", "I paid. passwd: Hunter22", "I paid. pass word is Hunter22", "I paid. pass code is 4829", "I paid. My pass - Hunter22", "I paid. My pass’s Hunter22", "I paid. My pass is #Hunter22", "I paid. user pat88 pass Hunter22", "I paid. username: pat88, password Hunter22", "I paid online. My password for the portal is Hunter22 if anyone needs to check.", "My passcode for the app was Sunny2024!"])
+      assert.equal((await privacy(t)).length, 1, t);
+  });
+  test("Fix selects the password with its label", async () => {
+    const t = "I paid online. My password for the portal is Hunter22 if anyone needs to check.";
+    await inject(p, "respond", { defenses: t });
+    const hit = await p.evaluate(() => runChecks().find(f => f.fix === "defenses" && /Private/.test(f.title)).hit);
+    assert.ok(hit.some(([s, e]) => t.slice(s, e).includes("Hunter22")), JSON.stringify(hit.map(([s, e]) => t.slice(s, e))));
+  });
+  test("edge: still not flagged: a password that's wrong or was changed, a user name, a free pass", async () => {
+    for (const t of ["My password is wrong", "My password for the bank was changed in 2024", "I forgot my password for the account", "The user name on the account is Pat", "user error - the pass was free", "They said my pass code was expired"])
+      assert.deepEqual(await privacy(t), [], t);
+  });
+});

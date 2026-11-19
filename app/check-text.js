@@ -51,15 +51,20 @@ const ACCOUNT_WORD = "accounts?|accts?|acc|a\\/c|routing|rt|aba|cards?|loans?|mo
 const ACCOUNT_LABEL = new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])`, "i");
 // "my pass is x" counts when the pass is the person's own or an account's ("my pass", "login pass", or "pass" starting
 // a sentence), not a bus, boarding, parking or season pass. And x has to look like a password: four or more characters,
-// letters with a digit or symbol, and not an amount ("$45/mo", "30/mo"), a date, a time ("noon-4pm"), "7-day" or "#A12".
+// letters with a digit or symbol, and not an amount ("$45/mo", "30/mo"), a date, a time ("noon-4pm") or "7-day".
 const PASS_OWNER = "(?:^|[.,;:!?()] ?|\\b(?:my|your|his|her|their|our|the|its|and|login|log-in|account|portal|email|e-mail|wifi|wi-fi|online|app|website|site|computer|phone|user)\\s)";
-const PW_VALUE = "(?![#$])(?!\\S*\\/)(?!\\S*\\d\\s?[ap]\\.?m\\b)(?!\\d+-\\p{L})(?=\\S*\\p{L})(?=\\S*[\\d!@$%^&*])\\S{4,}";
+const PW_VALUE = "(?!\\$)(?!\\S*\\/)(?!\\S*\\d\\s?[ap]\\.?m\\b)(?!\\d+-\\p{L})(?=\\S*\\p{L})(?=\\S*[\\d!@$%^&*])\\S{4,}";
+// "password", "pass word", "passcode", "pass code", "passwd", "pwd", "pw".
+const PW_LABEL = "(?:pass ?(?:word|code)|passwd|pwd|pw)";
 // A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word. Also
-// "my pass is x", as above. An amount after "pw:" or "pwd:" ("PWD: $40", a water bill) isn't one.
-const PASSWORD_RES = [/\b(?:pass(?:word|code)|pwd|pw)\b ?[:=] ?(?!\$ ?\d)\S+/i,
-  new RegExp(`(?:(?<=${PASS_OWNER})pass|\\b(?:pwd|pw))\\b ?(?:is|was|[:=]) ?${PW_VALUE}`, "iu"),
-  /\bpass(?:word|code)\b ?(?:is|was) (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\b)\S+/i,
-  /\bpass(?:word|code)\b (?=\S*[\d!@#$%^&*])\S+/i];
+// "my pass is x" ("is:", "-" and "pass's" too), as above; "user pat88 pass x"; and "my password for the portal is x".
+// An amount after "pw:" or "pwd:" ("PWD: $40", a water bill) isn't one.
+const PASSWORD_RES = [new RegExp(`\\b${PW_LABEL}\\b ?[:=] ?(?!\\$ ?\\d)\\S+`, "i"),
+  new RegExp(`(?:(?<=${PASS_OWNER})pass|\\b(?:pwd|pw))\\b(?: ?(?:is|was)(?: ?[:=])?| ?[:=]| -|['\u2019]s) ?${PW_VALUE}`, "iu"),
+  new RegExp(`\\b(?:pass ?(?:word|code)|passwd)\\b ?(?:is|was):? (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\\b)\\S+`, "i"),
+  new RegExp(`\\bpass ?(?:word|code)\\b (?=\\S*[\\d!@#$%^&*])\\S+`, "i"),
+  new RegExp(`\\b(?:user ?(?:name|id)?|login)\\b:? ?\\S+,? (?:and )?(?:pass|${PW_LABEL})\\b:? ?${PW_VALUE}`, "iu"),
+  new RegExp(`\\b${PW_LABEL}\\b (?:for|to|on|at|with) (?:\\S+ ){1,3}?(?:is|was):? ?${PW_VALUE}`, "iu")];
 function privateKind(text, isAddress = false) {
   const s = String(text ?? "").normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
   // 123-45-6789 and the same with other separators. A hyphen before it only counts after a letter, as in Smith-123-45-6789.
