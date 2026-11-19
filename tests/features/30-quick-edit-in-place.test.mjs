@@ -38,7 +38,9 @@ describe("17. Quick edit: change an answer in place on the summary", () => {
     assert.ok(!(await p.$$eval("ul.flags .ftitle", t => t.map(x => x.textContent))).some(t => /email/i.test(t)), "the flag is gone from the page");
     assert.notEqual(await p.evaluate(() => pdfState.key), key, "the filled form is made again");
     assert.equal(await focusedIs('dl.vals [data-row="email:0"] [data-fix]'), true);
-    await p.waitForFunction(() => __said.some(t => /^Saved\./.test(t)));
+    // "Saved", unless the filled form was made again within 50ms: then its own announcement replaces it (the last one is
+    // what's true now), which WebKit can be fast enough for.
+    await p.waitForFunction(() => __said.some(t => /^Saved\.|^Your filled form is ready/.test(t)));
   });
 
   test("an answer on two forms: the second row's box, and both rows change", async () => {

@@ -2,7 +2,7 @@
 // bar (item 21), the test set (item 18) and the checks fixed after it (I18a-I18d).
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, flagsFor, pick, walk, answer, reset, SAVED } from "../lib.mjs";
+import { fresh, close, inject, editHere, flagsFor, pick, walk, answer, reset, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -329,7 +329,8 @@ describe("BT37. Escape closes the box on the summary from its buttons too", () =
   test("edge: Tab from the box to Save, then Escape; and Escape on a page shown large still closes only its box", async () => {
     await inject(p, "respond");
     await editHere(p, "plaintiff");
-    await p.keyboard.press("Tab");
+    // Safari's Tab skips buttons unless the person turns that on, so there Save is focused directly.
+    if (BROWSER === "webkit") await p.focus("#ieSave"); else await p.keyboard.press("Tab");
     assert.equal(await p.evaluate(() => document.activeElement.id), "ieSave");
     await p.keyboard.press("Escape");
     assert.equal(await p.locator("#inEdit").count(), 0);
@@ -369,8 +370,9 @@ describe("BT38. On a 320px phone, a box opened on the summary fits the screen", 
 });
 
 describe("BT39. A date half typed in a box on the summary isn't wiped when the summary is drawn again", () => {
-  test("the filled form finishing while the month is typed: the box and cursor stay, and the rest of the date can be typed", async () => {
+  test("the filled form finishing while the month is typed: the box and cursor stay, and the rest of the date can be typed", { skip: BROWSER === "webkit" && "Playwright's WebKit date box takes no typed dates" }, async () => {
     await inject(p, "continuance");
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 }); // or its build would finish first
     await p.evaluate(() => { window.__realBuild = buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1500)).then(() => window.__realBuild(...a))"); pdfState = { key: null }; ensurePdf(); renderSummary(true); });
     await editHere(p, "hearingDate");
     await p.evaluate(() => { document.getElementById("inEdit").value = ""; });
@@ -390,7 +392,7 @@ describe("BT39. A date half typed in a box on the summary isn't wiped when the s
     assert.equal(await p.evaluate(() => answers.hearingDate), typed);
     await p.evaluate(() => globalThis.eval("buildPdf = window.__realBuild"));
   });
-  test("edge: Save pressed down while the summary waits to be drawn again still saves", async () => {
+  test("edge: Save pressed down while the summary waits to be drawn again still saves", { skip: BROWSER === "webkit" && "Playwright's WebKit date box takes no typed dates" }, async () => {
     await inject(p, "continuance");
     await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
     await editHere(p, "hearingDate");
