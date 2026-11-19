@@ -38,6 +38,8 @@
   --miss: #F09A80; --field-line: #6C789C;
 }
 *, *::before, *::after { box-sizing: inherit; }
+/* A <details> puts its content in a box of the browser's own, which doesn't pass the sizing on: start it again there. */
+details > :not(summary) { box-sizing: border-box; }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); font-size: calc(100% * var(--text-scale, 1)); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.125rem; line-height: 1.55; }
 /* The side gutters stay their usual size with bigger text: on a phone, that width is what the bigger text needs. */
@@ -187,10 +189,12 @@ dl.vals dd { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: an
 dl.vals .edit { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: .6rem .5rem; margin: -.6rem -.5rem; }
 /* An answer being changed in place: the box takes the row's full width. */
 dl.vals > div.editing dd { grid-column: 1 / -1; white-space: normal; }
-.inedit { display: grid; gap: .35rem; margin-top: .25rem; }
+.inedit { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin-top: .25rem; } /* a date box with big text can't widen it */
 .inedit .need, .inedit .err { margin: 0; }
 .inedit .err { min-height: 0; }
 .ienav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; }
+.ienav > button { overflow-wrap: normal; } /* never "Sav/e": the answer's own line may break anywhere, not these */
+.ienav > button:not(.link) { flex: none; white-space: nowrap; }
 .ienav button.link { padding: .55rem 0; }
 .miss { color: var(--miss); font-weight: 700; font-size: .95em; }
 .draftnote { font-size: .85rem; color: var(--muted); }

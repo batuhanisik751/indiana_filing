@@ -342,3 +342,28 @@ describe("BT37. Escape closes the box on the summary from its buttons too", () =
     await p.keyboard.press("Escape");
   });
 });
+
+describe("BT38. On a 320px phone, a box opened on the summary fits the screen", () => {
+  test("every typed answer of every form, at the usual size and at 150%: nothing goes past the side", async () => {
+    const q = await fresh({ viewport: { width: 320, height: 640 } });
+    const over = [];
+    for (const big of [false, true]) {
+      if (big) { await q.click("#readBtn"); for (let i = 0; i < 3; i++) await q.click("#textBigger"); await q.click("#readBtn"); } // A+ to 150%
+      for (const [form, more] of [["respond"], ["appearance"], ["continuance"], ["feewaiver", { incomeKinds: "wages", expenseKinds: "otherCosts", otherCosts: "45", otherCostsDesc: "Bus fare" }]]) {
+        await inject(q, form, more || {});
+        await q.evaluate(() => { document.querySelector('details[data-more="answers"]').open = true; });
+        const ids = await q.$$eval("dl.vals [data-inline]", b => [...new Set(b.map(x => x.dataset.fix))]);
+        for (const id of ids) {
+          await q.click(`dl.vals [data-inline][data-fix="${id}"]`);
+          await q.waitForSelector("#inEdit");
+          const m = await q.evaluate(() => ({ wide: document.documentElement.scrollWidth, right: Math.round(document.getElementById("inEdit").getBoundingClientRect().right), card: Math.round(document.getElementById("inEdit").closest(".formcard").getBoundingClientRect().right),
+            broken: ["ieSave", "ieCancel"].filter(b => { const e = document.getElementById(b), cs = getComputedStyle(e); return e.getBoundingClientRect().height > parseFloat(cs.lineHeight) * 1.5 + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 4; }) }));
+          if (m.wide > 320 || m.right > m.card) over.push(`${big ? "150%" : "100%"} ${form}.${id}: page ${m.wide}px, box ends at ${m.right} past its card's ${m.card}`);
+          if (m.broken.length) over.push(`${big ? "150%" : "100%"} ${form}.${id}: ${m.broken.join(" and ")} on two lines`);
+          await q.click("#ieCancel");
+        }
+      }
+    }
+    assert.deepEqual(over, []);
+  });
+});
