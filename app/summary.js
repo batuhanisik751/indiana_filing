@@ -174,9 +174,11 @@ function wireInline(root = app) {
     saveProgress(); // what's typed is kept through a reload, as on the question
   });
   box.addEventListener("keydown", e => {
-    if (e.isComposing) return;
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeInline(); }
-    else if (e.key === "Enter" && box.tagName !== "TEXTAREA" && !e.repeat) { e.preventDefault(); saveInline(); }
+    if (!e.isComposing && e.key === "Enter" && box.tagName !== "TEXTAREA" && !e.repeat) { e.preventDefault(); saveInline(); }
+  });
+  // Escape anywhere in the box, on its buttons too, closes it as Cancel does.
+  box.closest(".inedit").addEventListener("keydown", e => {
+    if (e.key === "Escape" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); closeInline(); }
   });
   on("ieSave", saveInline);
 }

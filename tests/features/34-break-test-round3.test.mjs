@@ -314,3 +314,31 @@ describe("BT36. After Save in a box on a page shown large, focus doesn't fall to
     await p.keyboard.press("Escape");
   });
 });
+
+describe("BT37. Escape closes the box on the summary from its buttons too", () => {
+  for (const button of ["ieSave", "ieCancel", "ieFull"]) test(`Escape on ${button === "ieSave" ? "Save" : button === "ieCancel" ? "Cancel" : "Open the full question"}`, async () => {
+    await inject(p, "respond");
+    await editHere(p, "plaintiff");
+    await p.fill("#inEdit", "Acme Credit Holdings LLC");
+    await p.focus(`#${button}`);
+    await p.keyboard.press("Escape");
+    assert.equal(await p.locator("#inEdit").count(), 0);
+    assert.equal(await p.evaluate(() => [mode, answers.plaintiff, inlineEdit].join("|")), "summary|Acme Credit LLC|");
+    assert.equal(await p.evaluate(() => document.activeElement.matches('dl.vals [data-fix="plaintiff"]')), true);
+  });
+  test("edge: Tab from the box to Save, then Escape; and Escape on a page shown large still closes only its box", async () => {
+    await inject(p, "respond");
+    await editHere(p, "plaintiff");
+    await p.keyboard.press("Tab");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "ieSave");
+    await p.keyboard.press("Escape");
+    assert.equal(await p.locator("#inEdit").count(), 0);
+    await openPage(p, 1);
+    await tap(p, "plaintiff");
+    await p.focus("#ieSave");
+    await p.keyboard.press("Escape");
+    assert.equal(await p.locator("#pvEdit").count(), 0);
+    assert.equal(await p.locator("dialog.pageview[open]").count(), 1);
+    await p.keyboard.press("Escape");
+  });
+});
