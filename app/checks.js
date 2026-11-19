@@ -32,15 +32,21 @@ function completeness() {
 const NUMBER_WORDS = Object.fromEntries("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split(" ").map((w, i) => [w, i + 1]));
 const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(]|\\b(?:and|or|through|thru|to|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${Object.keys(NUMBER_WORDS).join("|")})\\b(?=\\s*(?:$|[,;&).]|\\b(?:and|or|through|thru|to)\\b))`, "gi");
 const numberWordsAsDigits = v => String(v ?? "").replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${NUMBER_WORDS[w.toLowerCase()]}`);
-// The paragraph numbers in a list, like "1, 3-5", "1 through 3" or "one, two".
-function paragraphNumbers(v) {
-  const out = new Set();
-  for (const m of notAmounts(numberWordsAsDigits(v)).matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
+// The numbers in text like "1, 3-5" or "1 through 3".
+function numbersIn(t, out = new Set()) {
+  for (const m of t.matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);
     else { out.add(from); out.add(to); }
   }
+  return out;
+}
+// The paragraph numbers in a list, like "1, 3-5", "1 through 3" or "one, two". Those after "except" are taken out:
+// "1-5 except 3" is 1, 2, 4 and 5.
+function paragraphNumbers(v) {
+  const t = numberWordsAsDigits(v), out = numbersIn(notAmounts(t));
+  for (const m of t.matchAll(new RegExp(EXCEPT_PART, "gi"))) for (const n of numbersIn(m[0])) out.delete(n);
   return out;
 }
 
@@ -346,7 +352,7 @@ function runChecks() {
 
     // A list that says "all" (with no "except" or "the rest") next to another list that names a paragraph: the two can't
     // both be right. What the list says is quoted only when it's nothing but such words, so nothing private is repeated.
-    const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not)\b/i;
+    const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
     const allList = lists.find(([k, n]) => { const v = String(a[k] ?? "").trim(); return !n.size && ALL_SAYS.test(v) && !BUT_SAYS.test(v) && onlyListWords(v); });
     const inRange = n => [...n].filter(x => x >= 1 && x <= PARAGRAPH_MAX).sort((x, y) => x - y);
     const named = allList && lists.find(([k, n]) => k !== allList[0] && inRange(n).length);

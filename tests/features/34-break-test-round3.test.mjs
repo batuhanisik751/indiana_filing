@@ -441,3 +441,28 @@ describe("BT40. When an answer brings up more needed questions, the next questio
     assert.equal(await p.locator("#barNote").count(), 0);
   });
 });
+
+describe("BT42. Paragraphs after \"except\" are taken out of the list, however they're written", () => {
+  const listFlags = async (admitted, denied) => { await inject(p, "respond", { admitted, denied, notEnough: "" }); return p.evaluate(() => runChecks().filter(f => ["admitted", "denied", "notEnough"].includes(f.fix)).map(f => f.title)); };
+  test("the \"all\" flag's own advice gets no new flag", async () => {
+    await inject(p, "respond", { admitted: "all", denied: "3-5", notEnough: "" });
+    const why = await p.evaluate(() => runChecks().find(f => f.title === "Your lists say different things").why);
+    const advice = why.match(/you could write "([^"]+)"/)[1];
+    assert.equal(advice, "all except 3 through 5");
+    assert.deepEqual(await listFlags(advice, "3-5"), []);
+    assert.deepEqual(await listFlags("all except 2 through 4 and 7", "2, 3, 4, 7"), []);
+  });
+  test("ranges, #, ¶, no., ordinals, \"save\" and \"apart from\" after all", async () => {
+    for (const [admitted, denied] of [["all except 3-5", "3-5"], ["All except 3 thru 5", "3 thru 5"], ["All except #3", "3"], ["All except paragraph #3", "3"], ["All except ¶ 3", "3"], ["All except no. 3", "3"], ["All except the 3rd", "3"], ["all, save 3", "3"], ["All apart from 3", "3"], ["All except numbers 3 and 4", "3, 4"], ["All except paras 3 and 4", "3, 4"]])
+      assert.deepEqual(await listFlags(admitted, denied), [], `${admitted} / ${denied}`);
+  });
+  test("numbers before \"except\" lose the ones after it: \"1-5 except 3\" is 1, 2, 4 and 5", async () => {
+    assert.deepEqual(await listFlags("1-5 except 3", "3, 6"), []);
+    assert.deepEqual(await listFlags("1-5 except 3", "6"), ["Paragraphs not in any list"]);
+    assert.match((await flagsFor(p, "admitted")).join(), /Paragraph 3 isn't in any of your lists/);
+  });
+  test("edge: still flagged: \"all\" next to a named paragraph, and one paragraph in two lists", async () => {
+    assert.deepEqual(await listFlags("all", "3"), ["Your lists say different things"]);
+    assert.deepEqual(await listFlags("1, 2, 3", "3, 4"), ["Paragraphs listed in more than one list"]);
+  });
+});
