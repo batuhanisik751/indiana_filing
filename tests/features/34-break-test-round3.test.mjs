@@ -162,3 +162,25 @@ describe("BT32. A box on a page shown large isn't lost when the page changes", (
     await p.keyboard.press("Escape");
   });
 });
+
+describe("BT33. A case number changed in place asks about the county and court as its question does", () => {
+  for (const confirm of ["no", ""]) test(`with the county and court ${confirm ? "chosen by hand" : "not confirmed"}, another county's number goes to its question`, async () => {
+    await inject(p, "respond", { caseConfirm: confirm });
+    await editHere(p, "caseNumber");
+    await p.fill("#inEdit", "49D01-2611-CC-001234");
+    await p.click("#ieSave");
+    assert.equal(await p.evaluate(() => mode === "step" && visible()[cur].id), "caseNumber");
+    assert.equal(await p.$eval("#ans", b => b.value), "49D01-2611-CC-001234");
+    assert.match(await p.textContent("#inlineNote"), /brings up another question/);
+    assert.equal(await p.evaluate(() => [answers.caseNumber, answers.caseConfirm ?? ""].join("|")), `02D01-2611-CC-001234|${confirm}`, "nothing changed until it's saved there");
+    await p.click("#next");
+    assert.equal(await p.evaluate(() => mode === "step" && visible()[cur].id), "caseConfirm");
+  });
+  test("edge: with the county and court confirmed, a number in the same court still saves in place", async () => {
+    await inject(p, "respond", { caseConfirm: "yes" });
+    await editHere(p, "caseNumber");
+    await p.fill("#inEdit", "02D01-2611-CC-001299");
+    await p.click("#ieSave");
+    assert.equal(await p.evaluate(() => [mode, answers.caseNumber, answers.caseConfirm].join("|")), "summary|02D01-2611-CC-001299|yes");
+  });
+});

@@ -134,6 +134,9 @@ function saveInline() {
   // A change that brings up another question (a case number for another county or court) is made on the question.
   const before = new Set(visible().map(s => s.id)), kept = [answers[step.id], answers.caseConfirm, unsure.caseConfirm, caseConfirmFor];
   keepTyped(step, box.value);
+  // As on the question: a case number with no county and court confirmed for it (another county's number drops the
+  // confirmation) asks that question again.
+  if (step.id === "caseNumber" && empty(answers.caseConfirm)) before.delete("caseConfirm");
   if (visible().some(s => !before.has(s.id))) {
     const put = (o, k, v) => { if (v === undefined) delete o[k]; else o[k] = v; };
     put(answers, step.id, kept[0]); put(answers, "caseConfirm", kept[1]); put(unsure, "caseConfirm", kept[2]); caseConfirmFor = kept[3];
