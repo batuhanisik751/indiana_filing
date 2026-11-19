@@ -2,7 +2,7 @@
 // bar (item 21), the test set (item 18) and the checks fixed after it (I18a-I18d).
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, flagsFor, SAVED } from "../lib.mjs";
+import { fresh, close, inject, editHere, flagsFor, pick, walk, answer, reset, SAVED } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -413,5 +413,31 @@ describe("BT39. A date half typed in a box on the summary isn't wiped when the s
     await p.evaluate(() => keepFocus(() => renderSummary(true)));
     assert.equal(await p.evaluate(() => [document.activeElement.id, document.getElementById("inEdit").value].join("|")), "inEdit|2026-12-23");
     await p.click("#ieCancel");
+  });
+});
+
+describe("BT40. When an answer brings up more needed questions, the next question says why the bar moved back", () => {
+  const pct = q => q.$eval(".bar[role=progressbar]", b => +b.getAttribute("aria-valuenow"));
+  test("Yes to sending a copy to someone else: the bar moves back, and a line says how many questions that added", async () => {
+    await reset(p);
+    await pick(p, "appearance");
+    await walk(p, "svcMore1");
+    const before = await pct(p), total = await p.evaluate(() => completeness().total);
+    await answer(p, "yes");
+    const added = await p.evaluate(() => completeness().total) - total;
+    assert.ok(added > 0 && (await pct(p)) < before);
+    assert.equal(await p.textContent("#barNote"), `Your last answer added ${added} needed questions, so the bar moved back a little.`);
+    const said = await p.evaluate(() => new Promise(r => setTimeout(() => r(document.getElementById("announce").textContent), 120)));
+    assert.equal(said, `Your last answer added ${added} needed questions, so the bar moved back a little.`);
+    await p.fill("#ans", "Someone Else");
+    await p.click("#next");
+    assert.equal(await p.locator("#barNote").count(), 0, "said once, on the next question only");
+  });
+  test("edge: an answer that brings up no needed question says nothing", async () => {
+    await reset(p);
+    await pick(p, "appearance");
+    await walk(p, "name");
+    await answer(p, "Pat Example");
+    assert.equal(await p.locator("#barNote").count(), 0);
   });
 });

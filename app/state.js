@@ -6,6 +6,7 @@ let sitKey = null, steps = [], answers = {};
 let mode = "pick", cur = 0, returnToSummary = false, lastEdited = null;
 let unsure = {}; // questions the person marked "I'm not sure"
 let justMarked = false; // the last question was just marked: say so on the next screen
+let barGrew = 0;         // needed questions the last answer brought up, which moved the bar back: said on the next screen
 let fromNotSure = false; // came here from "Which one fits?"
 let followUps = [];      // questions an edited answer just opened, asked before going back to the summary
 let selectOnOpen = null; // { id, spans }: the part of an answer a flag is about, to select when its question opens

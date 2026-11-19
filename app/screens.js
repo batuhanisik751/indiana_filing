@@ -244,6 +244,7 @@ function renderStep() {
     <div class="qmain">
     <div class="barrow"><div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${pct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div><span class="barcount" aria-hidden="true">${score.filled} of ${score.total} needed answers</span></div>
     ${justMarked ? `<p class="need">Marked the last question "I'm not sure." It will be flagged at the end.</p>` : ""}
+    ${barGrew ? `<p class="need" id="barNote">${esc(grewNote(barGrew))}</p>` : ""}
     <div class="barlabel"><span>${esc(sit.sections[step.sec])}</span><span>Question ${cur + 1} of ${vis.length}</span></div>
     <h1 class="q" id="q" tabindex="-1">${esc(typeof step.q === "function" ? step.q(answers) : step.q)}</h1>
     <p class="help" id="qhelp">${termify(step.help || "")}${step.link ? ` <a href="${step.link.href}" target="_blank" rel="noopener">${esc(step.link.text)}</a>.` : ""}</p>
@@ -336,6 +337,7 @@ function renderStep() {
   });
   const other = document.getElementById("changeForm");
   if (other) other.onclick = () => { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; chooseOtherForm(); };
+  if (barGrew && !justMarked) announce(grewNote(barGrew)); // the bar moved back: say why
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
   let typedHere = false; // something was typed or chosen on this question since it appeared
@@ -378,6 +380,7 @@ function readInput(step) {
   keepTyped(step, document.getElementById("ans").value);
 }
 // A typed answer as it's kept: tidied, and in capitals where the form wants them.
+const grewNote = n => `Your last answer added ${n} needed question${n > 1 ? "s" : ""}, so the bar moved back a little.`;
 const typedValue = (step, raw) => { const val = cleanText(raw).trim(); return step.upper ? val.toUpperCase() : val; };
 function keepTyped(step, raw) {
   const val = typedValue(step, raw);

@@ -15,7 +15,7 @@ function render() {
   window.scrollTo(0, 0); // each screen starts at the top (the summary then scrolls to the row you edited)
   app.dataset.screen = mode; // lets the stylesheet lay out each screen its own way on wide screens
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
-  justMarked = false;
+  justMarked = false; barGrew = 0;
   markNewTabLinks();
   saveProgress();
   updatePrivacyNote();

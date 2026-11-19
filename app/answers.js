@@ -9,6 +9,7 @@ function nextFollowUp() {
 }
 
 function markUnsure(step) {
+  const neededBefore = completeness().total;
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   const wasYes = answers[step.id] === "yes";
   readInput(step);
@@ -20,6 +21,7 @@ function markUnsure(step) {
   answers[step.id] = "";
   unsure[step.id] = true;
   justMarked = true;
+  grewBy(neededBefore);
   announce("Marked \"I'm not sure.\" It will be flagged at the end.");
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
@@ -55,7 +57,10 @@ function answerProblem(step, v, editing = false) {
   return "";
 }
 
+// The needed questions an answer just brought up: the bar moves back by that much, so the next question says why.
+const grewBy = before => { barGrew = Math.max(0, completeness().total - before); };
 function save(step) {
+  const neededBefore = completeness().total;
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   const refuse = msg => {
@@ -74,6 +79,7 @@ function save(step) {
   if (!empty(answers[step.id]) || (step.optional && returnToSummary)) delete unsure[step.id];
   if (step.type === "money" || step.type === "number") answers[step.id] = cleanNum(v);
   clearedContact = clearedContact.filter(k => k !== step.id);
+  grewBy(neededBefore);
   const vis = visible();
   const idx = vis.findIndex(s => s.id === step.id);
   if (returnToSummary) {
