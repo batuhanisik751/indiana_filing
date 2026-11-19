@@ -292,7 +292,13 @@ function renderStep() {
   // E2: focus the chosen answer, not just the first option.
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
   // With bigger text, a new question starts just past the header, so the question is what's on screen.
-  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]"); if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, look.size ? Math.max(0, app.getBoundingClientRect().top + window.scrollY - 8) : 0); }
+  // Safari scrolls a focused choice into view in the next frame all the same, so the place is set again then.
+  const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]");
+  if (el) {
+    const y = look.size ? Math.max(0, app.getBoundingClientRect().top + window.scrollY - 8) : 0;
+    el.focus({ preventScroll: true }); window.scrollTo(0, y);
+    requestAnimationFrame(() => { if (document.activeElement === el && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y); });
+  }
   // Opened from a flag about part of this answer: that part is selected, so it's easy to find and change.
   const hit = selectOnOpen && selectOnOpen.id === step.id && el && el.id === "ans" && typeof el.setSelectionRange === "function" ? selectOnOpen.spans[0] : null;
   selectOnOpen = null;
