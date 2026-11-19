@@ -89,6 +89,9 @@ function redrawSummaryAt(sel, then) {
   if (then) then();
 }
 const inlineChanged = () => !!inlineEdit && (inlineEdit.erased || inlineEdit.value !== String(answers[inlineEdit.id] ?? ""));
+// Lets go of the answer being changed, as Cancel does: one emptied in its box goes back on the device (until then the
+// saved copy keeps it off).
+function dropInline() { const erased = !!inlineEdit && inlineEdit.erased; inlineEdit = null; if (erased) saveProgress(); }
 function openInline(id, nth) {
   if (inlineEdit && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { document.getElementById("inEdit")?.focus(); return; }
   inlineEdit = { id, nth, value: String(answers[id] ?? ""), erased: false, err: "" };
@@ -251,7 +254,7 @@ function renderSummary(rerender = false) {
     <p class="need"><button class="link" id="changeForm">Choose a different form</button></p>
     <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
 
-  if (inlineEdit && inlineEdit.where !== "pdf" && !boxPlaced) inlineEdit = null; // its row is gone (the answer moved or was hidden)
+  if (inlineEdit && inlineEdit.where !== "pdf" && !boxPlaced) dropInline(); // its row is gone (the answer moved or was hidden)
   wireInline();
   app.querySelectorAll("[data-fix]").forEach(b => b.onclick = () => {
     if (b.dataset.inline) return openInline(b.dataset.fix, +b.dataset.nth);

@@ -183,7 +183,7 @@ function showFilledPage(pdf, n, opener, focusId = null) {
     },
   });
   // Closing the page, or Back, closes a box on it as Cancel would.
-  dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") { inlineEdit = null; saveProgress(); } });
+  dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") dropInline(); });
   dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit")) { e.preventDefault(); closePdfEdit(dlg); } });
   return dlg;
 }
@@ -208,8 +208,9 @@ function openPdfEdit(dlg, page, spot, button, onSaved) {
   if (inlineEdit && inlineEdit.where === "pdf" && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { dlg.querySelector("#inEdit")?.focus(); return; }
   if (inlineEdit && inlineEdit.where !== "pdf") {
     if (inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) return;
-    inlineEdit = null; renderSummary(true); // the box open on the summary behind closes
+    dropInline(); renderSummary(true); // the box open on the summary behind closes
   }
+  if (inlineEdit) dropInline(); // the box open on this page closes, as Cancel would
   dlg.querySelector("#pvEdit")?.remove();
   page.querySelectorAll(".pvspot.on").forEach(b => b.classList.remove("on"));
   const step = steps.find(s => s.id === spot.id), typed = editsInPlace(spot.id);
@@ -234,9 +235,7 @@ function openPdfEdit(dlg, page, spot, button, onSaved) {
 function closePdfEdit(dlg) {
   const box = dlg.querySelector("#pvEdit"), id = inlineEdit && inlineEdit.id;
   if (box) box.remove();
-  const erased = inlineEdit && inlineEdit.erased;
-  inlineEdit = null;
-  if (erased) saveProgress(); // the old answer comes back to the device
+  dropInline(); // an emptied answer comes back to the device
   const spot = dlg.querySelector(`.pvspot.on`) || (id && dlg.querySelector(`.pvspot[data-id="${CSS.escape(id)}"]`));
   dlg.querySelectorAll(".pvspot.on").forEach(b => b.classList.remove("on"));
   spot?.focus();
