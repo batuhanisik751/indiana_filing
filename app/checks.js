@@ -28,10 +28,20 @@ function completeness() {
 }
 
 // Paragraph numbers written as words where they stand in a list: "one, 2", "paragraphs two and three", "one through
-// four". Not "every one", "the first three", "one of them" or "One paragraph is wrong".
-const NUMBER_WORDS = Object.fromEntries("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split(" ").map((w, i) => [w, i + 1]));
-const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(]|\\b(?:and|or|through|thru|to|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${Object.keys(NUMBER_WORDS).join("|")})\\b(?=\\s*(?:$|[,;&).]|\\b(?:and|or|through|thru|to)\\b))`, "gi");
-const numberWordsAsDigits = v => String(v ?? "").replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${NUMBER_WORDS[w.toLowerCase()]}`);
+// four", "one-four", "twenty-one", "first and second", "the first five", "Paragraphs one, two and three are true". Not
+// "every one", "one of them" or "One paragraph is wrong".
+const UNIT_WORDS = "one two three four five six seven eight nine".split(" "), TENS_WORDS = "twenty thirty forty fifty sixty seventy eighty ninety".split(" ");
+const NUMBER_WORDS = {};
+UNIT_WORDS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
+"ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split(" ").forEach((w, i) => { NUMBER_WORDS[w] = i + 10; });
+TENS_WORDS.forEach((t, i) => { NUMBER_WORDS[t] = (i + 2) * 10; UNIT_WORDS.forEach((u, j) => { NUMBER_WORDS[`${t} ${u}`] = (i + 2) * 10 + j + 1; }); });
+"first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth twentieth".split(" ").forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
+const NUMBER_WORD = Object.keys(NUMBER_WORDS).sort((x, y) => y.length - x.length).map(w => w.replace(" ", "[-\\s]")).join("|"); // "twenty-one" before "twenty"
+const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(/]|[-\u2013](?=\\s*(?:${NUMBER_WORD})\\b)|\\b(?:and|or|through|thru|to|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${NUMBER_WORD})\\b(?=\\s*(?:$|[,;&).\\/\\-\u2013]|\\b(?:and|or|through|thru|to|are|is|were|was)\\b))`, "gi");
+const wordValue = w => NUMBER_WORDS[w.toLowerCase().replace(/[-\s]+/, " ")];
+// "the first five" is paragraphs 1 to 5 ("the first five of them" too, but not "the first of them").
+const FIRST_N = new RegExp(`\\b(?:the )?first (${NUMBER_WORD}|\\d{1,3})\\b`, "gi");
+const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-${/^\d/.test(w) ? w : wordValue(w)}`).replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${wordValue(w)}`);
 // The numbers in text like "1, 3-5" or "1 through 3".
 function numbersIn(t, out = new Set()) {
   for (const m of t.matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {

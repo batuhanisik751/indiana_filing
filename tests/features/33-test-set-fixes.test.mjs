@@ -63,11 +63,12 @@ describe("I18b: paragraph numbers written as words", () => {
     await inject(p, "respond", { admitted: "paragraphs two and three", denied: "two", notEnough: "" });
     assert.ok((await lines()).some(l => /^Paragraphs listed in more than one list\|Paragraph 2 is in more than one of your lists\./.test(l)));
   });
-  test("edge: \"every one of them\" is an \"all\" list, and \"the first three\" still counts as naming paragraphs", async () => {
+  test("edge: \"every one of them\" is an \"all\" list, and \"the first three\" counts as naming paragraphs", async () => {
     await inject(p, "respond", { admitted: "every one of them", denied: "3", notEnough: "" });
     assert.ok((await flagsFor(p, "admitted")).some(f => f.startsWith("check|Your lists say different things")));
+    // BT45: "the first three" is read as paragraphs 1 to 3, so with 5 denied, 4 is in no list.
     await inject(p, "respond", { admitted: "the first three", denied: "5", notEnough: "" });
-    assert.ok(!(await lines()).some(l => /^Paragraphs (?:not in any list|listed in more than one list)/.test(l)), "no paragraph is read from it");
+    assert.deepEqual((await lines()).filter(l => /^Paragraphs (?:not in any list|listed in more than one list)/.test(l)).map(l => l.split("|")[0]), ["Paragraphs not in any list"]);
   });
   test("edge: a sentence starting with a number word isn't read as a paragraph", async () => {
     await inject(p, "respond", { admitted: "1, 2", denied: "3", notEnough: "One paragraph is about a different debt." });

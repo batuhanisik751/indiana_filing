@@ -510,3 +510,27 @@ describe("BT44. A list that says \"all\" in other words is read as all of them",
     assert.deepEqual(await p.evaluate(() => runChecks().filter(f => f.fix === "denied").map(f => f.title)), ["Paragraphs you deny"]);
   });
 });
+
+describe("BT45. Paragraph numbers in words are read after twenty, before a verb, in ranges and as ordinals", () => {
+  const listFlags = async (admitted, denied, notEnough = "") => { await inject(p, "respond", { admitted, denied, notEnough }); return p.evaluate(() => runChecks().filter(f => ["admitted", "denied", "notEnough"].includes(f.fix)).map(f => f.title)); };
+  const TWICE = "Paragraphs listed in more than one list", NONE = "Paragraphs not in any list";
+  test("each of these is now flagged", async () => {
+    for (const [a, d, n, want] of [
+      ["Paragraphs one, two and three are true", "three", "", TWICE],
+      ["Paragraph one is true, paragraph two is true", "Paragraph two", "", TWICE],
+      ["1-20", "twenty-one", "twenty-one", TWICE],
+      ["1-20", "twenty one", "21", TWICE],
+      ["1-29", "thirty", "thirty", TWICE],
+      ["one through twenty", "twenty-two", "", NONE],
+      ["one-four", "two", "", TWICE],
+      ["one - four", "six", "", NONE],
+      ["One/Two", "Four", "", NONE],
+      ["first and second", "second", "", TWICE],
+      ["the first five", "7", "", NONE],
+    ]) assert.deepEqual(await listFlags(a, d, n), [want], `${a} / ${d} / ${n}`);
+  });
+  test("edge: words that aren't paragraph numbers are still left alone", async () => {
+    assert.deepEqual(await p.evaluate(() => ["every one", "one of them", "One paragraph is wrong", "No one told me", "the first of them"].map(t => [...paragraphNumbers(t)].length)), [0, 0, 0, 0, 0]);
+    assert.deepEqual(await listFlags("1, 2", "3", "One paragraph is about a different debt."), ["Paragraphs you can't admit or deny"]);
+  });
+});
