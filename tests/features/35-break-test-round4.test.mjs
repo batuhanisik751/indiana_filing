@@ -126,3 +126,54 @@ describe("BT52. A protection order case says how its contact information and e-f
     assert.doesNotMatch(await p.textContent("#qneed"), /case type/);
   });
 });
+
+describe("BT53 and BT54. Names and addresses aren't cut off at their box's edge", () => {
+  const built = q => q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+  // How far past the right edge of the official form's box each piece of these answers prints, read back from the made
+  // PDF (pdf.js). Only pieces that start inside a box count.
+  const pastEdge = (q, values) => q.evaluate(async values => {
+    await loadPreviewTools();
+    const r = pdfState.result, off = OFFICIAL[SITUATIONS[sitKey].official.packet];
+    const src = await PDFLib.PDFDocument.load(b64ToBytes(window.OFFICIAL_PDFS[off.file])), pages = src.getPages(), boxes = [];
+    for (const f of src.getForm().getFields()) for (const w of f.acroField.getWidgets()) {
+      const ref = src.context.getObjectRef(w.dict), rc = w.getRectangle();
+      const pg = pages.findIndex(p => p.ref === w.P() || (p.node.Annots() && p.node.Annots().asArray().includes(ref)));
+      boxes.push({ pg, x1: Math.min(rc.x, rc.x + rc.width), x2: Math.max(rc.x, rc.x + rc.width), y1: Math.min(rc.y, rc.y + rc.height), y2: Math.max(rc.y, rc.y + rc.height) });
+    }
+    const doc = await pdfjsLib.getDocument({ data: r.all.slice() }).promise, out = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const at = r.allPages[i - 1]?.src;
+      if (at === undefined) continue;
+      for (const t of (await (await doc.getPage(i)).getTextContent()).items) {
+        const x = t.transform[4], y = t.transform[5];
+        if (t.str.trim().length < 3 || !values.some(v => v.includes(t.str.trim()))) continue;
+        const b = boxes.find(b => b.pg === at && x >= b.x1 - 1 && x <= b.x2 && y >= b.y1 - 3 && y <= b.y2 + 3);
+        if (b) out.push({ str: t.str, past: +(x + t.width - b.x2).toFixed(2) });
+      }
+    }
+    await doc.destroy();
+    return out;
+  }, values);
+  test("the Certificate of Service: \"J. P. M. C. Bank, N. A.\" and a ZIP code print inside their boxes", async () => {
+    const name = "Meyer & Njus, P.A., c/o J. P. M. C. Bank, N. A.", address = "251 N. Main St. Apt. 4, Terre Haute, IN 46396";
+    await inject(p, "respond", { svc1Name: name, svc1Address: address });
+    await built(p);
+    const pieces = await pastEdge(p, [name, address]);
+    assert.ok(pieces.some(x => /Bank/.test(x.str)) && pieces.some(x => /46396/.test(x.str)), JSON.stringify(pieces));
+    assert.deepEqual(pieces.filter(x => x.past > 0), []);
+  });
+  test("the fee waiver: TAWANDA Y. PAYTON-TAYLOR prints inside the caption's box", async () => {
+    const name = "TAWANDA Y. PAYTON-TAYLOR";
+    await inject(p, "feewaiver", { name });
+    await built(p);
+    const pieces = await pastEdge(p, [name]);
+    assert.ok(pieces.length, "the name is found in a box");
+    assert.deepEqual(pieces.filter(x => x.past > 0), []);
+  });
+  test("edge: text is measured as wide as it's drawn, kerning pairs and all", async () => {
+    assert.equal(await p.evaluate(async () => {
+      const d = await PDFLib.PDFDocument.create(), f = asDrawn(await d.embedFont(PDFLib.StandardFonts.Helvetica)), s = "AV. P.A. Y. TAWANDA";
+      return Math.abs(f.widthOfTextAtSize(s, 10) - [...s].reduce((w, c) => w + f.widthOfTextAtSize(c, 10), 0)) < 1e-9;
+    }), true);
+  });
+});

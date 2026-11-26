@@ -189,6 +189,18 @@ function fitLines(text, font, op) {
   return { size, lines: wrapLines(variants[variants.length - 1], font, size, op).slice(0, op.ys.length), overflow: true };
 }
 
+// pdf-lib measures text with the font's kerning pairs, which set letters like "P." or "AV" closer together, but it
+// draws text without them, so text measured as fitting ran past its box (BT53, BT54). Measuring each character on its
+// own gives the width as drawn. The font's own measuring is replaced, so pdf-lib's layout of form boxes uses it too.
+function asDrawn(font) {
+  const one = font.widthOfTextAtSize.bind(font), per = new Map();
+  font.widthOfTextAtSize = (text, size) => {
+    let w = 0;
+    for (const ch of String(text)) { let x = per.get(ch); if (x === undefined) per.set(ch, (x = one(ch, 1000))); w += x; }
+    return (w * size) / 1000;
+  };
+  return font;
+}
 // Pick a font size so the value fits inside the field's box. A one-line box
 // that would need tiny text switches to two smaller lines when its box is tall
 // enough (wrap: true).
@@ -231,7 +243,7 @@ async function buildPdf(key, a) {
     const r = w.getRectangle();
     if (r.width < 0 || r.height < 0) w.setRectangle({ x: Math.min(r.x, r.x + r.width), y: Math.min(r.y, r.y + r.height), width: Math.abs(r.width), height: Math.abs(r.height) });
   }));
-  const font = await src.embedFont(StandardFonts[off.font]);
+  const font = asDrawn(await src.embedFont(StandardFonts[off.font]));
   const notes = [];
   const draws = [];
   // Where each answer prints, so it can be tapped on a page of the filled form to change it (item 17):
@@ -380,8 +392,8 @@ async function buildPdf(key, a) {
   const addContinuation = async (out, docKey) => {
     const conts = continuations[docKey];
     if (!conts) return 0;
-    const f = await out.embedFont(PDFLib.StandardFonts.Helvetica);
-    const bold = await out.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    const f = asDrawn(await out.embedFont(PDFLib.StandardFonts.Helvetica));
+    const bold = asDrawn(await out.embedFont(PDFLib.StandardFonts.HelveticaBold));
     // The E-Filing User Guide asks for a 1-inch top margin and numbered pages, so text starts below 1 inch.
     const added = [out.addPage([612, 792])];
     let y = 708;
