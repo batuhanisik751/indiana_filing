@@ -158,6 +158,8 @@ const CHECK_SRC = {
 };
 const OWN_CHECK = "This tool's own check for typing mistakes.";
 const CASE_FORMS_HOW = ["respond", "appearance", "continuance"];
+// An amount of time: "2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days".
+const TIME_AMOUNT = new RegExp(`\\b(?:\\d+(?:\\.\\d+)?(?:\\s*(?:-|to|or)\\s*\\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fourteen|fifteen|twenty|thirty|forty|forty[- ]five|sixty|ninety)\\s*(?:more\\s+|extra\\s+|additional\\s+)?(?:days?|weeks?|months?)\\b`, "i");
 const CHECKS_HOW = [
   { title: "Blank answers", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: "Every answer the official form needs, and every question marked \"I'm not sure.\" Each flag says what needs it: the form itself or a court rule.",
@@ -474,8 +476,12 @@ function runChecks() {
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
 
   if (sitKey === "continuance") {
-    if (has("timeNeeded") && looksLikeDate(a.timeNeeded))
+    // Item 4 asks for a number of days or weeks. A date, a bare number, or words with no amount of time get a flag (BT75).
+    const need = String(a.timeNeeded ?? "").trim();
+    if (has("timeNeeded") && (looksLikeDate(need) || /\b\d{4}-\d{1,2}-\d{1,2}\b/.test(need)))
       flags.push({ level: "check", title: "How much more time you're asking for", why: "This looks like a date. The form says to write the number of days or weeks you need, not a specific date.", fix: "timeNeeded" });
+    else if (has("timeNeeded") && need && !notAnAnswer(vis.find(s => s.id === "timeNeeded"), need) && !TIME_AMOUNT.test(need))
+      flags.push({ level: "check", title: "How much more time you're asking for", why: `This doesn't say a number of days or weeks, and it will print as typed. The form says to write the number of days or weeks you need, like "2 weeks" or "30 days".`, fix: "timeNeeded" });
     // Both options on this sworn form say a conversation happened, so leaving it blank isn't called Missing.
     if (has("otherAgreed") && empty(a.otherAgreed))
       flags.push({ level: "check", title: "Did the other party agree", why: "The Verified Motion for Continuance asks you to select whether the other party agreed. It will be blank. If you haven't spoken to them, you can ask free legal help what to do.", fix: "otherAgreed", blank: true, link: { href: LINKS.getHelp, text: "Find free legal help" } });
