@@ -55,6 +55,9 @@ function markNewTabLinks(root = document) {
 }
 // Say something to screen-reader users without moving their focus.
 let announceTimer = null;
+// When answers vanish from this page, the first screen says why, on the screen as well as to screen readers (BT81).
+let gonePageNote = "";
+function tellGone(msg) { gonePageNote = msg; if (mode === "pick") renderPick(); announce(msg); }
 function announce(msg) {
   const el = document.getElementById("announce");
   if (!el) return;
@@ -78,7 +81,10 @@ function readSaved() {
         && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.values(d.unsure || {}).includes(true)));
     if (usable) return d;
     // Answers that expired: saving goes back to off, so the next person on this computer isn't saved without choosing it.
-    if (fresh === false && d && d.v === 1 && Number.isFinite(d.savedAt) && age > MAX_AGE_DAYS * 864e5) savingOffForNext();
+    if (fresh === false && d && d.v === 1 && Number.isFinite(d.savedAt) && age > MAX_AGE_DAYS * 864e5) {
+      savingOffForNext();
+      gonePageNote = `Saved answers on this device were more than ${MAX_AGE_DAYS} days old, so they were deleted, and saving is off. Turn it on again to save new answers.`;
+    }
   } catch (e) { if (e instanceof ReferenceError) throw e; /* otherwise unreadable. A missing part of this app isn't a bad copy, so it's left alone. */ }
   store.del(STORE_KEY);
   return null;
@@ -316,8 +322,8 @@ function heardClear(signal) {
         // On a form with nothing in it yet: it stays open, without those answers.
         triage = {}; triagePrev = {}; triageHist = []; fromTriage = false; triageBeforeEdit = null; triageFromSummary = false;
         if (mode === "summary") render();
-      } else { resetAnswers(); mode = "pick"; render(); }
-      announce(`Your answers for "${title}" were deleted in another tab.`);
+        announce(`Your answers for "${title}" were deleted in another tab.`);
+      } else { resetAnswers(); mode = "pick"; render(); tellGone(`Your answers for "${title}" were deleted in another tab.`); }
     } else if (mode === "pick") renderPick(true);
     return;
   }
@@ -325,14 +331,14 @@ function heardClear(signal) {
   if (form) {
     const title = SITUATIONS[form] ? SITUATIONS[form].title : "this form";
     resetAnswers(); mode = "pick"; render();
-    announce(`Your answers for "${title}" were deleted in another tab.`);
+    tellGone(`Your answers for "${title}" were deleted in another tab.`);
     return;
   }
   // The person deleted their answers in another tab: delete them here too.
   const had = hasAnswers();
   if (!had && mode === "pick") { resetAnswers(); renderPick(true); updatePrivacyNote(); return; } // nothing changes here
   resetAnswers(); mode = "pick"; render();
-  if (had) announce("Your answers were deleted in another tab.");
+  if (had) tellGone("Your answers were deleted in another tab.");
 }
 window.addEventListener("storage", e => {
   if (e.key === CLEAR_KEY) { if (e.newValue !== null) heardClear(e.newValue); return; } // null: the signal removing itself
@@ -401,7 +407,7 @@ window.addEventListener("focus", updatePrivacyNote);
 window.addEventListener("pageshow", e => {
   if (!e.persisted || savingOn() || (!sitKey && mode === "pick")) return;
   resetAnswers(); mode = "pick"; render();
-  announce("Your answers were cleared because saving is off.");
+  tellGone("Your answers were cleared because saving is off, so they don't come back when you return to this page.");
 });
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {

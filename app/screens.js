@@ -26,6 +26,7 @@ function renderPick(quiet = false) {
   const focused = quiet && app.contains(ae) ? focusKey(ae) : null;
   app.dataset.card = card;
   app.innerHTML = `
+    ${gonePageNote ? `<p class="note gonenote" id="goneNote">${esc(gonePageNote)}</p>` : ""}
     ${live ? `<div class="resume">
       <h2 class="cardtitle" tabindex="-1">Go back to your answers?</h2>
       <span>Your answers for "${esc(SITUATIONS[sitKey].title)}" are still on this page.</span>

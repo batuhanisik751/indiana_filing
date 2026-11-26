@@ -22,6 +22,7 @@ function render() {
   drawnAt = performance.now();
   dropStaleCaseConfirm();
   draft = null; // a new screen: what was typed has been saved or left
+  if (mode !== "pick") gonePageNote = ""; // said on the first screen; gone once the person moves on
   if (mode !== "summary") inlineEdit = null; // a box opened on the summary closes with it, as Cancel would
   // Get help sits above the screen. Left open, a phone's next question starts far below the fold.
   if (!helpPanel.hidden) { helpPanel.hidden = true; helpBtn.setAttribute("aria-expanded", "false"); }

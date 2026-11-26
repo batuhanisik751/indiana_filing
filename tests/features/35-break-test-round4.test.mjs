@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, editAnswer, settle, pick, walk, answer, reset, pdfText, VALUES, SAVED, BROWSER } from "../lib.mjs";
+import { fresh, close, inject, editHere, editAnswer, settle, pick, walk, answer, reset, pdfText, site, VALUES, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -771,6 +771,39 @@ describe("BT80. Printing the page prints a note saying to print the PDF instead"
     assert.match(await q.textContent(".printnote"), /Download all forms \(PDF\)/);
     await q.emulateMedia({ media: "screen" });
     assert.equal(await q.$eval(".printnote", e => e.getClientRects().length), 0, "not on the screen");
+    await q.context().close();
+  });
+});
+
+describe("BT81. When answers vanish, the first screen says why", () => {
+  const note = q => q.evaluate(() => document.getElementById("goneNote")?.textContent || "");
+  test("Clear my data in another tab: this tab's first screen says the answers were deleted there", async () => {
+    const ctx = await site();
+    const a = await ctx.open();
+    await a.click("#saveToggle");
+    await pick(a, "appearance");
+    await walk(a, "name");
+    await a.fill("#ans", "Pat Keeper"); await a.click("#next");
+    const b = await ctx.open();
+    await b.click("#clearData");
+    await a.waitForFunction(() => mode === "pick", null, { timeout: 5000 });
+    assert.match(await note(a), /were deleted in another tab\./);
+    await pick(a, "appearance");
+    assert.equal(await a.evaluate(() => document.getElementById("goneNote")), null, "gone once the person moves on");
+    await ctx.close();
+  });
+  test("Back to the page after leaving, with saving off: it says the answers were cleared because saving is off", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await q.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+    assert.match(await note(q), /cleared because saving is off/);
+    await q.context().close();
+  });
+  test("a saved copy more than 30 days old: it says it was deleted and saving is off", async () => {
+    const q = await fresh();
+    await q.evaluate(k => { localStorage.setItem("icfh-save-pref", "on"); localStorage.setItem(k, JSON.stringify({ v: 1, sitKey: "appearance", answers: { name: "Pat Example" }, unsure: {}, savedAt: Date.now() - 31 * 864e5 })); }, SAVED);
+    await q.reload(); await q.waitForSelector("#app h1");
+    assert.match(await note(q), /more than 30 days old, so they were deleted, and saving is off/);
     await q.context().close();
   });
 });
