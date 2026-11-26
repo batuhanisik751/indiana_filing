@@ -1097,3 +1097,15 @@ describe("BT100. The flag for a signature too small or too long opens the name",
     assert.deepEqual([...new Set(sig)], ["name"]);
   });
 });
+
+describe("BT101. A blank answer can be tapped on a page shown large", () => {
+  test("the Answer with the name blank: page 1 has a spot for the name", async () => {
+    const q = await fresh();
+    await inject(q, "respond", { name: "" });
+    await openPage(q, 1);
+    assert.ok(await q.locator('dialog.pageview .pvspot[data-id="name"]').count() > 0);
+    await tap(q, "name");
+    assert.equal(await q.$eval("#inEdit", b => b.value), "");
+    await q.context().close();
+  });
+});

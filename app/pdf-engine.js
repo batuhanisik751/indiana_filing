@@ -284,7 +284,8 @@ async function buildPdf(key, a) {
         if (op.multiline) tf.enableMultiline();
         const value = safe(op.value);
         tf.setText(value);
-        if (!value) continue;
+        // A blank box can be tapped too, on a page shown large: it's what someone looking at a blank wants to fill in (BT101).
+        if (!value) { tf.acroField.getWidgets().forEach(w => spotAt(item, widgetPage(w), widgetRect(w))); continue; }
         // A field can appear in several boxes (for example the caption and "My name is"),
         // so size the text for each box on its own.
         const boxes = tf.acroField.getWidgets();
@@ -339,6 +340,9 @@ async function buildPdf(key, a) {
         if (!/^_+$/.test(op.option)) dd.acroField.getWidgets().forEach(w => spotAt(item, widgetPage(w), widgetRect(w)));
       } else if ((op.t === "lines" || op.t === "draw") && !empty(op.value)) {
         draws.push({ op, item, value: safe(op.value) });
+      } else if (op.t === "lines" && Array.isArray(op.ys) && op.ys.length) {
+        // A blank answer written on printed lines: its place is the lines (BT101).
+        spotAt(item, op.page, [lineX0(op, 0), Math.min(...op.ys) - 3, op.x1, Math.max(...op.ys) + 12]);
       }
     }
   }
