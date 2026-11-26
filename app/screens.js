@@ -58,7 +58,7 @@ function renderPick(quiet = false) {
     <div class="note">You'll see your answers on the official form at the end, with anything missing flagged, before you file it yourself.</div>
     <label class="choice savepref"><input type="checkbox" id="savePref" ${savingOn() ? "checked" : ""}>
       <span>Save my answers on this device so I can come back later. <small>${storageWorks
-        ? `${savingOn() ? "Saving is on. If this is a shared or public computer, like a library or courthouse kiosk, turn it off." : "Saving is off unless you turn it on. Turn it on only if this is your own device, not a shared or public computer like a library or courthouse kiosk."} If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened. In a private or incognito window, they're gone when the window closes.`
+        ? `${savingOn() ? "Saving is on. If this is a shared or public computer, like a library or courthouse kiosk, turn it off." : "Saving is off unless you turn it on. Turn it on only if this is your own device, not a shared or public computer like a library or courthouse kiosk."} If you don't change your answers for ${MAX_AGE_DAYS} days, they are deleted the next time this page is opened. Safari on an iPhone, iPad or Mac can delete them sooner, after 7 days of using Safari without using this page. In a private or incognito window, they're gone when the window closes.`
         : "This browser isn't letting the page save, so your answers will be lost if you close or refresh it."}</small></span></label>`;
   const pref = document.getElementById("savePref");
   pref.disabled = !storageWorks;

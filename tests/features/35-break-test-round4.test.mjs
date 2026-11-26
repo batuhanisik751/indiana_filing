@@ -823,3 +823,11 @@ describe("BT84. Typing in a box on the summary while saving fails says so, as th
     await q.context().close();
   });
 });
+
+describe("BT82. The saving note says Safari can delete saved answers sooner than 30 days", () => {
+  test("the first screen's note about saving names Safari's 7 days", async () => {
+    await reset(p);
+    const text = await p.evaluate(() => document.getElementById("app").textContent);
+    assert.match(text, /If you don't change your answers for 30 days, they are deleted.*Safari on an iPhone, iPad or Mac can delete them sooner, after 7 days of using Safari without using this page\./);
+  });
+});
