@@ -1220,3 +1220,37 @@ describe("BT104. Enter pressed twice, or held, right after a save doesn't reopen
     await q.context().close();
   });
 });
+
+describe("BT105. Small phone and first-screen points", () => {
+  test("at 375px the header's top row is one line, and the saving button has a name in the page itself", async () => {
+    const q = await fresh({ viewport: { width: 375, height: 667 } });
+    const [brand, help] = await q.evaluate(() => ["homeBtn", "helpBtn"].map(id => Math.round(document.getElementById(id).getBoundingClientRect().top)));
+    assert.ok(Math.abs(brand - help) < 12, `${brand} ${help}`);
+    const h = await q.evaluate(() => document.querySelector("header.top").getBoundingClientRect().height);
+    assert.ok(h < 140, `${h}px (159 before)`);
+    await q.context().close();
+    const html = (await import("node:fs")).readFileSync(new URL("../../form-builder-mvp.html", import.meta.url), "utf8");
+    assert.match(html, /id="saveToggle" type="button">Turn on saving</);
+  });
+  test("a double click on Get help or Aa leaves it open; the tab's title follows the screen", async () => {
+    const q = await fresh();
+    await q.dblclick("#helpBtn");
+    assert.equal(await q.$eval("#helpBtn", b => b.getAttribute("aria-expanded")), "true");
+    await q.click("#helpClose");
+    await q.dblclick("#readBtn");
+    assert.equal(await q.$eval("#readBtn", b => b.getAttribute("aria-expanded")), "true");
+    await inject(q, "respond");
+    assert.equal(await q.title(), "Your Respond to a Complaint forms · Indiana Court Form Helper".replace("Respond to a Complaint", await q.evaluate(() => SITUATIONS.respond.title)));
+    await q.evaluate(() => { cur = 0; mode = "step"; render(); });
+    assert.match(await q.title(), /^Question 1 of \d+: .+ · Indiana Court Form Helper$/);
+    await q.context().close();
+  });
+  test("the links under the sorting facts are at least 24 pixels tall", async () => {
+    const q = await fresh({ viewport: { width: 375, height: 667 } });
+    await q.click('.pick[data-kind="debt"]');
+    await q.locator('input[name=ans][value="complaint"]').check({ force: true }); await q.click("#next");
+    const heights = await q.$$eval("p.srcs a", as => as.map(a => a.getBoundingClientRect().height));
+    assert.ok(heights.length && heights.every(h => h >= 24), heights.join());
+    await q.context().close();
+  });
+});

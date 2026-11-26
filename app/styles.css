@@ -44,6 +44,8 @@ html { scroll-padding-top: env(safe-area-inset-top, 0px); font-size: calc(100% *
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.125rem; line-height: 1.55; }
 /* The side gutters stay their usual size with bigger text: on a phone, that width is what the bigger text needs. */
 .wrap { max-width: 36rem; margin: 0 auto; padding: 0 calc(1.25rem / var(--text-scale, 1)) 3rem; overflow-wrap: break-word; }
+/* Sideways on a phone with a notch, the content stays out of it (BT105). */
+.wrap { padding-left: max(calc(1.25rem / var(--text-scale, 1)), env(safe-area-inset-left, 0px)); padding-right: max(calc(1.25rem / var(--text-scale, 1)), env(safe-area-inset-right, 0px)); }
 /* A navy bar the full width of the window: the shadow paints past the column, and the clip keeps it to the header's height. */
 /* Bigger text makes the header grow to 115% at most, so the question still comes first: the header's base size undoes
    the page's text size and applies at most 1.15 of it, and sizes inside the header are in em (the same as before at 100%). */
@@ -56,6 +58,7 @@ header.top :focus-visible { outline-color: var(--hdr-link); }
 .logo { display: inline-grid; place-items: center; width: 2em; height: 2em; border-radius: 9px; background: var(--gold); color: var(--on-gold); flex: none; }
 .logo svg { width: 1.238em; height: 1.238em; }
 .toprow, .saverow { display: flex; justify-content: space-between; align-items: center; gap: 0 1em; flex-wrap: wrap; }
+.toprow { column-gap: .75em; } /* at 375px the logo and Get help fit on one row: 1em was one pixel too wide (BT105) */
 .saverow { row-gap: .4em; }
 .brand { font-weight: 700; font-size: 1.05em; display: inline-flex; align-items: center; gap: .571em; }
 /* The logo and name are a button to the first screen, looking as they did. */
@@ -213,6 +216,7 @@ ol.steps { padding-left: 1.4rem; margin: 0 0 1rem; }
 ul.facts { padding-left: 1.2rem; margin: 0 0 .75rem; }
 ul.facts li { margin: 0 0 .6rem; }
 p.srcs { font-size: .85rem; }
+p.srcs a { display: inline-block; padding-block: .3rem; } /* at least 24px tall to tap (BT105) */
 ol.steps li { margin: 0 0 1rem; }
 ol.steps p { margin: .25rem 0 0; }
 ol.steps .srcs { font-size: .85rem; }

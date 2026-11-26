@@ -35,6 +35,19 @@ document.addEventListener("pointerdown", () => { pointerHeld = true; }, true);
 for (const t of ["pointerup", "pointercancel"]) document.addEventListener(t, () => setTimeout(() => { pointerHeld = false; }), true);
 const whenPointerFree = f => { if (!pointerHeld) return f(); document.addEventListener("pointerup", () => setTimeout(f), { once: true, capture: true }); };
 
+// A double click on Get help, Aa or "My situation is different" opened it and closed it again: the second click is
+// ignored (BT105).
+document.addEventListener("click", e => {
+  if (e.detail >= 2 && e.target.closest && e.target.closest("#helpBtn, #readBtn, #moreToggle")) { e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+// The tab's title says where the person is, as the page does (BT105). Only the question, never an answer.
+function screenTitle() {
+  const sit = sitKey && SITUATIONS[sitKey];
+  const where = mode === "step" && sit ? `Question ${cur + 1} of ${visible().length}: ${visible()[cur]?.label || ""}`
+    : mode === "summary" && sit ? `Your ${sit.title} forms` : mode === "triage" ? "Which papers do you have?" : mode === "notsure" ? "Which one fits?" : "";
+  document.title = where ? `${where} · Indiana Court Form Helper` : "Indiana Court Form Helper";
+}
+
 function render() {
   drawnAt = performance.now();
   dropStaleCaseConfirm();
@@ -48,6 +61,7 @@ function render() {
   ({ pick: renderPick, triage: renderTriage, notsure: renderNotSure, step: renderStep, summary: renderSummary })[mode]();
   justMarked = false; barGrew = 0;
   markNewTabLinks();
+  screenTitle();
   saveProgress();
   updatePrivacyNote();
   syncHistory();
