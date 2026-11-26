@@ -317,7 +317,8 @@ function runChecks() {
     const why = { impossible: `This has 10 digits, but it doesn't look like a real U.S. ${word} number. Check it for typos.`,
       foreign: `This looks like a number outside the U.S. ${asks || "Check it for typos."}`,
       letters: `This has letters in it. Write the number in digits, including the area code.`,
-      words: `You typed words, not a ${word} number, and they will print on the form. Type the number, or leave it blank if you don't have one.`,
+      // A needed phone box left blank is flagged as missing, so it says what the question says: type None (BT65).
+      words: `You typed words, not a ${word} number, and they will print on the form. Type the number, or ${vis.find(s => s.id === id)?.optional ? "leave it blank" : "type None"} if you don't have one.`,
       long: asks || `This has more digits than one ${word} number. Check it for typos.`,
       short: asks || `This doesn't look like a full ${word} number with area code. Check it for typos.` }[kind];
     if (why) flags.push({ level: "check", title, why, fix: id });

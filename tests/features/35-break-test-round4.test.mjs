@@ -380,3 +380,18 @@ describe("BT62. \"The bar moved back a little\" is said only when it did", () =>
     assert.match(await p.textContent("#barNote"), /so the bar moved back a little\.$/);
   });
 });
+
+describe("BT65. Words in the phone box are told to type None, as the question says, not to leave a needed box blank", () => {
+  test("Appearance, Answer and continuance: \"I don't have a phone\" is told to type None; a fax is told it can be left blank", async () => {
+    for (const form of ["appearance", "respond", "continuance"]) {
+      await inject(p, form, { phone: "I don't have a phone" });
+      const why = (await p.evaluate(() => runChecks().filter(f => f.fix === "phone").map(f => f.why))).join(" ");
+      assert.match(why, /type None if you don't have one\./, form);
+      assert.doesNotMatch(why, /leave it blank/, form);
+      await inject(p, form, { phone: "" });
+      assert.match((await p.evaluate(() => runChecks().filter(f => f.fix === "phone").map(f => f.why))).join(" "), /None/, `${form}: blank is missing, and says None`);
+    }
+    await inject(p, "appearance", { fax: "ask my sister" });
+    assert.match((await p.evaluate(() => runChecks().filter(f => f.fix === "fax").map(f => f.why))).join(" "), /leave it blank if you don't have one\./);
+  });
+});
