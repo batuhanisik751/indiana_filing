@@ -852,3 +852,12 @@ describe("BT66. The phone question has a button for no phone number, since a pho
     assert.equal(await p.locator("#noPhone").count(), 0);
   });
 });
+
+describe("BT92. The fee waiver's next steps don't give $157 as the fee for every kind of case", () => {
+  test("the $157 is Indiana Legal Help's civil figure, and the step says fees differ by kind of case and county", async () => {
+    await inject(p, "feewaiver", { fwCaseType: "SC" });
+    const step = await p.evaluate(() => nextSteps(sitKey, visibleAnswers()).find(s => s.title === "File these with the forms that start your case"));
+    assert.match(step.short, /fees differ by kind of case and county/);
+    assert.match(step.body, /small claims and eviction cases, for example, have fees of their own\. The clerk's office can tell you the fee for your case\./);
+  });
+});

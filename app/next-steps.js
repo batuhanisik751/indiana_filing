@@ -198,8 +198,10 @@ function nextSteps(key, a) {
 
   if (key === "feewaiver") out.push({
     title: "File these with the forms that start your case",
-    short: "Indiana Legal Help says the fee to start a civil case is $157, or $185 with sheriff service. This asks the judge to let you file without paying it up front, or to pay only part of it.",
-    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. The Order is the judge's decision on your request: its instructions have you fill in only the top section and your name and address. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
+    // The $157 is Indiana Legal Help's figure for a civil case. Small claims, eviction and other cases, and counties, have
+    // their own fees, so it isn't given as the fee for every case (BT92).
+    short: "Indiana Legal Help says the fee to start a civil case is $157, or $185 with sheriff service, but fees differ by kind of case and county. This asks the judge to let you file without paying the fee up front, or to pay only part of it.",
+    body: "Indiana Legal Help says the fee to start a new civil case is $157, or $185 if you want the sheriff to serve the papers. Fees differ by kind of case and by county: small claims and eviction cases, for example, have fees of their own. The clerk's office can tell you the fee for your case. The Order is the judge's decision on your request: its instructions have you fill in only the top section and your name and address. If the request is granted, it lets the judge either let you file without paying fees and costs up front, or have you pay part of the filing fee to the clerk within 20 days. It also says the court will decide later whether any costs must be paid.",
     links: [SOURCES.feeFaq, SOURCES.feeWaiverInstructions, SOURCES.inPerson] });
 
   // 2. Signing.
