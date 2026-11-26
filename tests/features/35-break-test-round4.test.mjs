@@ -691,3 +691,41 @@ describe("BT74. Sentences about a password aren't flagged, and more ways of typi
     assert.ok(!(await p.evaluate(() => runChecks().some(f => /^Private information/.test(f.title)))));
   });
 });
+
+describe("BT76. If the PDF viewer can't load, the pages can be tried again", () => {
+  const openPages = q => q.evaluate(() => { const d = document.querySelector('details[data-more="preview"]'); d.open = false; d.open = true; });
+  test("blocked: it says so with Try again; unblocked, Try again (or opening the section again) shows the pages", async () => {
+    const q = await fresh();
+    q.allowErrors = true; // the blocked viewer is reported in the console on purpose
+    await q.route("**/pdf.min.js*", r => r.abort());
+    await inject(q, "respond");
+    await ready(q);
+    await openPages(q);
+    await q.waitForSelector("#preview [data-retry-preview]", { timeout: 60000 });
+    assert.match(await q.textContent("#preview"), /couldn't be shown.*try again/);
+    await q.unroute("**/pdf.min.js*");
+    await q.click("#preview [data-retry-preview]");
+    await q.waitForSelector("#preview canvas", { timeout: 60000 });
+    await q.context().close();
+  });
+  test("closing and opening the section after a failure tries again; while loading, it says so", async () => {
+    const q = await fresh();
+    q.allowErrors = true;
+    await q.route("**/pdf.min.js*", r => r.abort());
+    await inject(q, "respond");
+    await ready(q);
+    await openPages(q);
+    await q.waitForSelector("#preview [data-retry-preview]", { timeout: 60000 });
+    await q.unroute("**/pdf.min.js*");
+    let release;
+    await q.route("**/pdf.min.js*", async r => { await new Promise(res => { release = res; }); await r.continue(); });
+    await openPages(q);
+    await q.waitForSelector("#preview [data-loading]", { timeout: 5000 });
+    assert.equal(await q.textContent("#preview [data-loading]"), "Loading the pages…");
+    while (!release) await q.waitForTimeout(50);
+    release();
+    await q.waitForSelector("#preview canvas", { timeout: 60000 });
+    assert.equal(await q.locator("#preview [data-loading]").count(), 0);
+    await q.context().close();
+  });
+});

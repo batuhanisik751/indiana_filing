@@ -310,6 +310,7 @@ async function renderPreview(bytes, el) {
     canvas.addEventListener("click", () => big.click()); // the page itself opens large too; the button is there for keyboards
     // Browsers without scroll anchoring would push what's on screen down as each page appears.
     const above = getComputedStyle(el).overflowAnchor !== "auto" && el.getBoundingClientRect().bottom <= 0, before = el.offsetHeight;
+    el.querySelector("[data-loading]")?.remove();
     el.appendChild(fig);
     if (above) window.scrollBy(0, el.offsetHeight - before);
     try { await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise; }
@@ -374,20 +375,25 @@ function wirePdfSection(sit) {
     // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
     downloadPdf(d.bytes, `${sitKey === "respond" ? "" : `${sit.title} `}${d.name} ${d.number || ""}`);
   });
-  // E15: draw into this summary's preview box only, and only once, when its section is open.
+  // E15: draw into this summary's preview box only, and only once, when its section is open. While the PDF viewer loads,
+  // the box says so. If it can't be shown, the box offers Try again, and opening the section again tries again (BT76).
   const box = document.getElementById("preview"), section = box.closest("details");
   const draw = () => {
     if (box.dataset.token) return;
     const token = box.dataset.token = String(Math.random());
+    box.innerHTML = `<p class="draftnote" role="status" data-loading>Loading the pages…</p>`;
     loadPreviewTools().then(() => {
       if (!box.isConnected || box.dataset.token !== token) return;
       return renderPreview(all, box);
     }).catch(e => {
       console.error(e);
-      if (box.isConnected) box.innerHTML = `<p class="draftnote">The preview couldn't be shown, but the downloads above still work.</p>`;
+      if (!box.isConnected || box.dataset.token !== token) return;
+      delete box.dataset.token;
+      box.innerHTML = `<p class="draftnote" role="alert">The pages couldn't be shown, but the downloads above still work. Check your connection, then <button class="link" data-retry-preview>try again</button>.</p>`;
+      box.querySelector("[data-retry-preview]").onclick = () => { draw(); box.querySelector("[data-loading]")?.setAttribute("tabindex", "-1"); box.querySelector("[data-loading]")?.focus(); };
     });
   };
+  section?.addEventListener("toggle", () => { if (section.open) draw(); });
   if (!section || section.open) draw();
-  else section.addEventListener("toggle", () => { if (section.open) draw(); });
 }
 window.appParts++;
