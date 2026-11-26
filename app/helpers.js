@@ -73,6 +73,14 @@ function caseCourt(cn) {
 // The person confirmed the county and court in their case number, so those two questions aren't asked. The
 // confirmation holds only for the county and court it was answered for (caseConfirmFor), however the number changes.
 const caseConfirmed = a => a.caseConfirm === "yes" && !!caseCourt(a.caseNumber) && caseConfirmFor === caseCourt(a.caseNumber).name;
+// The answer to "Is this your county and court?" as it is now, so Cancel on a case number change can put it back with the
+// number (BT69).
+const caseConfirmNow = () => ({ value: answers.caseConfirm, unsure: !!unsure.caseConfirm, for: caseConfirmFor });
+function putCaseConfirm(c) {
+  if (typeof c.value === "string") answers.caseConfirm = c.value; else delete answers.caseConfirm;
+  if (c.unsure) unsure.caseConfirm = true; else delete unsure.caseConfirm;
+  caseConfirmFor = typeof c.for === "string" ? c.for : null;
+}
 // A confirmation answered for another county or court is dropped, so the question is asked again with nothing chosen.
 // Run before each screen: a number can change by a reload of what was typed, not only by Continue.
 function dropStaleCaseConfirm() {

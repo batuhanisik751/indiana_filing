@@ -204,7 +204,7 @@ function renderStep() {
   const limit = dateLimit(step, visibleAnswers());
   // The original answer, so Cancel can put it back during an edit from the summary.
   if (returnToSummary && (!editOriginal || editOriginal.id !== step.id))
-    { editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id) }; editErased = null; }
+    { editOriginal = { id: step.id, value: answers[step.id], unsure: !!unsure[step.id], before: vis.map(s => s.id), ...(step.id === "caseNumber" ? { confirm: caseConfirmNow() } : {}) }; editErased = null; }
   // A reload kept this choice but not what it protects, and Cancel can only put the choice back.
   const goneHere = returnToSummary && reloadedEdit === step.id && answers[step.id] === "yes" && PROTECTS[step.id] && editOriginal?.value !== "yes" ? clearedContact.filter(k => PROTECTS[step.id].includes(k) && empty(answers[k])) : [];
   let input;
@@ -325,6 +325,7 @@ function renderStep() {
       if (editOriginal && editOriginal.id === step.id) {
         if (editOriginal.value === undefined) delete answers[step.id]; else answers[step.id] = editOriginal.value;
         if (editOriginal.unsure) unsure[step.id] = true; else delete unsure[step.id];
+        if (editOriginal.confirm) putCaseConfirm(editOriginal.confirm); // the county and court confirmed for that number (BT69)
       }
       // Earlier answers that came back are still shown before they can print.
       const cameBack = followUps.includes(step.id) && visible().find(s => s.id !== step.id && followUps.includes(s.id) && !empty(answers[s.id]));

@@ -261,7 +261,9 @@ function restoreSaved(d, keep) {
     fixNth = Number.isInteger(d.edit.fixNth) && d.edit.fixNth > 0 ? d.edit.fixNth : 0;
     const o = d.edit.original;
     editOriginal = o && typeof o === "object" && ids.has(o.id) && (o.value === undefined || typeof o.value === "string")
-      ? { id: o.id, value: o.value, unsure: o.unsure === true, ...(o.erased === true ? { erased: true } : {}), before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null } : null;
+      ? { id: o.id, value: o.value, unsure: o.unsure === true, ...(o.erased === true ? { erased: true } : {}), before: Array.isArray(o.before) ? o.before.filter(x => ids.has(x)) : null,
+        ...(o.id === "caseNumber" && o.confirm && typeof o.confirm === "object" && (o.confirm.value === undefined || typeof o.confirm.value === "string")
+          ? { confirm: { value: o.confirm.value, unsure: o.confirm.unsure === true, for: typeof o.confirm.for === "string" ? o.confirm.for : null } } : {}) } : null;
   }
   mode = d.mode === "summary" ? "summary" : "step";
   // A box opened on the summary comes back open, with what was typed in it.

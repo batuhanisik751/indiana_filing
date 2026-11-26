@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, settle, pick, walk, answer, reset, pdfText, SAVED, BROWSER } from "../lib.mjs";
+import { fresh, close, inject, editHere, editAnswer, settle, pick, walk, answer, reset, pdfText, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -515,6 +515,37 @@ describe("BT71. Choosing the same form again keeps its sorting answers", () => {
     await pick(q, "appearance");
     assert.equal(await q.evaluate(() => [mode, fromTriage].join()), "summary,false");
     assert.equal(await q.locator("#editTriage").count(), 0);
+    await q.context().close();
+  });
+});
+
+describe("BT69. Cancel on a case number change keeps the county and court confirmed for the number", () => {
+  const state = q => q.evaluate(() => [answers.caseNumber, answers.caseConfirm, caseConfirmFor, visible().some(s => s.id === "county")].join("|"));
+  const CONFIRMED = "02D01-2611-CC-001234|yes|Allen County, Superior Court|false";
+  test("another county's number typed, \"I'm not sure\" asked and dismissed, then Cancel", async () => {
+    const q = await fresh();
+    await inject(q, "respond", { caseConfirm: "yes" });
+    await editAnswer(q, "caseNumber");
+    await q.fill("#ans", "49D02-2609-EV-004321");
+    q.removeAllListeners("dialog"); q.once("dialog", d => d.dismiss());
+    await q.click("#unsure");
+    await q.click("#back");
+    assert.equal(await state(q), CONFIRMED);
+    assert.ok(!(await q.evaluate(() => runChecks().some(f => ["county", "courtType"].includes(f.fix)))), "County and Court aren't missing");
+    await q.context().close();
+  });
+  test("another county's number typed with saving on, a reload, then Cancel", async () => {
+    const q = await fresh();
+    await q.click("#savePref");
+    await inject(q, "respond", { caseConfirm: "yes" });
+    await q.evaluate(() => saveProgress());
+    await editAnswer(q, "caseNumber");
+    await q.fill("#ans", "49D02-2609-EV-004321");
+    await q.reload(); await q.waitForSelector("#app h1");
+    if (await q.locator("#resume").count()) await q.click("#resume");
+    await q.waitForSelector("#back");
+    await q.click("#back");
+    assert.equal(await state(q), CONFIRMED);
     await q.context().close();
   });
 });
