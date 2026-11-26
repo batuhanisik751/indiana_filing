@@ -27,6 +27,11 @@ const signedName = n => String(n ?? "").replace(/^\s*\/s\/\s*/i, "").trim();
 const hasEmail = a => !empty(a.email) && !SAYS_NONE.test(a.email.trim()) && emailShape(a.email).kind !== "noemail";
 const money = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyOrBlank = v => (isNum(v) ? money(toNum(v)) : "");
+// An amount of money as the question takes it: whole cents only. "943.555" is refused there, so it doesn't print or count
+// either (BT73).
+const isAmount = v => isNum(v) && AMOUNT_RE.test(cleanNum(v));
+const amountOf = v => (isAmount(v) ? toNum(v) : 0);
+const amountOrBlank = v => (isAmount(v) ? money(toNum(v)) : "");
 // yyyy-mm-dd (from <input type=date>) -> mm/dd/yyyy, the way the forms show dates.
 const formDate = v => { if (empty(v)) return ""; const [y, m, d] = v.split("-"); return `${m}/${d}/${y}`; };
 // A date input turns 11/30/26 into the year 0026, so a real date here has a 20xx year.

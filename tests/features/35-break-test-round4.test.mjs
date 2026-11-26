@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, settle, pick, walk, answer, reset, SAVED, BROWSER } from "../lib.mjs";
+import { fresh, close, inject, editHere, settle, pick, walk, answer, reset, pdfText, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -432,5 +432,39 @@ describe("BT64. Correct paragraph lists get no false flags", () => {
     assert.deepEqual(await listFlags("1, 3 - I paid on time", ""), ["check|Paragraphs not in any list"]);
     assert.deepEqual(await p.evaluate(() => ["one - four", "1-3; the rest", "4. I only agreed to one.", "the first five", "the first 30 days"].map(t => [...paragraphNumbers(t)].join(","))),
       ["1,2,3,4", "1,2,3", "4", "1,2,3,4,5", "30"]);
+  });
+});
+
+describe("BT73 and TG17. A sworn total on the fee waiver is never worked out from an amount that isn't a number", () => {
+  const row = (q, label) => q.evaluate(l => (SITUATIONS.feewaiver.fields(visibleAnswers()).find(r => r.label.startsWith(l)) || {}).value, label);
+  const base = { incomeKinds: "wages,ssi", expenseKinds: "housing", housing: "700", hourlyRate: "18.50", ssi: "943", bank: "250" };
+  test("hours \"40 a week\": wages and Total Income are left blank, nothing prints $0.00, and the flag says the total waits", async () => {
+    await inject(p, "feewaiver", { ...base, monthlyHours: "40 a week" });
+    assert.equal(await row(p, "6. and Total Income"), "Left blank until every amount in it is a number");
+    assert.equal(await row(p, "Wages per month"), "Left blank");
+    const why = (await p.evaluate(() => runChecks().filter(f => f.fix === "monthlyHours").map(f => f.why))).join(" ");
+    assert.match(why, /Until it is, your Total Income is left blank too\./);
+    const text = await pdfText(p);
+    assert.doesNotMatch(text, /(?<![\d,])0\.00/, "no $0.00 total or wage");
+    assert.match(text, /943\.00/, "the SSI amount still prints");
+  });
+  test("an amount with three decimals isn't printed or added, and the total waits; \"18.50/hr\" and \"300-400\" too", async () => {
+    for (const [k, v] of [["ssi", "943.555"], ["hourlyRate", "18.50/hr"], ["ssi", "300-400"]]) {
+      await inject(p, "feewaiver", { ...base, monthlyHours: "160", [k]: v });
+      assert.equal(await row(p, "6. and Total Income"), "Left blank until every amount in it is a number", `${k}: ${v}`);
+    }
+    await inject(p, "feewaiver", { ...base, monthlyHours: "160", ssi: "943.555" });
+    assert.doesNotMatch(await pdfText(p), /943\.56/);
+  });
+  test("TG17: the printed totals are right: wages worked out, every amount added, and blank while one is marked \"I'm not sure\"", async () => {
+    await inject(p, "feewaiver", { ...base, monthlyHours: "160" });
+    assert.equal(await row(p, "Wages per month"), "$2,960.00");
+    assert.equal(await row(p, "6. and Total Income"), "$3,903.00");
+    assert.equal(await row(p, "8. and Total Expenses"), "$700.00");
+    const text = await pdfText(p);
+    assert.match(text, /3,903\.00/); assert.match(text, /2,960\.00/); assert.match(text, /700\.00/);
+    await inject(p, "feewaiver", { ...base, monthlyHours: "160", ssi: "" }, { ssi: true });
+    assert.match(await row(p, "6. and Total Income"), /Left blank until you answer the questions marked "I'm not sure"/);
+    assert.doesNotMatch(await pdfText(p), /3,903\.00|2,960\.00 .*2,960\.00/, "no old total kept");
   });
 });

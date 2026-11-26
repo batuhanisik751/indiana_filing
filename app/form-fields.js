@@ -119,16 +119,21 @@ function signatureFields(a, key) {
 }
 
 // To the cent, half a cent up, so the total matches adding up the printed lines.
-const wages = a => Math.round(Math.round(toNum(a.hourlyRate) * 100) * toNum(a.monthlyHours)) / 100;
-const incomeTotal = a => wages(a) + INCOME.reduce((s, [k]) => s + toNum(a[k]), 0);
-const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + toNum(a[k]), 0);
+const wages = a => Math.round(Math.round(amountOf(a.hourlyRate) * 100) * toNum(a.monthlyHours)) / 100;
+const incomeTotal = a => wages(a) + INCOME.reduce((s, [k]) => s + amountOf(a[k]), 0);
+const expenseTotal = a => EXPENSES.reduce((s, [k]) => s + amountOf(a[k]), 0);
 const INCOME_IDS = ["hourlyRate", "monthlyHours", ...INCOME.map(x => x[0])], EXPENSE_IDS = EXPENSES.map(x => x[0]);
 const EARNED_IDS = ["hourlyRate", ...INCOME.map(x => x[0])];
 const anyAmount = (a, ids) => ids.some(k => !empty(a[k]) && AMOUNT_RE.test(cleanNum(a[k])));
 // A sworn total can't be worked out while part of it is marked "I'm not sure", so it stays blank on the form.
 const anyMarked = (a, ids) => ids.some(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k]));
 // Nothing entered isn't the same as swearing to $0.00, so that stays blank too (noneText says so). A typed 0 prints.
+// An amount in it that isn't a number (refused on its question, then left by the section list) doesn't count as $0: the
+// total waits for it too (BT73).
+const notNumber = (a, ids) => ids.find(k => Object.hasOwn(a, k) && !empty(a[k]) && !(k === "monthlyHours" ? isNum(a[k]) : isAmount(a[k])));
 const totalRow = (form, label, total, ids, a, names, noneText, waiting = "", waitingOn = null) => {
+  const bad = !waiting && notNumber(a, ids);
+  if (bad) { waiting = "Left blank until every amount in it is a number"; waitingOn = bad; }
   const marked = anyMarked(a, ids), none = noneText && !ids.some(k => Object.hasOwn(a, k) && !empty(a[k]));
   const open = marked || none || !!waiting;
   const firstMarked = marked ? ids.find(k => Object.hasOwn(a, k) && unsure[k] && empty(a[k])) : null;
@@ -136,7 +141,7 @@ const totalRow = (form, label, total, ids, a, names, noneText, waiting = "", wai
     names.map(name => ({ t: "text", name, value: open ? "" : money(total) }))) };
 };
 const amountRow = (form, label, k, a, name) =>
-  f(form, label, isNum(a[k]) ? `$${moneyOrBlank(a[k])}` : "Left blank", k, [{ t: "text", name, value: moneyOrBlank(a[k]) }]);
+  f(form, label, isAmount(a[k]) ? `$${amountOrBlank(a[k])}` : "Left blank", k, [{ t: "text", name, value: amountOrBlank(a[k]) }]);
 
 // The printed rules under the fee waiver Appearance's three related-case captions:
 // one line on the rule, or two lines (the first just above it) for a long caption.
@@ -202,9 +207,9 @@ function feeWaiverFields(a) {
     f(FORM.fwMotion, "4. Under 18 and live with me", empty(a.children) ? "Left blank" : a.children, "children", [{ t: "text", name: "ChildrenInHome", value: a.children }]),
     f(FORM.fwMotion, "5. I financially support", empty(a.supported) ? "Left blank" : a.supported, "supported", [{ t: "text", name: "FinancialSupport", value: a.supported }]),
   );
-  const hasWages = toNum(a.hourlyRate) > 0;
+  const hasWages = amountOf(a.hourlyRate) > 0;
   out.push(
-    f(FORM.fwMotion, "Wages per hour", isNum(a.hourlyRate) ? `$${moneyOrBlank(a.hourlyRate)}` : "Left blank", "hourlyRate",
+    f(FORM.fwMotion, "Wages per hour", isAmount(a.hourlyRate) ? `$${amountOrBlank(a.hourlyRate)}` : "Left blank", "hourlyRate",
       [{ t: "text", name: "HourlyRate", value: moneyOrBlank(a.hourlyRate) }]),
     ...(hasWages ? [f(FORM.fwMotion, "Hours per month", a.monthlyHours, "monthlyHours",
       [{ t: "text", name: "MonthlyHours", value: isNum(a.monthlyHours) ? String(toNum(a.monthlyHours)) : "" }])] : []),
@@ -217,7 +222,7 @@ function feeWaiverFields(a) {
   out.push(
     totalRow(FORM.fwMotion, "6. and Total Income (added up for you)", incomeTotal(a), INCOME_IDS, a, ["TotalIncome", "HouseholdIncome"], a.incomeKinds === "none" ? "" : "Left blank (no income entered)",
       toNum(a.hourlyRate) > 0 && empty(a.monthlyHours) ? "Left blank until you enter your hours per month" : "", "monthlyHours"),
-    f(FORM.fwMotion, "7. Money in the bank", isNum(a.bank) ? `$${moneyOrBlank(a.bank)}` : "", "bank", [{ t: "text", name: "BankAccount", value: moneyOrBlank(a.bank) }]),
+    f(FORM.fwMotion, "7. Money in the bank", isAmount(a.bank) ? `$${amountOrBlank(a.bank)}` : "", "bank", [{ t: "text", name: "BankAccount", value: amountOrBlank(a.bank) }]),
     ...EXPENSES.map(([k, label, name]) => amountRow(FORM.fwMotion, label, k, a, name)),
   );
   if (toNum(a.otherCosts) > 0) out.push(f(FORM.fwMotion, "Other expenses description", a.otherCostsDesc, "otherCostsDesc",

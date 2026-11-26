@@ -382,7 +382,7 @@ function runChecks() {
   vis.filter(s => (s.type === "money" || s.type === "number") && !empty(a[s.id]) && !validNum(s, a[s.id])).forEach(s => {
     handled.add(s.id);
     flags.push({ level: "missing", title: s.label, fix: s.id, why: tooBig(a[s.id]) ? "This is too large to be right for this form, so it's left blank. Check the number, including the decimal point."
-      : "This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50." });
+      : `This isn't a number we can put on the form. Use numbers only, like 1200 or 12.50.${sitKey !== "feewaiver" ? "" : INCOME_IDS.includes(s.id) ? " Until it is, your Total Income is left blank too." : EXPENSE_IDS.includes(s.id) ? " Until it is, your Total Expenses is left blank too." : ""}` });
   });
 
   // The three lists count once in the score: at least one has to have something.
