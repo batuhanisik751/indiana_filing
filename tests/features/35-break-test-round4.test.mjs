@@ -1334,3 +1334,48 @@ describe("BT109. The step linking a page that says there's no Answer form says w
     assert.match(step.body, /its website doesn't have an Answer form, but its Answer instructions come with one, form CCA-GF-0626-6008/);
   });
 });
+
+describe("TG16, TG18 and TG20. Tests for what the test round couldn't see", () => {
+  test("TG16: a long defense continues on added pages, each numbered, and a name too long for its box is flagged", async () => {
+    const long = Array.from({ length: 260 }, (_, i) => `Line ${i + 1}: I paid every month and have the receipts for each payment.`).join("\n");
+    await inject(p, "respond", { defenses: long.slice(0, 9000) });
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    const [pages, form] = await p.evaluate(async () => { const d = await PDFLib.PDFDocument.load(pdfState.result.each.find(x => x.key === "answer").bytes); return [d.getPageCount(), OFFICIAL[SITUATIONS.respond.official.packet].docs.answer.pages.length]; });
+    assert.ok(pages >= form + 2, `${pages} pages, ${form} of them the form`);
+    assert.match(await pdfText(p), /attachment page 2 of \d+ to the Answer/);
+    await inject(p, "respond", { plaintiff: "Acme Credit Holdings and Consolidated Receivables Management Services of North America, Incorporated, as assignee of Original Creditor Bank, National Association, and its successors and assigns".repeat(2) });
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    assert.ok(await p.evaluate(() => pdfFlags().some(f => f.fix === "plaintiff" && /too long for the space/.test(f.why))));
+  });
+  test("TG18: an answer emptied in its box stays off the device through \"Open the full question\"", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "respond");
+    await q.evaluate(() => saveProgress());
+    await editHere(q, "plaintiff");
+    await q.fill("#inEdit", "");
+    await q.click("#ieFull");
+    await q.waitForSelector("#ans");
+    await q.fill("#ans", "Midland Funding"); // typed again on the question: the erased answer still stays off
+    const d = JSON.parse(await copy(q));
+    assert.equal(d.edit?.original?.value, undefined, "the erased answer isn't kept for Cancel");
+    assert.doesNotMatch(JSON.stringify(d.answers.plaintiff ?? ""), /Acme/);
+    await q.context().close();
+  });
+  test("TG20: a half-typed date on a question warns before closing; invisible characters print as nothing, not \"?\"; storage cleared outside the page is noticed", { skip: BROWSER === "webkit" && "Playwright's WebKit date box takes no typed dates" }, async () => {
+    const q = await fresh();
+    await inject(q, "continuance");
+    await q.evaluate(() => { cur = visible().findIndex(s => s.id === "hearingDate"); mode = "step"; returnToSummary = false; render(); document.getElementById("ans").value = ""; });
+    await q.focus("#ans"); await q.keyboard.type("02");
+    assert.equal(await q.evaluate(() => { const e = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; }), true);
+    await inject(q, "respond", { name: "Pat​Exa­mple" });
+    const text = await pdfText(q);
+    assert.match(text, /PatExample/); assert.doesNotMatch(text, /Pat\?/);
+    await q.click("#saveToggle");
+    await q.evaluate(() => saveProgress());
+    assert.match(await q.textContent("#privacy"), /^Saved/);
+    await q.evaluate(k => { localStorage.removeItem(k); window.dispatchEvent(new Event("focus")); }, SAVED);
+    assert.doesNotMatch(await q.textContent("#privacy"), /^Saved/);
+    await q.context().close();
+  });
+});
