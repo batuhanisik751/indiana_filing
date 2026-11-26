@@ -468,3 +468,24 @@ describe("BT73 and TG17. A sworn total on the fee waiver is never worked out fro
     assert.doesNotMatch(await pdfText(p), /3,903\.00|2,960\.00 .*2,960\.00/, "no old total kept");
   });
 });
+
+describe("BT72. A second case's calendar file doesn't replace the first case's event", () => {
+  const part = (t, k) => t.match(new RegExp(`\\r\\n${k}:(.+)\\r\\n`))[1];
+  test("another form for another case gets its own event; the first case again updates its own", async () => {
+    await inject(p, "appearance", { caseNumber: "02D01-2611-CC-001234" });
+    const day = await p.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 20); return dayString(d); });
+    const ics = () => p.evaluate(d => courtDateIcs(d), day);
+    const first = await ics(), again = await ics();
+    assert.equal(part(again, "UID"), part(first, "UID"));
+    assert.equal(part(again, "SEQUENCE"), "1");
+    // "Choose a different form" keeps this page's events: here, a continuance for another case.
+    await p.evaluate(() => { sitKey = "continuance"; steps = SITUATIONS[sitKey].steps(); answers.caseNumber = "49D02-2609-EV-004321"; });
+    const other = await ics();
+    assert.notEqual(part(other, "UID"), part(first, "UID"));
+    assert.equal(part(other, "SEQUENCE"), "0");
+    await p.evaluate(() => { sitKey = "appearance"; steps = SITUATIONS[sitKey].steps(); answers.caseNumber = "02D01-2611-CC-001234"; });
+    const back = await ics();
+    assert.equal(part(back, "UID"), part(first, "UID"));
+    assert.equal(part(back, "SEQUENCE"), "2");
+  });
+});

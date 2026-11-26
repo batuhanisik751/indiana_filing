@@ -24,7 +24,7 @@ const app = document.getElementById("app");
 function resetAnswers() {
   sitKey = null; steps = []; answers = {}; unsure = {}; triage = {}; triagePrev = {}; triageHist = []; triageTouched = false; triageBeforeEdit = null; triageFromSummary = false; fromTriage = false; fromNotSure = false;
   savedHere = true; saveOk = true; copyKept = {}; notSureFromKind = false; whereOpen = false; openMore.clear(); caseConfirmFor = null;
-  editOriginal = null; inlineEdit = null; fixNth = 0; clearedContact = []; editErased = null; reloadedEdit = null; icsEvent = null;
+  editOriginal = null; inlineEdit = null; fixNth = 0; clearedContact = []; editErased = null; reloadedEdit = null; icsEvents = {};
   cur = 0; returnToSummary = false; lastEdited = null; draft = null; followUps = []; fixFrom = null; otherTab = false; pickedOther = false;
   pdfState = { key: null, result: null, error: false, busy: false };
   document.querySelector("dialog.pageview")?.remove(); // a page of the filled form shown large goes with the answers
