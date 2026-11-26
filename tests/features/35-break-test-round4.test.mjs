@@ -88,3 +88,41 @@ describe("BT55. Text typed in a box on a page shown large leaves the device when
     await q.context().close();
   });
 });
+
+describe("BT52. A protection order case says how its contact information and e-filing differ", () => {
+  const PO = { caseNumber: "02D01-2611-PO-001234", role: "me", fileMethod: "efile" };
+  const flagsAndSteps = (form, over) => inject(p, form, over).then(() => p.evaluate(() => ({
+    flags: runChecks().filter(f => f.title === "Protection order case").map(f => `${f.fix}|${f.why}`),
+    online: nextSteps(sitKey, visibleAnswers()).filter(s => /File online/.test(s.title)).map(s => `${s.short} ${s.body}`).join(" ") })));
+  test("a continuance in a PO case: the contact boxes are flagged with what Rule 5 asks for, and e-filing names its own service", async () => {
+    const { flags, online } = await flagsAndSteps("continuance", PO);
+    assert.equal(flags.length, 1);
+    assert.match(flags[0], /^address\|Your case type is PO, a protection order or workplace violence restraining order case\. If you're a victim or a witness/);
+    assert.match(flags[0], /mailing address, email address and phone number out of the public record/);
+    assert.match(flags[0], /confidential document \(on green paper if you file on paper\), along with a separate copy that leaves them out and an ACR Form/);
+    assert.match(online, /Protection Order Registry's e-filing service/);
+    assert.match(online, /every filing in the case/);
+    assert.doesNotMatch(online, /you can always e-file at no cost/);
+  });
+  test("a JQ case and an Appearance: the same; with the Address Confidentiality Program, the mailing address isn't named", async () => {
+    let { flags, online } = await flagsAndSteps("appearance", { caseNumber: "02D01-2611-JQ-001234", fileMethod: "efile" });
+    assert.match(flags[0], /JQ, a child protection order case/);
+    assert.match(online, /JQ cases \(requests for child protection orders\)/);
+    ({ flags } = await flagsAndSteps("appearance", { caseNumber: "02D01-2611-PO-001234", acp: "yes", acpAddress: "PO Box 1, Indianapolis, IN 46204" }));
+    assert.match(flags[0], /^email\|.*your email address and phone number out/);
+  });
+  test("the contact questions say so before anything is typed", async () => {
+    await inject(p, "continuance", PO);
+    for (const id of ["address", "email", "phone"]) {
+      await p.evaluate(id => { cur = visible().findIndex(s => s.id === id); mode = "step"; returnToSummary = false; render(); }, id);
+      assert.match(await p.textContent("#qneed"), /Your case type is PO.*Access to Court Records Rule 5 keeps this out of the public record/, id);
+    }
+  });
+  test("edge: other case types are as before", async () => {
+    const { flags, online } = await flagsAndSteps("continuance", { ...PO, caseNumber: "02D01-2611-CC-001234" });
+    assert.deepEqual(flags, []);
+    assert.match(online, /efile\.incourts\.gov/);
+    await p.evaluate(() => { cur = visible().findIndex(s => s.id === "address"); mode = "step"; render(); });
+    assert.doesNotMatch(await p.textContent("#qneed"), /case type/);
+  });
+});

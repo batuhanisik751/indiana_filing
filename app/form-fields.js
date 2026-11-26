@@ -20,6 +20,8 @@ const courtTypeText = a => a.courtType === "other"
   ? String(a.courtTypeOther || "").replace(/\s*court\s*$/i, "").trim()
   : (a.courtType || "");
 const caseLetters = a => { const m = caseMatch(a.caseNumber); return m ? m[2] : String(a.caseTypeLetters || "").toUpperCase(); };
+// PO or JQ, from the case number, the case type letters or the fee waiver's case type; otherwise "".
+const protectionLetters = a => [caseLetters(a), String(a.fwCaseType ?? "").trim().toUpperCase()].find(l => PROTECTION_CASES[l]) || "";
 const f = (form, label, value, step, pdf = []) => ({ form, label, value: value ?? "", step, pdf });
 const yesNo = v => v === "yes" ? "Yes" : v === "no" ? "No" : "";
 // The address that may go on a form: the program's substitute address for participants, never their home address.

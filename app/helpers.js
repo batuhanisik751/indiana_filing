@@ -52,6 +52,11 @@ const caseMatch = cn => String(cn ?? "").trim().toUpperCase().match(CASE_RE);
 const FAMILY_CASES = { DC: "Domestic Relations with Children", DN: "Domestic Relations No Children", DR: "Domestic Relation", JP: "Juvenile Paternity" }; // Administrative Rule 8's names
 const NOT_CIVIL_CASES = new Set("CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV".split(" ")); // Administrative Rule 8's criminal, infraction and ordinance case types
 const CASE_CODES = new Set("AD CC CE CP CT DC DN DR EV GV MF MH MI PC PL PO RA RF RS TP TS XP CF CM F1 F2 F3 F4 F5 F6 FA FB FC FD MC MR IF OE OV JC JD JM JP JQ JS JT EM ES EU GM GU TR SC CB".split(" "));
+// Case types with their own filing rules. Trial Rule 86(E)(1): the Protection Order Registry's e-filing service is the
+// only way to e-file anything in a PO case (protection orders and workplace violence restraining orders) or a JQ case
+// (child protection orders). Access to Court Records Rule 5(C)(3): in protection order and juvenile cases, the addresses
+// (mail or email), birth dates and phone numbers of victims and witnesses are kept out of the public record.
+const PROTECTION_CASES = { PO: "a protection order or workplace violence restraining order case", JQ: "a child protection order case" };
 const countyCode = county => String(COUNTIES.indexOf(county) + 1).padStart(2, "0");
 // What a full case number says about its county and court. Administrative Rule 8: the first two digits are the
 // county's number, and the letter after them is the court, C for Circuit and D for Superior. Null unless it says both.

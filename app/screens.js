@@ -235,7 +235,9 @@ function renderStep() {
   }
   const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
     + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "")
-    + (step.id === "address" && (unsure.acp || unsure.agConfidential) ? " If you're in the Address Confidentiality Program, don't enter your home address here." : "");
+    + (step.id === "address" && (unsure.acp || unsure.agConfidential) ? " If you're in the Address Confidentiality Program, don't enter your home address here." : "")
+    // Before it's typed: in a protection order case, a victim's or witness's contact information is filed differently.
+    + (["address", "email", "phone"].includes(step.id) && protectionLetters(answers) ? ` Your case type is ${protectionLetters(answers)}, ${PROTECTION_CASES[protectionLetters(answers)]}. If you're a victim or a witness in it, Access to Court Records Rule 5 keeps this out of the public record, and the summary says how it's filed.` : "");
   // Earlier answers that came back are still shown before they can print (see the Back button below).
   const cameBack = followUps.includes(step.id) && vis.some(s => s.id !== step.id && followUps.includes(s.id) && !empty(answers[s.id]));
   const cancelGoes = cameBack ? "moves on to the next earlier answer" : "goes back to the summary";

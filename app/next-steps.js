@@ -226,7 +226,13 @@ function nextSteps(key, a) {
       key === "feewaiver" ? "The guide also says that for some case types, e-filing in a trial court is not currently available, and some case types can only be e-filed after the case is open. It points to a current list." : "",
       "Indiana Legal Help says the guide shows how to choose an e-filing provider and set up a free account.",
     ];
-    out.push({ title: efile ? "File online" : "If you file online",
+    // A protection order case is e-filed through its own service only.
+    const po = protectionLetters(a);
+    if (po) out.push({ title: efile ? "File online" : "If you file online",
+      short: `Trial Rule 86 says ${po} cases are e-filed only through the Protection Order Registry's e-filing service, not efile.incourts.gov.`,
+      body: `Your case type is ${po}, ${PROTECTION_CASES[po]}. Trial Rule 86 says the Protection Order Registry's e-filing service is the only provider for e-filing in ${po === "PO" ? "PO cases (civil protection orders and workplace violence restraining orders), for every filing in the case, not only the first" : "JQ cases (requests for child protection orders)"}. So efile.incourts.gov and the other e-filing providers aren't for this case. You can ask the clerk's office how to file with it.`,
+      links: [SOURCES.tr86] });
+    else out.push({ title: efile ? "File online" : "If you file online",
       short: "The E-Filing User Guide says you can always e-file at no cost, other than filing or service fees, at efile.incourts.gov.",
       body: parts.filter(Boolean).join(" "),
       links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount, SOURCES.efileSchedule] : [])] });

@@ -85,6 +85,7 @@ const RULES = {
   tr5: { href: "https://rules.incourts.gov/Content/trial/rule5/current.htm", text: "Read Trial Rule 5" },
   tr111: { href: "https://rules.incourts.gov/Content/trial/rule11-1/current.htm", text: "Read Trial Rule 11.1" },
   acr5: { href: "https://rules.incourts.gov/Content/records/rule5/current.htm", text: "Read Access to Court Records Rule 5" },
+  acr5po: { href: "https://rules.incourts.gov/Content/records/rule5/current.htm", text: "Read Access to Court Records Rule 5" }, // its own, so it isn't taken for the private-number flag
 };
 const T111 = "Trial Rule 11.1 says to provide a \"mailing address, telephone number, and email address, if available.\"";
 const CAPTION_WHY = ["The official form says to fill out its top section to match the other court forms in your case."];
@@ -146,6 +147,9 @@ const CHECKS_HOW = [
     src: key => [RULES.tr31, ...(key === "feewaiver" ? [] : [RULES.tr5]), RULES.tr111] },
   { title: "Private information", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: "Complete Social Security, account and card numbers, PINs and passwords in anything that would print.", src: () => [RULES.acr5] },
+  { title: "Protection order cases", forms: ["respond", "appearance", "continuance", "feewaiver"],
+    says: "If the case type is PO or JQ, that Access to Court Records Rule 5 keeps a victim's or witness's mailing address, email address and phone number out of the public record, and how the rule says to file them. Next steps also say that Trial Rule 86 has these cases e-filed through the Protection Order Registry's own service.",
+    src: () => [RULES.acr5po, { href: "https://rules.incourts.gov/Content/trial/rule86/current.htm", text: "Read Trial Rule 86" }] },
   { title: "Case number", forms: CASE_FORMS_HOW,
     says: "That it has the shape of an Indiana case number, that its county number and court letter match your county and court, and that its case type is a civil one Administrative Rule 8 lists. If you said your main paper is a Notice of Claim, also that the case type is small claims (SC) or eviction (EV): the Small Claims Manual says a Notice of Claim starts a small claims case.", src: () => [RULE8] },
   { title: "Case type", forms: ["feewaiver"], says: "That the two-letter case type is one Administrative Rule 8 lists.", src: () => [RULE8] },
@@ -271,6 +275,17 @@ function runChecks() {
       flags.push({ level: "check", title: "Eviction case", why: "Your case type is EV, which means eviction. If your case is in small claims court, Indiana Legal Help says Answers are not usually filed there. You can ask free legal help whether you need one.", fix: lettersFix, link: { href: LINKS.getHelp, text: "Find free legal help" } });
     if (sitKey === "respond" && FAMILY_CASES[letters])
       flags.push({ level: "check", title: "Family case", why: `Your case type is ${letters} (${FAMILY_CASES[letters]}). Indiana Legal Help says Answers are not usually filed in small claims court or family court. You can ask free legal help whether you need one.`, fix: lettersFix, link: { href: LINKS.getHelp, text: "Find free legal help" } });
+  }
+
+  // A protection order case: the contact information of a victim or witness is kept out of the public record, and this
+  // tool fills in only the public copy's boxes, with it in them. (A substitute address from the Address Confidentiality
+  // Program prints instead of the mailing address.)
+  const poLetters = protectionLetters(a), CONTACT_SAYS = { address: "mailing address", email: "email address", phone: "phone number" };
+  const contactShown = Object.keys(CONTACT_SAYS).filter(k => has(k) && !empty(a[k]) && !NO_WORDS.test(String(a[k]).trim()) && !(k === "address" && a.acp === "yes"));
+  if (poLetters && contactShown.length) {
+    const named = contactShown.map(k => CONTACT_SAYS[k]), them = named.length > 1 ? "them" : "it";
+    flags.push({ level: "check", title: "Protection order case", fix: contactShown[0], link: RULES.acr5po,
+      why: `Your case type is ${poLetters}, ${PROTECTION_CASES[poLetters]}. If you're a victim or a witness in it, Access to Court Records Rule 5 keeps your ${named.length > 1 ? `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}` : named[0]} out of the public record. The rule says the form with ${them} is filed as a confidential document (on green paper if you file on paper), along with a separate copy that leaves ${them} out and an ACR Form. This tool fills in one copy, with ${them} in it. You can ask the clerk or free legal help how to do this.` });
   }
 
   // "None" is how someone with no email or phone answers on the forms that require them.
