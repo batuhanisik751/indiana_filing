@@ -549,3 +549,51 @@ describe("BT69. Cancel on a case number change keeps the county and court confir
     await q.context().close();
   });
 });
+
+describe("BT70. Every way out of a box with a change that isn't saved asks first", () => {
+  const TYPED = "I paid this debt in full in 2023, and I have the receipt.";
+  const asked = async (q, leave, answer) => {
+    q.removeAllListeners("dialog");
+    let message = null;
+    q.once("dialog", d => { message = d.message(); return answer ? d.accept() : d.dismiss(); });
+    await leave(q);
+    await q.waitForTimeout(150);
+    return message;
+  };
+  for (const [how, leave] of [
+    ["Back to questions", q => q.click("#toQuestions")],
+    ["Choose a different form", q => q.click("#changeForm")],
+    ["the logo", q => q.click("#homeBtn")],
+    ["the browser's Back", q => q.goBack()],
+  ]) test(`on the summary, ${how}: asked; No keeps the box and the text, Yes leaves`, async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await editHere(q, "defenses");
+    await q.fill("#inEdit", TYPED);
+    assert.match(await asked(q, leave, false), /Discard your change to "Your defenses"\?/);
+    assert.equal(await q.evaluate(() => [mode, document.getElementById("inEdit")?.value].join("|")), `summary|${TYPED}`);
+    await asked(q, leave, true);
+    assert.equal(await q.evaluate(() => inlineEdit), null);
+    await q.context().close();
+  });
+  for (const [how, leave] of [["Close", q => q.click("#pvClose")], ["the browser's Back", q => q.goBack()]]) test(`on a page shown large, ${how}: asked; No keeps the box`, async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await openPage(q, 1);
+    await tap(q, "plaintiff");
+    await q.fill("#inEdit", "Acme Credit Holdings LLC");
+    assert.match(await asked(q, leave, false), /Discard your change to "Plaintiff"\?/);
+    assert.equal(await q.evaluate(() => [!!document.querySelector("dialog.pageview[open]"), document.getElementById("inEdit")?.value].join("|")), "true|Acme Credit Holdings LLC");
+    await asked(q, leave, true);
+    await q.waitForFunction(() => !document.querySelector("dialog.pageview"));
+    await q.context().close();
+  });
+  test("edge: with nothing changed, nothing is asked", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await editHere(q, "defenses");
+    assert.equal(await asked(q, q2 => q2.click("#toQuestions"), true), null);
+    assert.equal(await q.evaluate(() => mode), "step");
+    await q.context().close();
+  });
+});

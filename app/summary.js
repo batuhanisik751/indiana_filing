@@ -129,6 +129,14 @@ function showUnsaved() { const t = unsavedText(); app.querySelectorAll(".unsaved
 // Lets go of the answer being changed, as Cancel does, and saves the copy again without the box: what was typed in it
 // leaves the device, and an answer emptied in it goes back on (until then the saved copy keeps it off).
 function dropInline() { const had = !!inlineEdit; inlineEdit = null; if (had) saveProgress(); }
+// Leaving a box with a change that isn't saved asks first, whichever way the person leaves: another Edit, Back to
+// questions, Choose a different form, the logo, Change these answers, the browser's Back, or Close on a page shown large
+// (BT70). Saying no keeps the box, with focus in it.
+function okToDropInline() {
+  if (!inlineEdit || !inlineChanged() || confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) return true;
+  document.getElementById("inEdit")?.focus();
+  return false;
+}
 function openInline(id, nth) {
   if (inlineEdit && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { document.getElementById("inEdit")?.focus(); return; }
   inlineEdit = { id, nth, value: String(answers[id] ?? ""), erased: false, err: "" };
@@ -313,8 +321,8 @@ function renderSummary(rerender = false) {
     goFix(b.dataset.fix, where, where === "vals" ? +b.dataset.nth : [...app.querySelectorAll(`ul.flags [data-fix="${b.dataset.fix}"]`)].indexOf(b));
   });
   app.querySelectorAll("[data-ics]").forEach(b => b.onclick = () => downloadIcs(b.dataset.ics));
-  document.getElementById("toQuestions").onclick = () => { returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
-  document.getElementById("changeForm").onclick = chooseOtherForm;
+  document.getElementById("toQuestions").onclick = () => { if (!okToDropInline()) return; returnToSummary = false; cur = visible().length - 1; mode = "step"; render(); };
+  document.getElementById("changeForm").onclick = () => { if (okToDropInline()) chooseOtherForm(); };
   document.getElementById("restart").onclick = () => {
     // Another tab's copy of a different form isn't this form's to delete, and saving stays on to keep it.
     const copy = readSaved(), turnsOff = (savingOn() || storageFull) && !(copy && copy.sitKey && copy.sitKey !== sitKey);
@@ -323,7 +331,7 @@ function renderSummary(rerender = false) {
     announce(turnsOff ? "Your answers were deleted, and saving is off." : "Your answers were deleted.");
   };
   const et = document.getElementById("editTriage");
-  if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
+  if (et) et.onclick = () => { if (!okToDropInline()) return; triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
   showUnsaved();
   markNewTabLinks(app);

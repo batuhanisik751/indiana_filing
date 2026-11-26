@@ -41,8 +41,10 @@ window.addEventListener("popstate", () => {
   if (ignorePop) { ignorePop = false; syncHistory(); return; }
   if (inGuard()) { if (mode === "pick" && helpPanel.hidden && !backToAnswers()) dropGuard(); return; } // Forward onto the extra entry
   const big = document.querySelector("dialog.pageview[open]");
-  if (big) { big.close(); syncHistory(); return; } // Back closes a page shown large, and stays on this screen
-  if (mode === "summary" && inlineEdit) { closeInline(); syncHistory(); return; } // and a box opened on the summary, as Cancel does
+  // Back closes a page shown large, and stays on this screen; and a box opened on the summary, as Cancel does. A change
+  // not saved in either asks first; kept, Back is undone.
+  if (big) { if (!big.beforeClose || big.beforeClose()) big.close(); syncHistory(); return; }
+  if (mode === "summary" && inlineEdit) { if (okToDropInline()) closeInline(); syncHistory(); return; }
   if (!helpPanel.hidden) { setHelp(false); return; }
   if (backToAnswers()) { document.getElementById("backToWork").click(); return; }
   if (mode === "pick") return;

@@ -160,7 +160,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, s
   // show() sets that before it starts drawing, so focus moves at once.
   const step = (to, from, other) => () => { if (beforeTurn && !beforeTurn()) return; show(to()); if (from.disabled) other.focus(); };
   if (prev) { prev.onclick = step(() => at - 1, prev, next); next.onclick = step(() => at + 1, next, prev); }
-  dlg.querySelector("#pvClose").onclick = () => dlg.close();
+  dlg.querySelector("#pvClose").onclick = () => { if (!dlg.beforeClose || dlg.beforeClose()) dlg.close(); };
   dlg.addEventListener("close", () => {
     dlg.onGone?.();
     dlg.remove();
@@ -225,6 +225,8 @@ function showFilledPage(pdf, n, opener, focusId = null) {
   });
   // While the page is being made again with a change, its answers can't be tapped: the page is about to be replaced.
   const hold = () => dlg.querySelectorAll(".pvspot").forEach(b => { b.disabled = true; });
+  // Close (or Back) with a change in its box that isn't saved asks first (BT70).
+  dlg.beforeClose = () => !inlineEdit || inlineEdit.where !== "pdf" || okToDropInline();
   // This page holds its PDF open until it closes or another page replaces it.
   holdPdf(pdf, dlg);
   dlg.onGone = () => letGoPdf(pdf, dlg);

@@ -406,6 +406,7 @@ function keepTyped(step, raw) {
 // "Go back" (or the browser's Back) returns to them. An edit from the summary is cancelled first, as Cancel would.
 document.getElementById("homeBtn").onclick = () => {
   if (mode === "pick") { app.querySelector("h1")?.focus(); return; }
+  if (mode === "summary" && !okToDropInline()) return;
   for (let i = 0; mode === "step" && returnToSummary && i < 20; i++) document.getElementById("back").click();
   if (mode === "step") { const step = visible()[cur]; if (step) { readInput(step); if (!empty(answers[step.id])) delete unsure[step.id]; } }
   chooseOtherForm();
