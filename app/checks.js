@@ -37,10 +37,10 @@ UNIT_WORDS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
 TENS_WORDS.forEach((t, i) => { NUMBER_WORDS[t] = (i + 2) * 10; UNIT_WORDS.forEach((u, j) => { NUMBER_WORDS[`${t} ${u}`] = (i + 2) * 10 + j + 1; }); });
 "first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth twentieth".split(" ").forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
 const NUMBER_WORD = Object.keys(NUMBER_WORDS).sort((x, y) => y.length - x.length).map(w => w.replace(" ", "[-\\s]")).join("|"); // "twenty-one" before "twenty"
-const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(/]|\\b(?:and|or|paragraphs?|paras?|nos?\\.?|numbers?)\\b)(\\s*)(${NUMBER_WORD})\\b(?=\\s*(?:$|[,;&).\\/\\-\u2013]|\\b(?:and|or|through|thru|to|are|is|were|was)\\b))`, "gi");
+const LIST_NUMBER_WORD = new RegExp(`(^|[,;&(/]|\\b(?:and|or|paragraphs?|paras?|nos?\\.?|numbers?|except(?: for)?|but(?: not)?|not|excluding|besides|save(?: for)?|other than|apart from|aside from|exception of)\\b)(\\s*)(${NUMBER_WORD})\\b(?=\\s*(?:$|[,;&).\\/\\-\u2013]|\\b(?:and|or|through|thru|to|are|is|were|was)\\b))`, "gi");
 const wordValue = w => NUMBER_WORDS[w.toLowerCase().replace(/[-\s]+/, " ")];
 // "the first five" is paragraphs 1 to 5 ("the first five of them" too, but not "the first of them").
-const FIRST_N = new RegExp(`\\b(?:the )?first (${NUMBER_WORD}|\\d{1,3})\\b`, "gi");
+const FIRST_N = new RegExp(`\\b(?:the )?first (${NUMBER_WORD}|\\d{1,3})\\b(?=\\s*(?:$|[,;.)]|paragraphs?\\b|paras?\\b|allegations?\\b|of them\\b|and\\b|or\\b|are\\b|is\\b|were\\b))`, "gi");
 // The end of a range: "one to four", "one-four", "2 through twenty". A word after "to" in a sentence ("I only agreed to one", "the
 // rent went up to twelve") isn't a paragraph.
 const RANGE_END_WORD = new RegExp(`(\\d\\s*(?:[-\u2013]|to|through|thru)\\s*)(${NUMBER_WORD})\\b`, "gi");
@@ -52,7 +52,7 @@ const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-$
   .replace(RANGE_END_WORD, (m, before, w) => `${before}${wordValue(w)}`);
 // The numbers in text like "1, 3-5" or "1 through 3".
 function numbersIn(t, out = new Set()) {
-  for (const m of t.matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\s*)?(\d+))?/gi)) {
+  for (const m of t.matchAll(/(\d+)(?:st|nd|rd|th)?(?:\s*(?:[-\u2013\u2014]+|\.{2,}|up to|until|to(?: and including)?|through(?: and including)?|thru)\s*(?:paragraphs?\s*|paras?\.?\s*|nos?\.?\s*|#\s*)?(\d+))?/gi)) {
     if (m[1].length > 6 || (m[2] && m[2].length > 6)) continue; // too long to be a paragraph number
     const from = +m[1], to = m[2] === undefined ? from : +m[2];
     if (to >= from && to <= PARAGRAPH_MAX) for (let i = from; i <= to; i++) out.add(i);
@@ -62,8 +62,25 @@ function numbersIn(t, out = new Set()) {
 }
 // The paragraph numbers in a list, like "1, 3-5", "1 through 3" or "one, two". Those after "except" are taken out:
 // "1-5 except 3" is 1, 2, 4 and 5.
+// The list, without a remark after it: "3 - I never got the 30 day notice", "#3 (I made 2 payments in 2021)", "4. I only
+// agreed to one." A remark starts after " - ", ":", "(", ";" or a period, with words that aren't list words. Its numbers
+// aren't paragraphs (BT64). "1 - 4" and "1-3; the rest" are lists all the way through. Each line is read on its own, so
+// a list written one paragraph a line, each with a remark ("1. I live in Allen County"), keeps every number.
+function listOnly(text) {
+  return text.split("\n").map(listLine).join("\n");
+}
+function listLine(t) {
+  const seps = [...t.matchAll(/\s[-\u2013\u2014]\s|\s*[:(;]|\.(?=\s)/g)], firstDigit = t.search(/\d/);
+  for (let i = 0; i < seps.length; i++) {
+    const m = seps[i], after = m.index + m[0].length;
+    // What comes after it, up to the next of these: a remark, unless it's list words ("the rest") or goes on with the list.
+    const next = (seps[i + 1] ? t.slice(after, seps[i + 1].index) : t.slice(after)).trim();
+    if (firstDigit >= 0 && firstDigit < m.index && /^\p{L}/u.test(next) && !onlyListWords(notAmounts(next)) && !/^(?:and|or|through|thru|to|except|but|not|paragraphs?|paras?|nos?|numbers?)\b/i.test(next)) return t.slice(0, m.index);
+  }
+  return t;
+}
 function paragraphNumbers(v) {
-  const t = numberWordsAsDigits(v), out = numbersIn(notAmounts(t));
+  const t = listOnly(numberWordsAsDigits(v)), out = numbersIn(notAmounts(t));
   for (const m of t.matchAll(new RegExp(EXCEPT_PART, "gi"))) for (const n of numbersIn(m[0])) out.delete(n);
   return out;
 }

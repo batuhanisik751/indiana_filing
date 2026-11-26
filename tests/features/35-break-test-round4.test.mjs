@@ -415,3 +415,22 @@ describe("BT63. \"Your lists say different things\": its advice works, and two l
     assert.deepEqual(await listFlags("all", ""), []);
   });
 });
+
+describe("BT64. Correct paragraph lists get no false flags", () => {
+  test("next to the paragraphs they leave out, these lists get no flag", async () => {
+    for (const [ad, de, ne = ""] of [
+      ["all except one and two", "1, 2"], ["all except 3, 4, & 7", "3, 4, 7"], ["all except 3, 4, or 7", "3, 4, 7"], ["all except para. 3", "3"],
+      ["all except #s 3 and 4", "3, 4"], ["all with the exception of 3", "3"], ["1-10, not 3", "3"], ["#1-#5", "6"], ["No. 1 to No. 5", "6"],
+      ["1, 2, 3", "everything after 3"], ["1-7", "the last 3"], ["1, 2", "3 - I never got the 30 day notice"], ["the first 3", "4 - the first 30 days were paid"],
+      ["#1, #2", "#3 (I made 2 payments in 2021)"], ["1,2,3,4", "5,6,7", "8,9 (I first learned of this in 2 letters)"],
+      ["1. I live in Allen County\n2. I signed the lease", "3. I owe $900"],
+    ]) assert.deepEqual(await listFlags(ad, de, ne), [], `${ad} / ${de} / ${ne}`);
+  });
+  test("edge: real mistakes are still flagged, and \"one - four\", \"1-3; the rest\" and \"4. I only agreed to one.\" read as before", async () => {
+    assert.deepEqual(await listFlags("1, 2", "2, 3"), ["check|Paragraphs listed in more than one list"]);
+    assert.deepEqual(await listFlags("1", "3 - I never got the notice"), ["check|Paragraphs not in any list"]);
+    assert.deepEqual(await listFlags("1, 3 - I paid on time", ""), ["check|Paragraphs not in any list"]);
+    assert.deepEqual(await p.evaluate(() => ["one - four", "1-3; the rest", "4. I only agreed to one.", "the first five", "the first 30 days"].map(t => [...paragraphNumbers(t)].join(","))),
+      ["1,2,3,4", "1,2,3", "4", "1,2,3,4,5", "30"]);
+  });
+});

@@ -191,22 +191,22 @@ function notAnAnswer(s, v) {
 const startsNo = v => /^(?:none|no|nope|n\/a)\b/i.test(String(v ?? "").trim()) && !/\d/.test(String(v)) && !NOT_KNOWN.test(String(v).trim()); // "None of them", "no fixed address"
 // What a list needs to name any paragraphs: a number, or only words like "all" or "the first three". "The other side is lying" has those words too, in a sentence.
 const LIST_NAMES = /^(?:all|each|every|everything|anything|entire|whole|rest|remaining|remainder|balance|others?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|ii|iii|iv|v|vi|vii|viii|ix)$/i;
-const LIST_GLUE = /^(?:and|or|the|of|to|through|thru|paragraphs?|paras?|numbers?|nos?|in|my|them|it|its|complaint|else|except|but|above|below|these|those|are|is|not|any|listed|mentioned|admitted|denied|admit|deny|i|x|they|said|allegations?|claims?|statements?|counts?|things?|for|true|false|correct|wrong)$/i;
+const LIST_GLUE = /^(?:and|or|the|of|to|through|thru|after|following|onwards?|with|exception|paragraphs?|paras?|numbers?|nos?|in|my|them|it|its|complaint|else|except|but|above|below|these|those|are|is|not|any|listed|mentioned|admitted|denied|admit|deny|i|x|they|said|allegations?|claims?|statements?|counts?|things?|for|true|false|correct|wrong)$/i;
 const onlyListWords = v => { const w = String(v ?? "").match(/[\p{L}']+/gu) || []; return w.some(x => LIST_NAMES.test(x)) && w.every(x => LIST_NAMES.test(x) || LIST_GLUE.test(x)); };
 // The paragraphs after "except": "except 3", "except 3 through 5", "except #3", "except ¶ 3", "except no. 3",
 // "except the 3rd", "except 2-4 and 7", "save 3", "apart from 3". They're left out of this list, not in it.
-const EXCEPT_NUM = "(?:(?:paragraphs?|paras?|nos?\\.?|numbers?|#|\u00b6|\u00a7)\\s*)?(?:the\\s+)?#?\\d+(?:st|nd|rd|th)?";
+const EXCEPT_NUM = "(?:(?:paragraphs?|paras?\\.?|nos?\\.?|numbers?|#s?|\u00b6|\u00a7)\\s*)?(?:the\\s+)?#?\\d+(?:st|nd|rd|th)?";
 const EXCEPT_RANGE = `${EXCEPT_NUM}(?:\\s*(?:[-\u2013\u2014]+|to|through|thru|until)\\s*${EXCEPT_NUM})?`;
-const EXCEPT_PART = `\\b(?:except(?: for)?|but(?: not)?|other than|excluding|apart from|aside from|besides|save(?: for)?)\\s+${EXCEPT_RANGE}(?:\\s*(?:,\\s*and|,|and|or|&)\\s*${EXCEPT_RANGE})*`;
+const EXCEPT_PART = `\\b(?:except(?: for)?|but(?: not)?|not|other than|excluding|apart from|aside from|besides|save(?: for)?|(?:with the )?exception of)\\s+${EXCEPT_RANGE}(?:\\s*(?:,\\s*(?:and|or|&)?|and|or|&)\\s*${EXCEPT_RANGE})*`;
 // How many there are, after "all": "all 12", "all 12 paragraphs", "all 12 of them". Not "all 3 through 5".
 const ALL_COUNT = "(?<all>\\b(?:all|every one of|each of)(?: (?:of )?the)? )\\d+(?=\\s*(?:paragraphs?|paras?|allegations?|of them|$|[,.;!]))";
-const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}|${ALL_COUNT}`, "gi");
-const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, (...m) => (m[m.length - 1].all || "") + " "); // "$500", "page 12", "3/15/2024", "5pm" and "except 3" aren't paragraphs in this list
+const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}|${ALL_COUNT}|(?<pos>\\b(?:after|following|past|beyond|last)\\s+)(?:paragraphs?\\s*|paras?\\.?\\s*|#\\s*)?\\d+`, "gi");
+const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, (...m) => (m[m.length - 1].all || m[m.length - 1].pos || "") + " "); // "$500", "page 12", "3/15/2024", "5pm", "except 3", "after 3" and "the last 3" aren't paragraphs in this list
 // A list that says all of them, in whatever words: "all", "I agree with all of it", "every single one", "all 12",
 // "Yes, all", "The whole complaint is false". Its other words are list words, or these. A reason after "because" or
 // "since" doesn't count. Not "all except 3", "the rest" or "not all", and not a sentence that has "all" in it, like
 // "I paid every month on time" or "The whole amount is wrong".
-const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
+const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|exception|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside|after|following|past|beyond|last)\b/i;
 const ALL_GLUE = /^(?:agree|agreed|accept|accepted|accurate|right|untrue|yes|single|em|'em|with|petition)$/i;
 const saysAll = v => {
   const t = String(v ?? "").trim(), w = notAmounts(t.split(/\b(?:because|since)\b/i)[0]).match(/[\p{L}']+/gu) || [];
