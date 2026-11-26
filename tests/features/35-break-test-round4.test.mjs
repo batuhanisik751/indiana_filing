@@ -815,10 +815,13 @@ describe("BT84. Typing in a box on the summary while saving fails says so, as th
     await inject(q, "respond");
     await q.evaluate(() => saveProgress());
     assert.match(await q.textContent("#privacy"), /^Saved/);
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
     await editHere(q, "defenses");
+    // Every announcement, since a later one (the form made again) can replace it before it's read.
+    await q.evaluate(() => { window.__said = []; new MutationObserver(() => __said.push(document.getElementById("announce").textContent)).observe(document.getElementById("announce"), { childList: true, characterData: true, subtree: true }); });
     await q.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); }; });
     await q.type("#inEdit", " More.");
-    await q.waitForFunction(() => /can't be saved on this device right now/.test(document.getElementById("announce").textContent), null, { timeout: 3000 });
+    await q.waitForFunction(() => __said.some(t => /can't be saved on this device right now/.test(t)), null, { timeout: 5000 });
     assert.doesNotMatch(await q.textContent("#privacy"), /^Saved/);
     await q.context().close();
   });
