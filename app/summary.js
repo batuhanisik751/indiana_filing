@@ -204,6 +204,7 @@ function saveInline() {
     return;
   }
   closeInline();
+  quietEnter();
   announce("Saved. Your filled form and the checks are updated.");
 }
 function wireInline(root = app) {

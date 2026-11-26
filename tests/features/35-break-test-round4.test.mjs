@@ -1196,3 +1196,27 @@ describe("BT103. Small saving problems", () => {
     await q.context().close();
   });
 });
+
+describe("BT104. Enter pressed twice, or held, right after a save doesn't reopen what was saved", () => {
+  test("Edit a choice, Enter Enter: back on the summary, not on the question again", async () => {
+    await inject(p, "respond");
+    await editAnswer(p, "receiveAt");
+    await p.focus("input[name=ans]:checked");
+    await p.keyboard.press("Enter"); await p.keyboard.press("Enter");
+    await p.waitForTimeout(200);
+    assert.equal(await p.evaluate(() => mode), "summary");
+  });
+  test("a box on the summary: Save held down with Enter saves once, and doesn't reopen it or add blank lines", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await editHere(q, "defenses");
+    await q.fill("#inEdit", "I paid it.");
+    await q.focus("#ieSave");
+    await q.keyboard.down("Enter");
+    for (let i = 0; i < 6; i++) await q.keyboard.down("Enter"); // the key held: repeats
+    await q.keyboard.up("Enter");
+    await q.waitForTimeout(200);
+    assert.equal(await q.evaluate(() => [mode, !!document.getElementById("inEdit"), answers.defenses].join("|")), "summary|false|I paid it.");
+    await q.context().close();
+  });
+});

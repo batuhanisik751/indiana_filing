@@ -18,6 +18,23 @@ app.addEventListener("click", e => {
   if ((e.detail >= 2 && performance.now() - drawnAt < 500) || (e.isTrusted && secondTap())) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 
+// Right after a change is saved back to the summary, focus is on its Edit, so a second Enter (or Enter held down)
+// would open it again, and in a box, add blank lines. Enter is ignored for a moment then, and while it's still held
+// (BT104).
+let enterQuietUntil = 0, enterHeldOver = false;
+const quietEnter = () => { enterQuietUntil = performance.now() + 500; enterHeldOver = true; };
+document.addEventListener("keydown", e => {
+  // Only on what it would open (a button or link), not while typing in a box opened since.
+  if (e.key !== "Enter" || (e.target.matches && e.target.matches("input, textarea, select"))) return;
+  if (performance.now() < enterQuietUntil || (enterHeldOver && e.repeat)) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+document.addEventListener("keyup", e => { if (e.key === "Enter") enterHeldOver = false; }, true);
+// A mouse button or finger is down: a redraw now would replace what it's pressing, so a redraw that can wait does (BT104).
+let pointerHeld = false;
+document.addEventListener("pointerdown", () => { pointerHeld = true; }, true);
+for (const t of ["pointerup", "pointercancel"]) document.addEventListener(t, () => setTimeout(() => { pointerHeld = false; }), true);
+const whenPointerFree = f => { if (!pointerHeld) return f(); document.addEventListener("pointerup", () => setTimeout(f), { once: true, capture: true }); };
+
 function render() {
   drawnAt = performance.now();
   dropStaleCaseConfirm();

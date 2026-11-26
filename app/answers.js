@@ -92,7 +92,7 @@ function save(step) {
     followUps = followUps.filter(id => id !== step.id);
     vis.forEach(s => { if (!before.has(s.id)) followUps.push(s.id); });
     if (nextFollowUp()) return;
-    editOriginal = null; returnToSummary = false; mode = "summary"; return render();
+    editOriginal = null; returnToSummary = false; mode = "summary"; quietEnter(); return render();
   }
   if (idx < vis.length - 1) { cur = idx + 1; render(); } else { mode = "summary"; render(); }
 }

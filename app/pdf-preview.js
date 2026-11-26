@@ -24,7 +24,10 @@ function ensurePdf() {
     if (pdfState.key !== key) return; // answers changed while we worked
     pdfState = { key, result, error, busy: false };
     window.dispatchEvent(new Event("pdfready")); // a page of the form shown large, waiting for a change to show
-    if (mode === "summary") {
+    // A Fix being pressed as the form finishes gets its click first: the summary is drawn again after (BT104).
+    whenPointerFree(() => {
+    if (mode !== "summary" || pdfState.key !== key) return;
+    {
       keepFocus(() => renderSummary(true));
       if (pendingFocus && document.activeElement && document.activeElement.matches(`.status, ul.flags [data-fix="${pendingFocus.id}"]`)) {
         const t = app.querySelectorAll(`ul.flags [data-fix="${pendingFocus.id}"]`)[pendingFocus.nth] || app.querySelector(`ul.flags [data-fix="${pendingFocus.id}"]`);
@@ -34,6 +37,7 @@ function ensurePdf() {
       const n = app.querySelectorAll("ul.flags li").length, sc = completeness();
       announce(error ? "We couldn't make the PDF." : `Your filled form is ready to download. ${sc.filled} of ${sc.total} needed answers filled in. ${n ? `${n} item${n > 1 ? "s" : ""} to review before filing.` : "Nothing to review."}`);
     }
+    });
   })();
 }
 
