@@ -1033,3 +1033,28 @@ describe("BT95 and BT96. The privacy check marks only the private number, and is
     assert.deepEqual(await marked("card 4111 1111 1111 1111"), ["4111 1111 1111 1111"]);
   });
 });
+
+describe("BT93. Case number and case type oddities", () => {
+  const caseFlags = async (over, id = "caseNumber") => { await inject(p, "appearance", over); return p.evaluate(id => runChecks().filter(f => f.fix === id).map(f => f.why), id); };
+  test("a 13th month and a year that hasn't come are flagged; an old number with five digits at the end isn't", async () => {
+    assert.match((await caseFlags({ caseNumber: "02D01-2613-CC-001234" })).join(), /13 isn't a month/);
+    assert.match((await caseFlags({ caseNumber: "02D01-6211-CC-001234" })).join(), /2062 hasn't come yet/);
+    assert.deepEqual(await caseFlags({ caseNumber: "49D10-0608-CC-01729", county: "Marion" }), []);
+  });
+  test("case type \"I don't know\" gets one message, which doesn't say to leave it blank", async () => {
+    await inject(p, "continuance", { caseNumber: "", caseTypeLetters: "I don't know" });
+    const why = await p.evaluate(() => runChecks().filter(f => f.fix === "caseTypeLetters").map(f => f.why));
+    assert.equal(why.length, 1, why.join(" | "));
+    assert.match(why[0], /choose "I'm not sure"/);
+    assert.doesNotMatch(why[0], /Leave it blank/);
+  });
+  test("edge: a usual case number and case type get no flag", async () => {
+    assert.deepEqual(await caseFlags({ caseNumber: "02D01-2611-CC-001234" }), []);
+  });
+});
+describe("BT93 edge", () => {
+  test("a newer case number with five digits at the end is still a digit left out", async () => {
+    await inject(p, "appearance", { caseNumber: "02D01-2611-CC-00123" });
+    assert.match((await p.evaluate(() => runChecks().filter(f => f.fix === "caseNumber").map(f => f.why))).join(), /doesn't look like an Indiana case number/);
+  });
+});

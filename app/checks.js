@@ -277,6 +277,13 @@ function runChecks() {
       if (!m && !notAnAnswer(vis.find(s => s.id === "caseNumber"), a.caseNumber)) flags.push({ level: "check", title: "Case number", why: "It doesn't look like an Indiana case number (for example 49D01-2610-CC-001234). Compare it with your papers.", fix: "caseNumber" });
       else if (m && a.county && m[1] !== countyCode(a.county))
         flags.push({ level: "check", title: "Case number", why: `The first two digits (${m[1]}) don't match ${a.county} County's number (${countyCode(a.county)}). One of them may be wrong.`, fix: "caseNumber" });
+      // The second part is the year and month the case was filed: "2611" is 2026, November. A 13th month, or a year
+      // that hasn't come (a 1990s case, 70 to 99, is left alone), is a typo (BT93).
+      const ym = m ? a.caseNumber.trim().slice(6, 10) : "", yy = +ym.slice(0, 2), mm = +ym.slice(2);
+      if (m && (mm < 1 || mm > 12))
+        flags.push({ level: "check", title: "Case number", fix: "caseNumber", link: RULE8, why: `The second part of your case number, ${ym}, is the year and month the case was filed, but ${ym.slice(2)} isn't a month. Compare it with your papers.` });
+      else if (m && yy > new Date().getFullYear() % 100 && yy < 70)
+        flags.push({ level: "check", title: "Case number", fix: "caseNumber", link: RULE8, why: `The second part of your case number, ${ym}, is the year and month the case was filed, but 20${ym.slice(0, 2)} hasn't come yet. Compare it with your papers.` });
       // Administrative Rule 8: the letter after the county number is the court. Others, like K or H, aren't one of these two choices.
       const courtLetter = m ? a.caseNumber.trim().toUpperCase()[2] : "", letterSays = { C: "Circuit", D: "Superior" }[courtLetter];
       if (letterSays && ["SUPERIOR", "CIRCUIT"].includes(a.courtType) && letterSays.toUpperCase() !== a.courtType)
@@ -362,14 +369,17 @@ function runChecks() {
       why: "Your name starts with \"/s/\", and it prints that way wherever your name goes on the form. Type your name without it: if you e-file, this tool puts \"/s/\" before your name on the signature lines." });
   // Answers like "no" or "none" in fill-in boxes would print on the form. Not "None" or "No fax" for a fax number: the
   // official Appearance says one isn't required if you don't have one, and those say so plainly.
-  vis.filter(s => s.noWords && saysNoAnswer(a[s.id]) && !(s.id === "fax" && saysNoFax(a[s.id]))).forEach(s =>
+  vis.filter(s => s.noWords && saysNoAnswer(a[s.id]) && !(s.id === "fax" && saysNoFax(a[s.id])) && s.id !== "caseTypeLetters").forEach(s =>
     flags.push({ level: "check", title: s.label, why: `You typed "${String(a[s.id]).trim()}". That will print on the form. Leave it blank instead if there's nothing to add.`, fix: s.id }));
   // The continuance instructions leave the court and the case number to staff, but not these letters.
   if (sitKey === "continuance" && has("caseTypeLetters") && empty(a.caseTypeLetters))
     flags.push({ level: "check", title: "Case type letters", fix: "caseTypeLetters", blank: true, link: { href: LINKS.continuanceInstructions, text: "Read the continuance instructions" },
       why: "Item 5 of the Appearance asks for the two letters in your case number that show the case type, and it will print empty. Indiana Legal Help's continuance instructions say court staff will complete the court information and your case number, but don't mention this item. The letters are on your court papers or at mycase.in.gov." });
   // The case type is two letters, like CC or SC.
-  if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z][A-Z0-9]$/i.test(a.caseTypeLetters.trim()))
+  // "I don't know" gets one message, which doesn't say to leave it blank: blank is flagged too (BT93).
+  if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && saysNoAnswer(a.caseTypeLetters))
+    flags.push({ level: "check", title: "Case type letters", fix: "caseTypeLetters", why: `You typed "${String(a.caseTypeLetters).trim()}", and it will print on the form. The case type is the two letters in the middle of your case number, like CC or SC. If you don't know them, clear this and choose "I'm not sure" so it's flagged here instead.` });
+  else if (has("caseTypeLetters") && !empty(a.caseTypeLetters) && !NO_WORDS.test(a.caseTypeLetters.trim()) && !/^[A-Z][A-Z0-9]$/i.test(a.caseTypeLetters.trim()))
     flags.push({ level: "check", title: "Case type letters", why: "The form asks for the two letters that show the case type, like CC or SC. Check this against your case number.", fix: "caseTypeLetters" });
   // "I'm not sure" typed into a box would print on the form. The button is what flags it instead.
   vis.filter(s => notAnAnswer(s, a[s.id])).forEach(s => {
