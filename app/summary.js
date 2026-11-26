@@ -89,6 +89,11 @@ function redrawSummaryAt(sel, then) {
   if (then) then();
 }
 const inlineChanged = () => !!inlineEdit && (inlineEdit.erased || inlineEdit.value !== String(answers[inlineEdit.id] ?? ""));
+// A change in a box on the summary that isn't saved yet: the form and its downloads don't have it, so the status and the
+// downloads say so as it's typed (BT56).
+const unsavedText = () => (inlineEdit && inlineEdit.where !== "pdf" && inlineChanged()
+  ? `Your change to "${steps.find(s => s.id === inlineEdit.id)?.label}" isn't saved yet, so the form doesn't have it. Save it or cancel it before you download.` : "");
+function showUnsaved() { const t = unsavedText(); app.querySelectorAll(".unsaved").forEach(el => { el.textContent = t; el.hidden = !t; }); }
 // Lets go of the answer being changed, as Cancel does, and saves the copy again without the box: what was typed in it
 // leaves the device, and an answer emptied in it goes back on (until then the saved copy keeps it off).
 function dropInline() { const had = !!inlineEdit; inlineEdit = null; if (had) saveProgress(); }
@@ -172,6 +177,7 @@ function wireInline(root = app) {
     // Emptying the box takes the old answer off the device right away, as on the question screen. Cancel brings it back.
     if (!inlineEdit.erased && empty(box.value) && !empty(answers[inlineEdit.id])) inlineEdit.erased = true;
     saveProgress(); // what's typed is kept through a reload, as on the question
+    showUnsaved();
   });
   box.addEventListener("keydown", e => {
     if (!e.isComposing && e.key === "Enter" && box.tagName !== "TEXTAREA" && !e.repeat) { e.preventDefault(); saveInline(); }
@@ -226,6 +232,7 @@ function renderSummary(rerender = false) {
     <div class="sumreview">
     <div class="status ${ready ? "ready" : "notready"}" tabindex="-1">
       <strong>${ready ? "Nothing to review." : flags.length ? `${flags.length} item${flags.length > 1 ? "s" : ""} to review before filing` : failed ? "We couldn't make your filled form." : "Checking your filled form…"}</strong>
+      <span class="unsaved" hidden></span>
       ${ready ? "Read it over once more before you file it yourself." : flags.length ? `${missing} missing, ${flags.length - missing} to double-check. Tap "Fix" to go back to that question.${checking ? " Still checking the filled form…" : failed ? " The checks on the filled form didn't finish." : ""}` : failed ? "The checks on the filled form didn't finish. See below." : pdfSlow ? "This is taking longer than usual." : "This takes a few seconds."}
     </div>
     ${flags.length ? `<ul class="flags">${flags.map((x, i) => flagHtml(x, i, flags)).join("")}</ul>` : ""}
@@ -285,6 +292,7 @@ function renderSummary(rerender = false) {
   const et = document.getElementById("editTriage");
   if (et) et.onclick = () => { triageBeforeEdit = { ...triage }; triagePrev = { ...triage, kind: Object.hasOwn(CASE_KINDS, triage.kind) ? triage.kind : "eviction" }; triage = {}; triageHist = []; triageFromSummary = true; mode = "triage"; render(); };
   wirePdfSection(sit);
+  showUnsaved();
   markNewTabLinks(app);
   if (rerender) return;
   // After an edit, bring the user back where they were: the flag they fixed

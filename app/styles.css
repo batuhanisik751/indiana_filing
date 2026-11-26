@@ -160,6 +160,9 @@ a { color: var(--accent); }
 .status.ready { background: var(--ok-bg); border: 2px solid var(--ok); }
 .status.notready { background: var(--warn-bg); border: 2px solid var(--warn); }
 .status strong { display: block; font-size: 1.15rem; }
+/* A change in a box on the summary that isn't saved yet (BT56). */
+.unsaved { display: block; color: var(--warn); font-weight: 600; }
+.status .unsaved { margin: .35rem 0; }
 ul.flags { list-style: none; padding: 0; margin: 0 0 1.5rem; }
 ul.flags li { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; padding: .7rem .2rem; border-bottom: 1px solid var(--line); }
 ul.flags .tag { flex: none; min-width: 4.1rem; text-align: center; }

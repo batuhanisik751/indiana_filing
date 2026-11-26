@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, SAVED } from "../lib.mjs";
+import { fresh, close, inject, editHere, SAVED } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -175,5 +175,46 @@ describe("BT53 and BT54. Names and addresses aren't cut off at their box's edge"
       const d = await PDFLib.PDFDocument.create(), f = asDrawn(await d.embedFont(PDFLib.StandardFonts.Helvetica)), s = "AV. P.A. Y. TAWANDA";
       return Math.abs(f.widthOfTextAtSize(s, 10) - [...s].reduce((w, c) => w + f.widthOfTextAtSize(c, 10), 0)) < 1e-9;
     }), true);
+  });
+});
+
+describe("BT56. A change in a box on the summary that isn't saved yet is pointed out before a download", () => {
+  const notes = q => q.$$eval(".unsaved", els => els.map(e => (e.hidden ? "" : e.textContent)));
+  test("as it's typed, the status and the downloads say so; a download asks first, and Cancel goes to the box", async () => {
+    const q = await fresh({ viewport: { width: 390, height: 844 } });
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    assert.deepEqual(await notes(q), ["", ""], "nothing to say before a box is open");
+    await editHere(q, "address");
+    assert.deepEqual(await notes(q), ["", ""], "an open box with nothing changed");
+    await q.fill("#inEdit", "9 New St, Fort Wayne, IN 46802");
+    const said = await notes(q);
+    assert.equal(said.length, 2);
+    for (const t of said) assert.match(t, /Your change to "Mailing address" isn't saved yet, so the form doesn't have it\./);
+    q.removeAllListeners("dialog");
+    q.once("dialog", d => { q.asked = d.message(); d.dismiss(); });
+    let downloaded = false;
+    q.once("download", () => { downloaded = true; });
+    await q.click("#dlAll");
+    assert.match(q.asked, /isn't saved yet.*Download the form without it\?/);
+    assert.equal(await q.evaluate(() => document.activeElement.id), "inEdit");
+    await q.waitForTimeout(300);
+    assert.equal(downloaded, false);
+    await q.click("#ieSave");
+    assert.ok((await notes(q)).every(t => !t), "saved: nothing left to say (the form is being made again)");
+    await q.context().close();
+  });
+  test("edge: OK downloads the form as it is; Cancel in the box takes the note away", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await editHere(q, "address");
+    await q.fill("#inEdit", "9 New St");
+    const got = q.waitForEvent("download");
+    await q.click("#dlAll"); // the dialog is accepted
+    assert.match((await got).suggestedFilename(), /\.pdf$/);
+    await q.click("#ieCancel");
+    assert.deepEqual(await notes(q), ["", ""]);
+    await q.context().close();
   });
 });

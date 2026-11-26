@@ -321,6 +321,7 @@ function pdfSectionHtml(sit) {
   if (pdfState.error) return `<div class="note" role="alert">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
+    <p class="need unsaved" hidden></p>
     <div class="downloads">
       <button class="primary" id="dlAll">Download ${each.length ? "all forms" : "the form"} (PDF)</button>
       ${each.map(d => `<button class="ghost" data-dl="${esc(d.key)}">Download the ${esc(d.name)} only${d.number ? ` (${esc(d.number)})` : ""}</button>`).join("")}
@@ -341,9 +342,19 @@ function wirePdfSection(sit) {
   if (!pdfState.result) return;
   const { all, each } = pdfState.result;
   const docs = sit.official.docs.map(k => OFFICIAL[sit.official.packet].docs[k]);
+  // With a change in a box not saved yet, a download asks first: OK downloads the form as it is, without the change;
+  // Cancel goes to the box.
+  const unsavedOk = () => {
+    const t = unsavedText();
+    if (!t || confirm(`${t.replace(/ Save it or cancel it before you download\.$/, "")} Download the form without it?`)) return true;
+    const box = document.getElementById("inEdit");
+    box?.scrollIntoView({ block: "center" }); box?.focus({ preventScroll: true });
+    return false;
+  };
   // One form: name the file after it and its number. Several: the situation's name.
-  document.getElementById("dlAll").onclick = () => downloadPdf(all, docs.length === 1 ? `${docs[0].name} ${docs[0].number}` : `${sit.title} forms`);
+  document.getElementById("dlAll").onclick = () => { if (unsavedOk()) downloadPdf(all, docs.length === 1 ? `${docs[0].name} ${docs[0].number}` : `${sit.title} forms`); };
   app.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => {
+    if (!unsavedOk()) return;
     const d = each.find(x => x.key === b.dataset.dl);
     // Fee waiver and continuance both have an "Appearance"; keep their file names apart.
     downloadPdf(d.bytes, `${sitKey === "respond" ? "" : `${sit.title} `}${d.name} ${d.number || ""}`);
