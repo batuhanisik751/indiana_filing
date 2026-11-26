@@ -68,7 +68,7 @@ test("with JavaScript off, the page says it needs it", async () => {
 // Safari before 16.4 (iPhones that stop at iOS 15, like the 6s, 7 and first SE) can't read regex lookbehind, and one
 // use stops the whole page at "didn't finish loading" (BT50, and V12 before it).
 test("no app file uses regex lookbehind, which older iPhones can't read", () => {
-  for (const f of ["form-builder-mvp.html", ...FILES]) {
+  for (const f of ["form-builder-mvp.html", ...FILES, ...fs.readdirSync(path.join(ROOT, "boot")).map(b => `boot/${b}`)]) {
     const text = fs.readFileSync(path.join(ROOT, f), "utf8"), at = text.search(/\(\?<[=!]/);
     assert.equal(at, -1, `${f} uses lookbehind: ${text.slice(Math.max(0, at - 30), at + 30)}`);
   }
@@ -94,6 +94,42 @@ test("the app starts and checks answers in a browser without lookbehind, like Sa
   assert.equal(await p.evaluate(() => privateKind("my bus pass is $45/mo")), null);
   assert.deepEqual(await p.evaluate(() => privateSpans("my pass is ab12! and wifi pass is cd34!", privateKind)), [[3, 16], [26, 39]]);
   assert.equal(await p.evaluate(() => saysAll("all 12") && namesParagraphs("all 12 paragraphs")), true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+// BT107: the live site sends a Content-Security-Policy and other headers (vercel.json). The page is served here with
+// exactly those headers, and a whole form, its PDF, its pages and a download must work with nothing refused.
+local("with the live site's security headers, a form, its PDF, its pages and a download work, with nothing refused", async () => {
+  const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
+  const headers = Object.fromEntries(vercel.headers[0].headers.map(h => [h.key, h.value]));
+  assert.match(headers["Content-Security-Policy"], /script-src 'self' https:\/\/cdnjs\.cloudflare\.com;/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "form-builder-mvp.html"), "utf8"), /<script>/, "no inline scripts for the policy to refuse");
+  const types = { html: "text/html", js: "text/javascript", css: "text/css", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", json: "application/json" };
+  const ctx = await (await launch()).newContext({ acceptDownloads: true });
+  await ctx.route("http://app.test/**", route => {
+    const rel = decodeURIComponent(new URL(route.request().url()).pathname.slice(1)) || "form-builder-mvp.html", file = path.join(ROOT, rel);
+    if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file)) return route.fulfill({ status: 404, body: "" });
+    return route.fulfill({ status: 200, body: fs.readFileSync(file), headers: { ...headers, "Content-Type": types[rel.split(".").pop()] || "application/octet-stream" } });
+  });
+  const p = await ctx.newPage(), refused = [], errors = [];
+  await p.addInitScript(() => document.addEventListener("securitypolicyviolation", e => (window.__refused ||= []).push(`${e.violatedDirective} ${e.blockedURI}`)));
+  p.on("pageerror", e => errors.push(e.message));
+  await p.goto("http://app.test/form-builder-mvp.html");
+  await p.waitForSelector("#app h1");
+  await pick(p, "appearance");
+  await walk(p, "summary");
+  await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+  await p.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; });
+  await p.waitForSelector("#preview canvas", { timeout: 60000 });
+  await p.click('#preview [data-page="1"]');
+  await p.waitForSelector("dialog.pageview .pvpage canvas", { timeout: 60000 });
+  await p.click("#pvClose");
+  const dl = p.waitForEvent("download");
+  await p.click("#dlAll");
+  assert.match((await dl).suggestedFilename(), /\.pdf$/);
+  refused.push(...(await p.evaluate(() => window.__refused || [])));
+  assert.deepEqual(refused, []);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

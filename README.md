@@ -84,7 +84,7 @@ Then go to http://localhost:5190/. If that port is busy, pass another one, for e
 
 To copy the tool somewhere, keep the `app/` and `forms/` folders next to `form-builder-mvp.html`.
 
-`vercel.json` serves the page at the site's root when hosted on Vercel, and asks search engines not to list it (`X-Robots-Tag: noindex`), because no lawyer has yet reviewed the wording. Remove that header once it's ready to be found.
+`vercel.json` serves the page at the site's root when hosted on Vercel, and asks search engines not to list it (`X-Robots-Tag: noindex`), because no lawyer has yet reviewed the wording. Remove that header once it's ready to be found. It also sends security headers: a Content-Security-Policy that allows scripts only from this site and cdnjs (no inline scripts, so the page's own small start-up scripts are in `boot/`), and refuses framing, plus `nosniff`, `Referrer-Policy` and `Permissions-Policy`. `tests/loading.test.mjs` serves the page with exactly those headers and fails if anything is refused, so run it after changing them or adding a library.
 
 ## Tests
 
@@ -112,7 +112,7 @@ To test a hosted copy instead of the local file, give its address, for example `
 
 ## Where the code is
 
-`form-builder-mvp.html` is the page itself. Its code is in `app/`, one file per topic. They are plain scripts that share one global scope and load in the order listed at the bottom of the page, so opening the page directly still works, with no server or build step. A script can use anything from an earlier one while it loads, and anything from any of them once the app is running. If one of them doesn't load, for example on a bad connection, the page says so and asks for a reload. A host should serve them together, because an old cached copy of one file next to new copies of the others can break the page. To add a file, list it at the bottom of the page, end it with `window.appParts++;`, and add one to `window.appPartsNeeded` just above that list. That count is how the page knows every file arrived whole.
+`form-builder-mvp.html` is the page itself. Its code is in `app/`, one file per topic. They are plain scripts that share one global scope and load in the order listed at the bottom of the page, so opening the page directly still works, with no server or build step. A script can use anything from an earlier one while it loads, and anything from any of them once the app is running. If one of them doesn't load, for example on a bad connection, the page says so and asks for a reload. A host should serve them together, because an old cached copy of one file next to new copies of the others can break the page. To add a file, list it at the bottom of the page, end it with `window.appParts++;`, and add one to `window.appPartsNeeded` in `boot/start.js`. That count is how the page knows every file arrived whole.
 
 | File | What it holds |
 |---|---|
