@@ -878,3 +878,77 @@ describe("BT88. A township, town or city court case isn't sent to the county cle
     assert.match((await filing()).short, /Allen County Clerk's Office/);
   });
 });
+
+describe("TG11. Every tick and choice on the forms matches the answers", () => {
+  // What the made form ticks and chooses, read from the form-filling library's own calls while the form is made.
+  const marks = q => q.evaluate(async () => {
+    const P = PDFLib, rec = [];
+    const wrap = (proto, name, f) => { const orig = proto[name]; proto[name] = function (...a) { rec.push(f(this, a)); return orig.apply(this, a); }; return () => { proto[name] = orig; }; };
+    const undo = [wrap(P.PDFCheckBox.prototype, "check", t => `${t.getName()}=on`), wrap(P.PDFCheckBox.prototype, "uncheck", t => `${t.getName()}=off`), wrap(P.PDFRadioGroup.prototype, "select", (t, a) => `${t.getName()}=${a[0]}`), wrap(P.PDFDropdown.prototype, "select", (t, a) => `${t.getName()}=${a[0]}`)];
+    try { await buildPdf(sitKey, visibleAnswers()); } finally { undo.forEach(u => u()); }
+    return rec.sort();
+  });
+  const made = async (form, over) => { await inject(p, form, over); await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 }); return marks(p); };
+  test("the fee waiver: email, confidential address, related Yes or No, and the court", async () => {
+    assert.deepEqual(await made("feewaiver", { acceptEmail: "yes", agConfidential: "no", related: "no", fwCourtType: "CIRCUIT" }),
+      ["Check Box1=on", "Check Box2=off", "Check Box3=off", "Check Box4=on", "CourtType=CIRCUIT"]);
+    assert.deepEqual(await made("feewaiver", { acceptEmail: "no", agConfidential: "yes", related: "yes", relatedNumbers: "02D01-2601-CC-000001", fwCourtType: "SUPERIOR" }),
+      ["Check Box2=on", "Check Box3=on", "Check Box4=off", "CourtType=SUPERIOR"]); // with the Attorney General's address, the email question (and its box) isn't on the form
+  });
+  test("the Appearance, Answer and continuance: where papers go, related cases and local rules (and the continuance's agreement)", async () => {
+    for (const form of ["appearance", "respond", "continuance"]) {
+      const want = ["Case Information=Choice2", "Local Rules=Choice1", "Related Cases=Choice2", ...(form === "continuance" ? ["Request Agreement/Disagreement=Choice2"] : [])].sort();
+      assert.deepEqual(await made(form, { receiveAt: "Choice2", related: "no", localRule: "none", otherAgreed: "Choice2" }), want, form);
+      const yes = await made(form, { receiveAt: "Choice1", related: "yes", rel1Caption: "A v. B", rel1Number: "02D01-2601-CC-000001", relMore1: "no", localRule: "yes", localRuleText: "Rule 1" });
+      assert.ok(yes.includes("Case Information=Choice1") && yes.includes("Related Cases=Choice1") && yes.includes("Local Rules=Choice2"), `${form}: ${yes}`);
+    }
+  });
+});
+
+describe("TG12 and TG13. Protected contact details don't come back or stay on the device", () => {
+  test("TG12: the confidentiality program marked \"I'm not sure\" after Yes: the home address typed before is gone from the form and the copy", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "appearance", { acp: "yes", acpAddress: "PO Box 1, Indianapolis, IN 46204", address: "77 Hidden Lane, Fort Wayne, IN 46802" });
+    await q.evaluate(() => { cur = visible().findIndex(s => s.id === "acp"); mode = "step"; returnToSummary = false; render(); });
+    await q.click("#unsure");
+    assert.equal(await q.evaluate(() => answers.address), undefined);
+    await q.evaluate(() => { mode = "summary"; render(); });
+    assert.doesNotMatch(await pdfText(q), /Hidden Lane/);
+    assert.doesNotMatch(await copy(q), /Hidden Lane/);
+    await q.context().close();
+  });
+  test("TG13: on the fee waiver, choosing the Attorney General address takes the home address out of the copy before Continue; and with storage full, the copy that held it is deleted", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "feewaiver", { address: "77 Hidden Lane, Fort Wayne, IN 46802", agConfidential: "no" });
+    await q.evaluate(() => saveProgress());
+    assert.match(await copy(q), /Hidden Lane/);
+    await q.evaluate(() => { cur = visible().findIndex(s => s.id === "agConfidential"); mode = "step"; returnToSummary = false; render(); });
+    await q.locator('input[name=ans][value="yes"]').check({ force: true });
+    assert.doesNotMatch(await copy(q), /Hidden Lane/, "out of the copy at once");
+    const r = await fresh();
+    await r.click("#saveToggle");
+    await inject(r, "feewaiver", { address: "77 Hidden Lane, Fort Wayne, IN 46802", agConfidential: "no" });
+    await r.evaluate(() => saveProgress());
+    await r.evaluate(() => { cur = visible().findIndex(s => s.id === "agConfidential"); mode = "step"; returnToSummary = false; render(); Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); }; });
+    await r.locator('input[name=ans][value="yes"]').check({ force: true });
+    assert.doesNotMatch(await copy(r), /Hidden Lane/, "storage full: the copy that held it is gone");
+    await q.context().close(); await r.context().close();
+  });
+});
+
+describe("TG15. A changed library is refused", () => {
+  test("pdf-lib changed on its way: the form isn't made with it, and the page says so", async () => {
+    const q = await fresh();
+    q.allowErrors = true; // the refused library is reported in the console on purpose
+    await q.route("**/pdf-lib.min.js*", async r => { const res = await r.fetch(); await r.fulfill({ response: res, body: `${await res.text()}\n/* changed */` }); });
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.error || pdfState.result, null, { timeout: 120000 });
+    assert.equal(await q.evaluate(() => [pdfState.error, !!pdfState.result, typeof window.PDFLib].join()), "load,false,undefined");
+    await q.context().close();
+  });
+  test("every library the page loads has an integrity hash", async () => {
+    assert.equal(await p.evaluate(() => Object.values(LIBS).every(l => /^sha384-[A-Za-z0-9+/=]{64}$/.test(l.integrity || ""))), true);
+  });
+});
