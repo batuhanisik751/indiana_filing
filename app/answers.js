@@ -9,7 +9,7 @@ function nextFollowUp() {
 }
 
 function markUnsure(step) {
-  const neededBefore = completeness().total;
+  const neededBefore = completeness();
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   const wasYes = answers[step.id] === "yes";
   readInput(step);
@@ -58,10 +58,12 @@ function answerProblem(step, v, editing = false) {
   return "";
 }
 
-// The needed questions an answer just brought up: the bar moves back by that much, so the next question says why.
-const grewBy = before => { barGrew = Math.max(0, completeness().total - before); };
+// The needed questions an answer just brought up, when they moved the bar back: the next question says why. Only when
+// the bar's percentage went down: an answer that brings up a question and fills more moves it forward (BT62).
+const barPct = s => (s.total ? Math.round((s.filled / s.total) * 100) : 100);
+const grewBy = before => { const now = completeness(); barGrew = now.total > before.total && barPct(now) < barPct(before) ? now.total - before.total : 0; };
 function save(step) {
-  const neededBefore = completeness().total;
+  const neededBefore = completeness();
   // During an edit, "before" is what was shown when the question opened (it survives a reload).
   const before = new Set(returnToSummary && editOriginal && editOriginal.id === step.id && editOriginal.before ? editOriginal.before : visible().map(s => s.id));
   const refuse = msg => {

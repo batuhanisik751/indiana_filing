@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, settle, SAVED, BROWSER } from "../lib.mjs";
+import { fresh, close, inject, editHere, settle, pick, walk, answer, reset, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -355,5 +355,28 @@ describe("BT60 and BT61. A box on the summary being typed in isn't drawn again; 
     assert.equal(await q.$eval("#inEdit", b => b.value.endsWith("Surgery")), false, "undo still works");
     await q.keyboard.press("Enter").catch(() => {});
     await q.context().close();
+  });
+});
+
+describe("BT62. \"The bar moved back a little\" is said only when it did", () => {
+  const pct = q => q.$eval(".bar[role=progressbar]", b => +b.getAttribute("aria-valuenow"));
+  test("Yes to related cases on the Answer: the bar moves forward, and nothing says it moved back", async () => {
+    await reset(p);
+    await pick(p, "respond");
+    await walk(p, "related");
+    const before = await pct(p), total = await p.evaluate(() => completeness().total);
+    await answer(p, "yes");
+    assert.ok(await p.evaluate(() => completeness().total) > total, "it brought up a needed question");
+    assert.ok(await pct(p) >= before, `${before}% to ${await pct(p)}%`);
+    assert.equal(await p.locator("#barNote").count(), 0);
+  });
+  test("edge: when the bar does move back, the note is still there", async () => {
+    await reset(p);
+    await pick(p, "appearance");
+    await walk(p, "svcMore1");
+    const before = await pct(p);
+    await answer(p, "yes");
+    assert.ok(await pct(p) < before);
+    assert.match(await p.textContent("#barNote"), /so the bar moved back a little\.$/);
   });
 });
