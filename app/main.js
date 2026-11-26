@@ -1,8 +1,21 @@
 // Draws the current screen, handles the Back button and starts the app.
-// A double-click's second click lands on whatever the first one just drew, so it's ignored.
-let drawnAt = -1e9;
+// A double-click's second click lands on whatever the first one just drew, so it's ignored. A mouse gives it a click
+// count of 2. Safari on a touch screen gives every tap a count of 1, so there a second tap near the first, within half
+// a second, with a new screen drawn in between, is ignored too (BT67).
+// Only the click that comes from that tap itself: the last press was a touch, and its click hasn't come yet.
+let drawnAt = -1e9, tapNow = null, tapBefore = null;
+document.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "touch") { tapNow = tapBefore = null; return; }
+  tapBefore = tapNow; tapNow = { x: e.clientX, y: e.clientY, at: performance.now() };
+}, true);
+const secondTap = () => {
+  const t = tapNow, b = tapBefore;
+  if (!t || t.clicked) return false;
+  t.clicked = true;
+  return !!(b && t.at - b.at < 500 && drawnAt > b.at && drawnAt < t.at && Math.hypot(t.x - b.x, t.y - b.y) < 40 && performance.now() - t.at < 1000);
+};
 app.addEventListener("click", e => {
-  if (e.detail >= 2 && performance.now() - drawnAt < 500) { e.preventDefault(); e.stopPropagation(); }
+  if ((e.detail >= 2 && performance.now() - drawnAt < 500) || (e.isTrusted && secondTap())) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 
 function render() {

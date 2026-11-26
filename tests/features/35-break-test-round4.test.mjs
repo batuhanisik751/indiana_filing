@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, editAnswer, settle, pick, walk, answer, reset, pdfText, SAVED, BROWSER } from "../lib.mjs";
+import { fresh, close, inject, editHere, editAnswer, settle, pick, walk, answer, reset, pdfText, VALUES, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -606,5 +606,37 @@ describe("BT75. The time asked for on the continuance is checked, as \"How this 
   });
   test("edge: amounts of time aren't", async () => {
     for (const v of ["2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days", "3 weeks to find a lawyer"]) assert.equal(await flagged(v), "", v);
+  });
+});
+
+describe("BT67. A quick double tap on Continue on a touch screen doesn't skip or answer the next question", () => {
+  test("two taps 130 ms apart on Continue, question after question: each moves on by one, with nothing marked or chosen", async () => {
+    const q = await fresh({ viewport: { width: 375, height: 667 }, hasTouch: true });
+    await q.evaluate(() => startSituation("respond"));
+    for (let i = 0; i < 12; i++) {
+      const s = await q.evaluate(() => (mode === "step" ? { id: visible()[cur].id, type: visible()[cur].type, cur } : null));
+      if (!s) break;
+      if (["text", "textarea", "email", "tel"].includes(s.type)) await q.fill("#ans", VALUES[s.id] ?? "x");
+      else if (s.type === "choice") await q.locator("input[name=ans]").first().check({ force: true });
+      await q.locator("#next").scrollIntoViewIfNeeded();
+      const b = await q.locator("#next").boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
+      await q.touchscreen.tap(x, y); await q.waitForTimeout(130); await q.touchscreen.tap(x, y); await q.waitForTimeout(300);
+      const now = await q.evaluate(() => ({ cur, id: mode === "step" ? visible()[cur].id : mode, marked: Object.keys(unsure).filter(k => unsure[k]) }));
+      assert.equal(now.cur, s.cur + 1, `${s.id}: moved on by one`);
+      assert.deepEqual(now.marked, [], `${s.id}: nothing marked "I'm not sure"`);
+      assert.equal(await q.evaluate(id => answers[id], now.id), undefined, `${now.id}: not answered by the second tap`);
+    }
+    await q.context().close();
+  });
+  test("edge: a mouse click right after a double tap still works", async () => {
+    const q = await fresh({ viewport: { width: 375, height: 667 }, hasTouch: true });
+    await q.evaluate(() => startSituation("respond"));
+    await q.fill("#ans", VALUES.caseNumber);
+    await q.locator("#next").scrollIntoViewIfNeeded();
+    const b = await q.locator("#next").boundingBox();
+    await q.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await q.waitForTimeout(130); await q.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await q.locator("input[name=ans]").first().check({ force: true });
+    assert.equal(await q.locator("input[name=ans]").first().isChecked(), true);
+    await q.context().close();
   });
 });
