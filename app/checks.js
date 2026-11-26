@@ -258,7 +258,8 @@ function runChecks() {
     if (s.type === "money" && !validNum(s, v)) return; // an amount that can't print has its own flag below
     // A phone or fax box only gets the number-shape checks. In a case number box, real case numbers are set aside first.
     // A good or foreign phone number isn't an account number, however long.
-    const kindOf = v => s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? null : privateKind(v, true))
+    // A good or foreign phone number isn't private, but what's typed after it can be (BT74).
+    const kindOf = v => s.type === "tel" ? (["", "foreign"].includes(phoneShape(v)) ? privateKind(String(v).replace(/^\s*(?:\+|011)?[\d\s().-]{7,}/, " "), true) : privateKind(v, true))
       : CASE_NUMBER_BOXES.test(s.id) ? privateKind(v.replace(CASE_TOKEN, t => (isCaseToken(t) ? " " : t)), false)
       : privateKind(v, /address/i.test(s.id));
     const kind = kindOf(v);

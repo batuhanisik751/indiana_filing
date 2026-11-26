@@ -54,6 +54,9 @@ const ACCOUNT_LABEL = new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])`, "i");
 // letters with a digit or symbol, and not an amount ("$45/mo", "30/mo"), a date, a time ("noon-4pm") or "7-day".
 const PASS_OWNER = "(?:^|[.,;:!?()] ?|\\b(?:my|your|his|her|their|our|the|its|and|login|log-in|account|portal|email|e-mail|wifi|wi-fi|online|app|website|site|computer|phone|user)\\s)";
 const PW_VALUE = "(?!\\$)(?!\\S*\\/)(?!\\S*\\d\\s?[ap]\\.?m\\b)(?!\\d+-\\p{L})(?=\\S*\\p{L})(?=\\S*[\\d!@$%^&*])\\S{4,}";
+// Words after "password is" or "was" that make it a sentence about the password, not the password itself: "My password
+// was used without my permission", "was given to them", "is no longer valid" (BT74). Words ending in -ed are set aside too.
+const PW_SENTENCE = "(?:not|no|never|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked|given|taken|known|shown|written|done|still|also|only|too|very|valid|invalid|correct|right|good|bad|weak|strong|easy|simple|same|different|old|new|being|been|sent|shared|leaked|compromised|guessed|what|which|when|where|why|how|and|or|but|because|so|to|at|by|from|with)";
 // "password", "pass word", "passcode", "pass code", "passwd", "pwd", "pw".
 const PW_LABEL = "(?:pass ?(?:word|code)|passwd|pwd|pw)";
 // A password after its label: "password: x", "password is x" (not "password is wrong"), or a password-like word. Also
@@ -61,14 +64,18 @@ const PW_LABEL = "(?:pass ?(?:word|code)|passwd|pwd|pw)";
 // An amount after "pw:" or "pwd:" ("PWD: $40", a water bill) isn't one.
 const PASSWORD_RES = [new RegExp(`\\b${PW_LABEL}\\b ?[:=] ?(?!\\$ ?\\d)\\S+`, "i"),
   new RegExp(`(?:(?<owner>${PASS_OWNER})pass|\\b(?:pwd|pw))\\b(?: ?(?:is|was)(?: ?[:=])?| ?[:=]| -|['\u2019]s) ?${PW_VALUE}`, "iu"),
-  new RegExp(`\\b(?:pass ?(?:word|code)|passwd)\\b ?(?:is|was):? (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\\b)\\S+`, "i"),
-  new RegExp(`\\bpass ?(?:word|code)\\b (?=\\S*[\\d!@#$%^&*])\\S+`, "i"),
+  new RegExp(`\\b(?:pass ?(?:word|code)|passwd)\\b ?(?:is|was):? (?!${PW_SENTENCE}\\b)(?![a-z]+ed\\b)\\S+`, "i"),
+  // A password-like word right after "password": letters with a digit or symbol, or four or more digits. Not "the
+  // password 3 times".
+  new RegExp(`\\bpass ?(?:word|code)\\b (?=\\S*[\\d!@#$%^&*])(?:(?=\\S*\\p{L})\\S+|\\d{4,}\\b)`, "iu"),
+  // "password - hunter2": after a dash, only something that looks like a password.
+  new RegExp(`\\b${PW_LABEL}\\b ?[-\u2013\u2014] ?${PW_VALUE}`, "iu"),
   new RegExp(`\\b(?:user ?(?:name|id)?|login)\\b:? ?\\S+,? (?:and )?(?:pass|${PW_LABEL})\\b:? ?${PW_VALUE}`, "iu"),
   new RegExp(`\\b${PW_LABEL}\\b (?:for|to|on|at|with) (?:\\S+ ){1,3}?(?:is|was):? ?${PW_VALUE}`, "iu")];
 function privateKind(text, isAddress = false) {
-  const s = String(text ?? "").normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?- ?(?=\d)/g, "$1-");
+  const s = String(text ?? "").normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?-+ ?(?=\d)/g, "$1-");
   // 123-45-6789 and the same with other separators. A hyphen before it only counts after a letter, as in Smith-123-45-6789.
-  if (/(^|[^\d$-]|[a-z]-)\d{3}(?:-\d{2}[- ]| \d{2} |\.\d{2}\.|\/\d{2}\/|_\d{2}_|,\d{2},|:\d{2}:|\*\d{2}\*|~\d{2}~|·\d{2}·)\d{4}(?!\d|-\d)/i.test(s)) return "ssn";
+  if (/(^|[^\d$-]|[a-z]-)\d{3}(?:-\d{2}[- ]| \d{2}[ -]|\.\d{2}\.|\/\d{2}\/|_\d{2}_|,\d{2},|:\d{2}:|\*\d{2}\*|~\d{2}~|·\d{2}·)\d{4}(?!\d|-\d)/i.test(s)) return "ssn";
   if (/(\bssn|\bs\.s\.n\b\.?|\bss ?#|\bss number\b|\bsocial(?! (?:worker|services?|media)\b)(?: security)?\b|\bsoc\.? ?sec\b|\btax(?:payer)? id\b|\bitin\b)[^\d]{0,25}(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
   // "SS" and "Soc" alone are only that right before the number. "SS Bank claim 123456789" isn't.
   if (/\b(?:s\.?s\.?(?: ?no\.?)?|soc):? ?(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
@@ -96,7 +103,7 @@ function privateKind(text, isAddress = false) {
   if ([...s.matchAll(/\d+(?:[ .-]\d+)*/g)].some(({ 0: n, index }) => (!isReference(s, index) || passesCardCheck(n)) && (n.split(/[ .-]/).some(d => d.length >= 12 && d.length <= 19)
     || (!notCard(n) && /^\d{4}[ .-]\d{4}[ .-]\d{4}[ .-]\d{1,7}(?:[ .-]\d{1,3})?$|^\d{4}[ .-]\d{6}[ .-]\d{4,5}$/.test(n))))) return "account";
   if ([...s.matchAll(/\d{4}([_,/*:~])\d{4}\1\d{4}\1\d{1,7}/g)].some(m => passesCardCheck(m[0]))) return "account";
-  if (/\b(?:pin|personal identification number)\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,))* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}(?:\b(?:is|was)\b|:)[: ]*\d{4,8}\b/i.test(s)) return "pin";
+  if (/\b(?:pin|personal identification number)\b(?: ?(?:number|code|no\.?|#|is|was|:|=|-|,|\())* ?\d{4,8}\b/i.test(s) || /\bpin\b[^.\d]{0,30}(?:\b(?:is|was)\b|:)[: ]*\d{4,8}\b/i.test(s)) return "pin";
   if (PASSWORD_RES.some(re => re.test(s))) return "pin";
   return null;
 }

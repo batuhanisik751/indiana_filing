@@ -673,3 +673,21 @@ describe("BT68. With a mouse, a \"More\" opened by resting on it doesn't close a
     await q.context().close();
   });
 });
+
+describe("BT74. Sentences about a password aren't flagged, and more ways of typing private numbers are", () => {
+  const kind = t => p.evaluate(t => privateKind(t), t);
+  test("sentences about a password: no flag", async () => {
+    for (const t of ["My password was used without my permission", "My password was given to someone at the store", "The password is no longer valid", "I changed the password 3 times", "The password was reset by the bank"])
+      assert.equal(await kind(t), null, t);
+  });
+  test("\"123 45-6789\", \"123--45--6789\", \"my PIN (4421)\" and \"password - hunter2\" are flagged; so is a number after a foreign phone number", async () => {
+    for (const [t, k] of [["My SSN is 123 45-6789", "ssn"], ["123--45--6789", "ssn"], ["my PIN (4421)", "pin"], ["password - hunter2", "pin"]]) assert.equal(await kind(t), k, t);
+    await inject(p, "appearance", { phone: "+44 20 7946 0958, SSN 123-45-6789" });
+    assert.ok(await p.evaluate(() => runChecks().some(f => f.fix === "phone" && /^Private information/.test(f.title))));
+  });
+  test("edge: a password, and a foreign phone number alone, read as before", async () => {
+    for (const t of ["my password is fluffy", "password: Tr0ub4dor&3", "password 12345678", "My password is hunter2"]) assert.equal(await kind(t), "pin", t);
+    await inject(p, "appearance", { phone: "+44 20 7946 0958" });
+    assert.ok(!(await p.evaluate(() => runChecks().some(f => /^Private information/.test(f.title)))));
+  });
+});
