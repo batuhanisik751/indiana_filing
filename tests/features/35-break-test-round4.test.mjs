@@ -1013,3 +1013,23 @@ describe("BT83. Box text and a county-and-court choice aren't lost in a few savi
     await q.context().close();
   });
 });
+
+describe("BT95 and BT96. The privacy check marks only the private number, and is quick on long answers", () => {
+  const marked = s => p.evaluate(s => privateSpans(s, privateKind).map(([a, b]) => s.slice(a, b)), s);
+  test("BT95: \"Fix\" marks the routing number and the Social Security number, not a case or invoice number after them", async () => {
+    assert.deepEqual(await marked("routing 071000013. The case is 02D01-2611-CC-001234."), ["071000013"]);
+    assert.deepEqual(await marked("SSN 123-45-6789, invoice 100234567"), ["123-45-6789"]);
+  });
+  test("BT96: a Social Security number above a column of 4,900 amounts: marked in well under a second, and only it", async () => {
+    const col = Array.from({ length: 4900 }, (_, i) => `${(i * 37) % 900 + 100}.${String(i % 100).padStart(2, "0")}`).join("\n");
+    const [ms, spans] = await p.evaluate(s => { const t = performance.now(); const sp = privateSpans(s, privateKind); return [performance.now() - t, sp.map(([a, b]) => s.slice(a, b))]; }, `ssn 123-45-6789\n${col}`);
+    assert.deepEqual(spans, ["123-45-6789"]);
+    assert.ok(ms < 1000, `${Math.round(ms)} ms`);
+  });
+  test("edge: marks as before: an SSN next to a number, a PIN among numbers, a password, and a card number split by spaces", async () => {
+    assert.deepEqual(await marked("123-45-6789 2"), ["123-45-6789"]);
+    assert.deepEqual(await marked("my pin is 4421 and I owe 300"), ["4421"]);
+    assert.deepEqual(await marked("my password is fluffy"), ["password is fluffy"]);
+    assert.deepEqual(await marked("card 4111 1111 1111 1111"), ["4111 1111 1111 1111"]);
+  });
+});

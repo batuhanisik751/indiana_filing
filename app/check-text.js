@@ -76,11 +76,17 @@ function privateKind(text, isAddress = false) {
   const s = String(text ?? "").normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").replace(/[‐-―−]/g, "-").replace(/(\d) ?-+ ?(?=\d)/g, "$1-");
   // 123-45-6789 and the same with other separators. A hyphen before it only counts after a letter, as in Smith-123-45-6789.
   if (/(^|[^\d$-]|[a-z]-)\d{3}(?:-\d{2}[- ]| \d{2}[ -]|\.\d{2}\.|\/\d{2}\/|_\d{2}_|,\d{2},|:\d{2}:|\*\d{2}\*|~\d{2}~|·\d{2}·)\d{4}(?!\d|-\d)/i.test(s)) return "ssn";
-  if (/(\bssn|\bs\.s\.n\b\.?|\bss ?#|\bss number\b|\bsocial(?! (?:worker|services?|media)\b)(?: security)?\b|\bsoc\.? ?sec\b|\btax(?:payer)? id\b|\bitin\b)[^\d]{0,25}(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
+  // A label, then a 9-digit number: not one labeled itself as an invoice, case or other reference, as in "SSN
+  // 123-45-6789, invoice 100234567" with the Social Security number taken out (BT95).
+  for (const m of s.matchAll(/(\bssn|\bs\.s\.n\b\.?|\bss ?#|\bss number\b|\bsocial(?! (?:worker|services?|media)\b)(?: security)?\b|\bsoc\.? ?sec\b|\btax(?:payer)? id\b|\bitin\b)([^\d]{0,25})((?:\d[ ./-]?){9})(?!\d)/gi))
+    if (!isReference(s, m.index + m[1].length + m[2].length)) return "ssn";
   // "SS" and "Soc" alone are only that right before the number. "SS Bank claim 123456789" isn't.
   if (/\b(?:s\.?s\.?(?: ?no\.?)?|soc):? ?(\d[ ./-]?){9}(?!\d)/i.test(s)) return "ssn";
   for (const m of s.matchAll(new RegExp(`\\b(?:${ACCOUNT_WORD})(?![a-z])([^\\d]{0,40})(\\d(?:[ -]?\\d){5,})`, "gi"))) {
     // What's after the nearest label, without letters joined to the number, as in "account no ABC12345678".
+    // Not past the end of the label's sentence: in "routing 071000013. The case is 02D01-2611", the case number isn't an
+    // account number (BT95). "Acct. No. 123" is one sentence.
+    if (/[.!?;]\s+(?!(?:no|nos|num|nbr|number)\b|#)\p{Lu}/u.test(m[1])) continue;
     const gap = m[1].split(ACCOUNT_LABEL).pop().replace(/(\s)[a-z]{1,3}$/i, "$1"), count = m[2].replace(/\D/g, "").length;
     const marked = /^[\s:#.=,(/-]*$|(?:\bis|\bwas|\bnumber|\bnum|\bnbr|\bno\.?|\bid|:|#|=)[\s:#.=(-]*$/i.test(gap);
     // Or a long number a few words on, as in "account with Chase 12345678". Too long to be an amount.
@@ -128,32 +134,40 @@ function passwordsIn(re, s) {
 function privateSpans(text, kindOf, skip = []) {
   const s = String(text ?? ""), flagged = t => !!kindOf(t);
   const blank = (t, spans, ch = " ") => spans.reduce((acc, [a, b]) => acc.slice(0, a) + ch.repeat(b - a) + acc.slice(b), t);
-  // Digits are one number only across what the check itself reads as one: a space or line break, a hyphen (spaces
-  // around it too), or one . / _ , : * ~ or ·. So in "$500, 123-45-6789" the 500 is a number of its own.
-  const nums = [...blank(s, skip, "x").matchAll(/\d+(?:(?:\s*[\u2010-\u2015\u2212-]\s*|\s+|[.\/_,:*~\u00b7])\d+)*/g)].map(m => [m.index, m.index + m[0].length]);
-  // A number with another next to it, as in "123-45-6789 2": a Social Security number is 9 digits and a PIN one group
-  // of 4 to 8, so for those the part is just the digits that are still flagged as that. Other kinds stay whole: after
-  // "account", any 6 digits are flagged, so a shorter piece of an account number would be too.
-  const narrow = (c, others) => {
-    const kind = kindOf(blank(s, others));
-    const groups = [...s.slice(c[0], c[1]).matchAll(/\d+/g)].map(m => [c[0] + m.index, c[0] + m.index + m[0].length]);
-    const digits = (i, j) => groups.slice(i, j + 1).reduce((n, [a, b]) => n + b - a, 0);
-    const fits = kind === "ssn" ? (i, j) => digits(i, j) === 9 : kind === "pin" ? (i, j) => i === j && digits(i, j) >= 4 && digits(i, j) <= 8 : null;
-    if (!fits || groups.length < 2) return [c];
-    const out = [];
-    for (let i = 0; i < groups.length; i++) for (let j = i; j < groups.length; j++)
-      if (fits(i, j) && kindOf(blank(s, [...others, [c[0], groups[i][0]], [groups[j][1], c[1]]])) === kind) out.push([groups[i][0], groups[j][1]]);
-    return out.length ? out : [c];
-  };
+  // Digits are one number only across what the check itself reads as one, on one line: a space, a hyphen (spaces
+  // around it too), or one . / _ , : * ~ or ·. So in "$500, 123-45-6789" the 500 is a number of its own, and a column of
+  // amounts, one a line, is many numbers, not one (BT96).
+  const nums = [...blank(s, skip, "x").matchAll(/\d+(?:(?:[ \t]*[‐-―−-][ \t]*|[ \t]+|[.\/_,:*~·])\d+)*/g)].map(m => [m.index, m.index + m[0].length]);
   // Each password with its label (every one), and each number outside them, is a part if the answer is still flagged
   // with all the others taken out. So a Social Security number next to a password is one too.
   const pws = PASSWORD_RES.flatMap(re => passwordsIn(re, s))
     .sort((x, y) => x[0] - y[0]).reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a < last[1]) last[1] = Math.max(last[1], b); else out.push([a, b]); return out; }, []);
   const parts = [...pws, ...nums.filter(([a, b]) => !pws.some(([c, d]) => a < d && c < b))];
-  let hits = parts.flatMap((c, i) => { const others = parts.filter((_, j) => j !== i); return !flagged(blank(s, others)) ? [] : i < pws.length ? [c] : narrow(c, others); });
+  // The answer with every part taken out, and pieces of it put back. For a number, only the text around it is read: the
+  // check reads a label at most a few words from its number. So a long answer full of numbers is quick (BT96).
+  const bare = blank(s, parts);
+  const only = pieces => pieces.reduce((t, [a, b]) => t.slice(0, a) + s.slice(a, b) + t.slice(b), bare);
+  const near = (t, a, b) => `x ${t.slice(Math.max(0, a - 150), Math.min(t.length, b + 150))}`;
+  // A number with another next to it, as in "123-45-6789 2": a Social Security number is 9 digits (at most three
+  // groups) and a PIN one group of 4 to 8, so for those the part is just the digits that are still flagged as that.
+  // Other kinds stay whole: after "account", any 6 digits are flagged, so a shorter piece of an account number would be too.
+  const narrow = c => {
+    const kind = kindOf(near(only([c]), c[0], c[1]));
+    const groups = [...s.slice(c[0], c[1]).matchAll(/\d+/g)].map(m => [c[0] + m.index, c[0] + m.index + m[0].length]);
+    const digits = (i, j) => groups.slice(i, j + 1).reduce((n, [a, b]) => n + b - a, 0);
+    const fits = kind === "ssn" ? (i, j) => digits(i, j) === 9 : kind === "pin" ? (i, j) => i === j && digits(i, j) >= 4 && digits(i, j) <= 8 : null;
+    if (!fits || groups.length < 2) return [c];
+    const out = [];
+    for (let i = 0; i < groups.length; i++) for (let j = i; j < groups.length && j <= i + 2 && digits(i, j) <= 9; j++)
+      if (fits(i, j) && kindOf(near(only([[groups[i][0], groups[j][1]]]), c[0], c[1])) === kind) out.push([groups[i][0], groups[j][1]]);
+    return out.length ? out : [c];
+  };
+  let hits = parts.flatMap((c, i) => (i < pws.length ? (flagged(only([c])) ? [c] : []) : flagged(near(only([c]), c[0], c[1])) ? narrow(c) : []));
   if (!hits.length) {
+    // Failing that, each word the flag needs. In a long answer, read around each word, as for a number.
     const words = [...s.matchAll(/\S+/g)].map(m => [m.index, m.index + m[0].length]);
-    hits = words.filter(c => !flagged(blank(s, [c])));
+    hits = s.length <= 2000 ? words.filter(c => !flagged(blank(s, [c])))
+      : words.filter(([a, b]) => flagged(near(s, a, b)) && !flagged(near(blank(s, [[a, b]]), a, b)));
   }
   return hits.sort((x, y) => x[0] - y[0]).reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a - last[1] <= 3) last[1] = Math.max(last[1], b); else out.push([a, b]); return out; }, []);
 }
