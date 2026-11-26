@@ -178,7 +178,8 @@ function fitLines(text, font, op) {
     lines[lines.length - 1] = lastLine.replace(/\s+$/, "") + "…";
     return { size: best.size, lines, overflow: true, ys: best.ys };
   }
-  const variants = op.runOn ? [text, String(text).replace(/\s*\n+\s*/g, ", ")] : [text];
+  // A line already ending in a comma isn't given a second one: "123 Main Street," then "Apt 4" (BT98).
+  const variants = op.runOn ? [text, String(text).replace(/\s*,?\s*\n+\s*/g, ", ")] : [text];
   for (const size of SIZES) {
     for (const t of variants) {
       const lines = wrapLines(t, font, size, op);

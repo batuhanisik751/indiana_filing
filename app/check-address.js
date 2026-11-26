@@ -58,7 +58,7 @@ function hasStreetIn(rest) {
 function addressGaps(text) {
   const none = { missing: [], note: "" }, raw = String(text ?? "");
   if (raw.length > 1000) return none; // far too long to be an address, and it has its own flag
-  const lines = raw.split(/\n+/).map(x => x.trim()).filter(Boolean).join(", ").replace(/\s+/g, " ");
+  const lines = raw.split(/\n+/).map(x => x.trim().replace(/,$/, "")).filter(Boolean).join(", ").replace(/\s+/g, " ");
   let s = trimEnd(lines).replace(/[,\s]*\b(?:usa|u\.s\.a|united states(?: of america)?)$/i, "");
   s = trimEnd(s);
   if (!s || startsNo(s) || SAYS_NONE.test(s) || /(?:^|,\s*)(?:canada|mexico)$/i.test(s)) return none;

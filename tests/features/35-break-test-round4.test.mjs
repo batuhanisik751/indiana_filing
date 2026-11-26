@@ -1058,3 +1058,14 @@ describe("BT93 edge", () => {
     assert.match((await p.evaluate(() => runChecks().filter(f => f.fix === "caseNumber").map(f => f.why))).join(), /doesn't look like an Indiana case number/);
   });
 });
+
+describe("BT98. An address typed on lines ending in commas doesn't print two commas", () => {
+  test("the Answer, Appearance and continuance print \"123 Main Street, Apt 4, Fort Wayne\"", async () => {
+    for (const form of ["respond", "appearance", "continuance"]) {
+      await inject(p, form, { address: "123 Main Street,\nApt 4,\nFort Wayne, IN 46802" });
+      const text = await pdfText(p);
+      assert.doesNotMatch(text, /,\s*,/, form);
+      assert.match(text, /123 Main Street, Apt 4, Fort Wayne, IN 46802/, form);
+    }
+  });
+});
