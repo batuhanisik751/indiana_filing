@@ -955,3 +955,61 @@ describe("TG15. A changed library is refused", () => {
     assert.equal(await p.evaluate(() => Object.values(LIBS).every(l => /^sha384-[A-Za-z0-9+/=]{64}$/.test(l.integrity || ""))), true);
   });
 });
+
+describe("BT83. Box text and a county-and-court choice aren't lost in a few saving cases", () => {
+  const warns = q => q.evaluate(() => { const e = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
+  test("a choice on \"Is this your county and court?\", made but not continued, is still chosen after a reload", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await pick(q, "respond");
+    await walk(q, "caseConfirm");
+    await q.locator('input[name=ans][value="yes"]').check({ force: true });
+    await q.reload(); await q.waitForSelector("#app h1");
+    if (await q.locator("#resume").count()) await q.click("#resume");
+    await q.waitForSelector("input[name=ans]");
+    assert.equal(await q.evaluate(() => [visible()[cur].id, document.querySelector("input[name=ans]:checked")?.value].join()), "caseConfirm,yes");
+    await q.context().close();
+  });
+  test("text in a box on the summary counts between tabs: another tab asks before replacing it", async () => {
+    const ctx = await site();
+    const a = await ctx.open();
+    await a.click("#saveToggle");
+    await inject(a, "respond");
+    await a.evaluate(() => saveProgress());
+    const b = await ctx.open();
+    if (await b.locator("#resume").count()) await b.click("#resume");
+    await editHere(a, "defenses");
+    await a.type("#inEdit", " And I have the receipt.");
+    b.removeAllListeners("dialog");
+    let asked = null;
+    b.once("dialog", d => { asked = d.message(); d.dismiss(); });
+    await b.evaluate(() => saveProgress());
+    assert.match(asked || "", /Another tab saved different answers/, "it asks before replacing");
+    assert.match(await copy(a), /And I have the receipt\./, "No keeps it");
+    await ctx.close();
+  });
+  test("with no answer yet, text in a box on the summary is saved, and closing warns while it isn't", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await q.evaluate(() => { answers = {}; unsure = {}; render(); });
+    await editHere(q, "name");
+    await q.type("#inEdit", "Pat Keeper");
+    assert.equal(await warns(q), true, "saving off: closing warns");
+    await q.click("#saveToggle");
+    assert.match(await copy(q), /Pat Keeper/);
+    await q.context().close();
+  });
+  test("a half-typed date in a box on the summary warns before closing", { skip: BROWSER === "webkit" && "Playwright's WebKit date box takes no typed dates" }, async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "continuance");
+    await q.evaluate(() => saveProgress());
+    await editHere(q, "hearingDate");
+    await q.evaluate(() => { document.getElementById("inEdit").value = ""; });
+    await q.focus("#inEdit");
+    await q.keyboard.type("02");
+    assert.equal(await q.evaluate(() => document.getElementById("inEdit").validity.badInput), true);
+    assert.equal(await warns(q), true);
+    await q.context().close();
+  });
+});

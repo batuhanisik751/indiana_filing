@@ -31,7 +31,8 @@ function resetAnswers() {
 }
 const hasAnswers = () => Object.values(answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
 // The same, with the box on screen counting as it reads now. Emptying the only answer leaves nothing to lose.
-const holdsAnswers = () => Object.values(mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers).some(v => !empty(v)) || Object.keys(unsure).length > 0;
+const holdsAnswers = () => Object.values(mode === "step" && draft ? { ...answers, [draft.id]: draft.value } : answers).some(v => !empty(v)) || Object.keys(unsure).length > 0
+  || (mode === "summary" && !!inlineEdit && !empty(inlineEdit.value)); // text in a box on the summary (BT83)
 
 // "Get help" at the top of every screen opens the same free-help list as the footer.
 const helpBtn = document.getElementById("helpBtn"), helpPanel = document.getElementById("helpPanel");

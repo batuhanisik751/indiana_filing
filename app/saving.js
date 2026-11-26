@@ -78,7 +78,7 @@ function readSaved() {
     const usable = fresh && (d.triageOnly
       ? triageAnswered(strings(d.triage)) // only the sorting answers so far
       : Object.hasOwn(SITUATIONS, d.sitKey)
-        && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || Object.values(d.unsure || {}).includes(true)));
+        && (Object.values(strings(d.answers)).some(v => !empty(v)) || (d.draft && !empty(d.draft.value)) || (d.inline && typeof d.inline.value === "string" && !empty(d.inline.value)) || Object.values(d.unsure || {}).includes(true)));
     if (usable) return d;
     // Answers that expired: saving goes back to off, so the next person on this computer isn't saved without choosing it.
     if (fresh === false && d && d.v === 1 && Number.isFinite(d.savedAt) && age > MAX_AGE_DAYS * 864e5) {
@@ -132,7 +132,7 @@ function saveProgress() {
   }
   let old = null;
   try { old = JSON.parse(store.get(STORE_KEY) || "null"); } catch { /* unreadable */ }
-  if (!hasAnswers() && !(draft && !empty(draft.value))) {
+  if (!hasAnswers() && !(draft && !empty(draft.value)) && !(mode === "summary" && inlineEdit && !empty(inlineEdit.value))) {
     // Every answer was erased: don't keep an empty copy. Only this page's own copy, though: a tab with
     // nothing typed yet must not delete what another tab saved.
     if (old && old.sitKey === sitKey && store.get(STORE_KEY) === lastWritten) {
@@ -178,7 +178,9 @@ function saveProgress() {
     ...(mode === "summary" && inlineEdit && typeof inlineEdit.value === "string" ? { inline: { id: inlineEdit.id, nth: Math.max(0, inlineEdit.nth), value: inlineEdit.value, ...(inlineEdit.erased ? { erased: true } : {}) } } : {}),
     edit: returnToSummary ? { followUps, lastEdited, fixFrom, fixNth, original: emptied && editOriginal?.id === draft.id ? { ...editOriginal, value: undefined, ...(empty(editOriginal.value) ? {} : { erased: true }) } : editOriginal } : null };
   // Typed text counts wherever it's kept, and a blank answer is the same as no answer.
-  const filled = d => Object.entries(d.draft ? { ...d.answers, [d.draft.id]: d.draft.value } : d.answers || {}).filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
+  // Text in a box on the summary counts too, so another tab doesn't drop it without asking (BT83).
+  const filled = d => Object.entries({ ...(d.answers || {}), ...(d.draft ? { [d.draft.id]: d.draft.value } : {}), ...(d.inline && typeof d.inline.value === "string" ? { [d.inline.id]: d.inline.value } : {}) })
+    .filter(([, v]) => !empty(v)).sort(([x], [y]) => (x < y ? -1 : 1));
   // Another tab saved since this page last did. Different answers aren't replaced without asking. They aren't
   // mixed in here either: they could be for another case, or something this page erased.
   const stored = store.get(STORE_KEY), compared = d => JSON.stringify([d.sitKey, filled(d), Object.keys(d.unsure || {}).sort()]);
@@ -251,6 +253,9 @@ function restoreSaved(d, keep) {
   // Text typed into a question before the page closed is kept, like the Back button keeps it.
   if (d.draft && typeof d.draft.value === "string" && steps.some(s => s.id === d.draft.id)) {
     answers[d.draft.id] = d.draft.value;
+    // A choice made on "Is this your county and court?" is for the number saved with it, so it isn't dropped as out of
+    // date (BT83).
+    if (d.draft.id === "caseConfirm" && !empty(d.draft.value)) caseConfirmFor = caseCourt(answers.caseNumber)?.name ?? null;
     // During an edit a mark stays until the answer is saved: Save with the box empty again still counts as not sure.
     if (!empty(d.draft.value) && !(d.edit && d.mode !== "summary")) delete unsure[d.draft.id];
   }
@@ -414,7 +419,7 @@ window.addEventListener("beforeunload", e => {
   const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && holdsAnswers();
   const sortingAtRisk = mode === "triage" && triageAnswered(triage) && !(sitKey && hasAnswers()) && (!savingOn() || !saveOk || !sortingInCopy());
   // A browser doesn't tell a page what's in a half-typed date, so it can't be saved. All this page can do is warn.
-  const halfDate = mode === "step" && document.getElementById("ans")?.validity?.badInput;
+  const halfDate = (mode === "step" && document.getElementById("ans")?.validity?.badInput) || document.getElementById("inEdit")?.validity?.badInput;
   if (formAtRisk || sortingAtRisk || halfDate) { e.preventDefault(); e.returnValue = ""; }
 });
 // Turning saving off deletes what's saved, so ask first.
