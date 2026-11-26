@@ -759,3 +759,18 @@ describe("BT79. Turning the phone or zooming keeps an open box on a page shown l
     await q.context().close();
   });
 });
+
+describe("BT80. Printing the page prints a note saying to print the PDF instead", () => {
+  test("in print, from the summary and from a page shown large, only the note shows", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await openPage(q, 1);
+    await q.emulateMedia({ media: "print" });
+    const shown = await q.evaluate(() => [...document.querySelectorAll("body *")].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden" && !e.querySelector(".printnote")).map(e => e.className || e.tagName));
+    assert.deepEqual(shown, ["printnote"]);
+    assert.match(await q.textContent(".printnote"), /Download all forms \(PDF\)/);
+    await q.emulateMedia({ media: "screen" });
+    assert.equal(await q.$eval(".printnote", e => e.getClientRects().length), 0, "not on the screen");
+    await q.context().close();
+  });
+});

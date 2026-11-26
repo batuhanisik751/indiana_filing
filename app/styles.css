@@ -414,3 +414,11 @@ ol.rail li.current .rail-ic { background: var(--accent); color: var(--accent-ink
 @media (min-width: 1200px) {
   #app[data-screen="pick"], .morebox { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Printing this page gave buttons, dashed boxes and a cut-off page, then blank sheets (BT80). It prints a note instead:
+   the filled form prints from its PDF. */
+.printnote { display: none; }
+@media print {
+  body > *:not(.wrap), .wrap > *:not(.printnote), dialog { display: none !important; }
+  .printnote { display: block !important; font: 14pt/1.4 Georgia, serif; color: #000; margin: 1in; }
+}
