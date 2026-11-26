@@ -158,8 +158,9 @@ const CHECK_SRC = {
 };
 const OWN_CHECK = "This tool's own check for typing mistakes.";
 const CASE_FORMS_HOW = ["respond", "appearance", "continuance"];
-// An amount of time: "2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days".
-const TIME_AMOUNT = new RegExp(`\\b(?:\\d+(?:\\.\\d+)?(?:\\s*(?:-|to|or)\\s*\\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fourteen|fifteen|twenty|thirty|forty|forty[- ]five|sixty|ninety)\\s*(?:more\\s+|extra\\s+|additional\\s+)?(?:days?|weeks?|months?)\\b`, "i");
+// An amount of time: "2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days", "fourteen (14)
+// days", "10 business days".
+const TIME_AMOUNT = new RegExp(`\\b(?:\\d+(?:\\.\\d+)?(?:\\s*(?:-|to|or)\\s*\\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fourteen|fifteen|twenty|thirty|forty|forty[- ]five|sixty|ninety)(?:\\s*\\(\\d+\\))?\\s*(?:(?:more|extra|additional|business|working|calendar|court|full)\\s+){0,2}(?:days?|weeks?|months?)\\b`, "i");
 const CHECKS_HOW = [
   { title: "Blank answers", forms: ["respond", "appearance", "continuance", "feewaiver"],
     says: "Every answer the official form needs, and every question marked \"I'm not sure.\" Each flag says what needs it: the form itself or a court rule.",

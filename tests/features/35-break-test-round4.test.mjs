@@ -605,7 +605,7 @@ describe("BT75. The time asked for on the continuance is checked, as \"How this 
     for (const v of ["2", "as soon as possible", "yes", "a few weeks"]) assert.match(await flagged(v), /This doesn't say a number of days or weeks/, v);
   });
   test("edge: amounts of time aren't", async () => {
-    for (const v of ["2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days", "3 weeks to find a lawyer"]) assert.equal(await flagged(v), "", v);
+    for (const v of ["2 weeks", "14 days", "30-45 days", "two weeks", "a week", "1 month", "10 more days", "3 weeks to find a lawyer", "fourteen (14) days", "at least 10 business days"]) assert.equal(await flagged(v), "", v);
   });
 });
 
