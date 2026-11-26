@@ -68,7 +68,7 @@ describe("PT6: How this tool checks your answers", () => {
     await inject(p, "respond");
     assert.equal(await p.textContent('details.howchecks > summary'), "How this tool checks your answers");
     assert.equal(await p.$eval("details.howchecks", d => d.open), false);
-    assert.deepEqual(await lines(), ["Blank answers", "Private information", "Case number", "Kind of case", "Your answer to the Complaint", "Certificate of Service", "Email", "Phone and fax", "Addresses", "Dates", "Words that would print", "Where court papers go", "The filled form"]);
+    assert.deepEqual(await lines(), ["Blank answers", "Private information", "Protection order cases", "Case number", "Kind of case", "Your answer to the Complaint", "Certificate of Service", "Email", "Phone and fax", "Addresses", "Dates", "Words that would print", "Where court papers go", "The filled form"]);
   });
   test("each form has its own lines", async () => {
     await inject(p, "feewaiver");
