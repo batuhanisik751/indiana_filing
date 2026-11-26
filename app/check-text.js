@@ -202,10 +202,16 @@ const EXCEPT_PART = `\\b(?:except(?: for)?|but(?: not)?|other than|excluding|apa
 const ALL_COUNT = "(?<all>\\b(?:all|every one of|each of)(?: (?:of )?the)? )\\d+(?=\\s*(?:paragraphs?|paras?|allegations?|of them|$|[,.;!]))";
 const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}|${ALL_COUNT}`, "gi");
 const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, (...m) => (m[m.length - 1].all || "") + " "); // "$500", "page 12", "3/15/2024", "5pm" and "except 3" aren't paragraphs in this list
-// A list that says all of them, in whatever words: "all", "I agree with all of it", "every single one", "all 12". Not
-// "all except 3", "the rest" or "not all".
+// A list that says all of them, in whatever words: "all", "I agree with all of it", "every single one", "all 12",
+// "Yes, all", "The whole complaint is false". Its other words are list words, or these. A reason after "because" or
+// "since" doesn't count. Not "all except 3", "the rest" or "not all", and not a sentence that has "all" in it, like
+// "I paid every month on time" or "The whole amount is wrong".
 const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
-const saysAll = v => { const t = String(v ?? "").trim(); return ALL_SAYS.test(t) && !BUT_SAYS.test(t) && !saysNoList(t) && !paragraphNumbers(t).size; };
+const ALL_GLUE = /^(?:agree|agreed|accept|accepted|accurate|right|untrue|yes|single|em|'em|with|petition)$/i;
+const saysAll = v => {
+  const t = String(v ?? "").trim(), w = notAmounts(t.split(/\b(?:because|since)\b/i)[0]).match(/[\p{L}']+/gu) || [];
+  return ALL_SAYS.test(t) && !BUT_SAYS.test(t) && !saysNoList(t) && !paragraphNumbers(t).size && w.every(x => LIST_NAMES.test(x) || LIST_GLUE.test(x) || ALL_GLUE.test(x));
+};
 const namesParagraphs = v => [...paragraphNumbers(v)].some(n => n >= 1 && n <= PARAGRAPH_MAX) || onlyListWords(notAmounts(v)) || saysAll(v); // "paid in 2019" has no paragraph in it; "all apart from 3" does
 const PARAGRAPH_MAX = 500;
 const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);

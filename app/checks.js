@@ -44,7 +44,11 @@ const FIRST_N = new RegExp(`\\b(?:the )?first (${NUMBER_WORD}|\\d{1,3})\\b`, "gi
 // The end of a range: "one to four", "one-four", "2 through twenty". A word after "to" in a sentence ("I only agreed to one", "the
 // rent went up to twelve") isn't a paragraph.
 const RANGE_END_WORD = new RegExp(`(\\d\\s*(?:[-\u2013]|to|through|thru)\\s*)(${NUMBER_WORD})\\b`, "gi");
-const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-${/^\d/.test(w) ? w : wordValue(w)}`).replace(LIST_NUMBER_WORD, (m, before, gap, w) => `${before}${gap}${wordValue(w)}`)
+// "First," or "Second." starting the list, before words that aren't numbers, is how a sentence starts, as in "First, I
+// never signed". "First and second" and "First, second and third" are paragraphs.
+const ORDINAL_OPENS = new RegExp(`^\\s*[,.](?!\\s*(?:$|\\d|(?:${NUMBER_WORD}|and|or)\\b))`, "i");
+const numberWordsAsDigits = v => String(v ?? "").replace(FIRST_N, (m, w) => `1-${/^\d/.test(w) ? w : wordValue(w)}`)
+  .replace(LIST_NUMBER_WORD, (m, before, gap, w, at, all) => (!before && /(?:st|nd|rd|th)$/i.test(w) && ORDINAL_OPENS.test(all.slice(at + m.length)) ? m : `${before}${gap}${wordValue(w)}`))
   .replace(RANGE_END_WORD, (m, before, w) => `${before}${wordValue(w)}`);
 // The numbers in text like "1, 3-5" or "1 through 3".
 function numbersIn(t, out = new Set()) {
