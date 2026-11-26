@@ -218,3 +218,22 @@ describe("BT56. A change in a box on the summary that isn't saved yet is pointed
     await q.context().close();
   });
 });
+
+describe("BT57. A page translator can't change the county that prints", () => {
+  test("with the county names translated on the page, the answer is still the county's own name", async () => {
+    await inject(p, "feewaiver", { county: "" });
+    await p.evaluate(() => { cur = visible().findIndex(s => s.id === "county"); mode = "step"; returnToSummary = false; render(); });
+    // What a translator does: it rewrites the words shown. Lake becomes "Lago".
+    await p.evaluate(() => document.querySelectorAll("#ans option").forEach(o => { if (o.textContent === "Lake") o.textContent = "Lago"; }));
+    await p.selectOption("#ans", { label: "Lago" });
+    await p.click("#next");
+    assert.equal(await p.evaluate(() => answers.county), "Lake");
+  });
+  test("the choices aren't translated, and a county that isn't on the list is refused", async () => {
+    await inject(p, "feewaiver");
+    await p.evaluate(() => { cur = visible().findIndex(s => s.id === "county"); mode = "step"; render(); });
+    assert.equal(await p.$$eval("#ans option[value]:not([value=''])", os => os.every(o => o.getAttribute("translate") === "no" && o.value === o.textContent)), true);
+    assert.equal(await p.evaluate(() => answerProblem(steps.find(s => s.id === "county"), "Lago")), "Choose your county from the list.");
+    assert.equal(await p.evaluate(() => answerProblem(steps.find(s => s.id === "county"), "Lake")), "");
+  });
+});

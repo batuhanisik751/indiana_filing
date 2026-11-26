@@ -50,6 +50,7 @@ function answerProblem(step, v, editing = false) {
     return "This is too large to be right for this form. Check the number, including the decimal point.";
   if ((step.type === "money" || step.type === "number") && !empty(v) && !validNum(step, v))
     return step.type === "money" ? "Use numbers only, like 1200 or 12.50." : "Use a number only, like 80.";
+  if (step.type === "select" && !empty(v) && !step.options.includes(v)) return "Choose your county from the list.";
   if (step.type === "date" && !empty(v) && !isDay(v)) return `Check the year. Use all four digits, like ${new Date().getFullYear()}.`;
   const limit = dateLimit(step, visibleAnswers());
   if (pastLimit(v, limit))

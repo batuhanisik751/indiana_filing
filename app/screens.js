@@ -218,7 +218,8 @@ function renderStep() {
     input = `<div class="choices" role="radiogroup" aria-labelledby="q" ${desc}>${step.options.map(([val, lab]) =>
       `<label class="choice"><input type="radio" name="ans" value="${esc(val)}" ${v === val ? "checked" : ""}><span>${esc(lab)}</span></label>`).join("")}</div>`;
   } else if (step.type === "select") {
-    input = `<select id="ans" aria-labelledby="q" ${desc}><option value="">Choose a county</option>${step.options.map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    // Each county has its own value, kept out of page translators, so a translated name ("Lago" for Lake) isn't the answer.
+    input = `<select id="ans" aria-labelledby="q" ${desc}><option value="">Choose a county</option>${step.options.map(o => `<option value="${esc(o)}" translate="no" ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
   } else if (step.type === "textarea") {
     // Only the person's own mailing address offers the phone's saved address. Not someone else's, and not the
     // Address Confidentiality Program's substitute, which must not be the home address.
