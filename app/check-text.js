@@ -212,6 +212,9 @@ const saysAll = v => {
   const t = String(v ?? "").trim(), w = notAmounts(t.split(/\b(?:because|since)\b/i)[0]).match(/[\p{L}']+/gu) || [];
   return ALL_SAYS.test(t) && !BUT_SAYS.test(t) && !saysNoList(t) && !paragraphNumbers(t).size && w.every(x => LIST_NAMES.test(x) || LIST_GLUE.test(x) || ALL_GLUE.test(x));
 };
+// A list that says the rest, in list words only: "the rest", "all the rest", "everything else", "the remaining ones".
+const REST_SAYS = /\b(?:rest|remaining|remainder|balance|others?|else)\b/i;
+const saysRest = v => REST_SAYS.test(String(v ?? "")) && onlyListWords(notAmounts(v)) && !paragraphNumbers(v).size;
 const namesParagraphs = v => [...paragraphNumbers(v)].some(n => n >= 1 && n <= PARAGRAPH_MAX) || onlyListWords(notAmounts(v)) || saysAll(v); // "paid in 2019" has no paragraph in it; "all apart from 3" does
 const PARAGRAPH_MAX = 500;
 const saysNoList = v => NO_WORDS.test(String(v ?? "").trim()) || startsNo(v);

@@ -387,13 +387,24 @@ function runChecks() {
 
     // A list that says "all" (with no "except" or "the rest") next to another list that names a paragraph: the two can't
     // both be right. What the list says is quoted only when it's nothing but such words, so nothing private is repeated.
+    // The advice names every paragraph the other lists name, so following it leaves none in two lists (BT63).
     const allList = lists.find(([k]) => saysAll(a[k]));
     const inRange = n => [...n].filter(x => x >= 1 && x <= PARAGRAPH_MAX).sort((x, y) => x - y);
-    const named = allList && lists.find(([k, n]) => k !== allList[0] && inRange(n).length);
-    if (named) {
-      const which = k => vis.find(s => s.id === k).label.replace(/^Paragraphs/, "paragraphs"), nums = inRange(named[1]);
-      flags.push({ level: "check", title: "Your lists say different things", fix: allList[0], link: { href: LINKS.answerInstructions, text: "Read the Answer instructions" },
-        why: `Your list of ${which(allList[0])} ${onlyListWords(notAmounts(a[allList[0]])) ? `says "${String(a[allList[0]]).trim()}"` : "seems to say all of them"}, but your list of ${which(named[0])} names ${nums.length > 1 ? `paragraphs ${rangesText(nums)}` : `paragraph ${nums[0]}`}. A paragraph can only be in one list. If you mean all the others, you could write "all except ${rangesText(nums)}".` });
+    const which = k => vis.find(s => s.id === k).label.replace(/^Paragraphs/, "paragraphs");
+    const named = allList ? lists.filter(([k, n]) => k !== allList[0] && inRange(n).length) : [];
+    const ANSWER_LINK = { href: LINKS.answerInstructions, text: "Read the Answer instructions" };
+    if (named.length) {
+      const nums = inRange(new Set(named.flatMap(([, n]) => inRange(n))));
+      const whose = named.length > 1 ? `your lists of ${named.map(([k]) => which(k)).join(" and ")} name` : `your list of ${which(named[0][0])} names`;
+      flags.push({ level: "check", title: "Your lists say different things", fix: allList[0], link: ANSWER_LINK,
+        why: `Your list of ${which(allList[0])} ${onlyListWords(notAmounts(a[allList[0]])) ? `says "${String(a[allList[0]]).trim()}"` : "seems to say all of them"}, but ${whose} ${nums.length > 1 ? `paragraphs ${rangesText(nums)}` : `paragraph ${nums[0]}`}. A paragraph can only be in one list. If you mean all the others, you could write "all except ${rangesText(nums)}".` });
+    }
+    // Two lists that each say all of them, or the rest, with no numbers: they can't both be right (BT63).
+    const wide = lists.filter(([k, n]) => !inRange(n).length && (saysAll(a[k]) || saysRest(a[k])));
+    if (!named.length && wide.length > 1) {
+      const says = wide.every(([k]) => saysAll(a[k])) ? "all of them" : wide.every(([k]) => saysRest(a[k])) ? "the rest" : "all of them or the rest";
+      flags.push({ level: "check", title: "Your lists say different things", fix: wide[1][0], link: ANSWER_LINK,
+        why: `Your lists of ${wide.map(([k]) => which(k)).join(" and ")} each say ${says}. A paragraph can only be in one list, so write the paragraph numbers in ${wide.length > 2 ? "all but one" : "one"} of them.` });
     }
 
     // A number skipped between the ones listed. "The rest" covers it, and a number this big isn't a paragraph.

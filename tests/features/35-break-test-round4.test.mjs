@@ -395,3 +395,23 @@ describe("BT65. Words in the phone box are told to type None, as the question sa
     assert.match((await p.evaluate(() => runChecks().filter(f => f.fix === "fax").map(f => f.why))).join(" "), /leave it blank if you don't have one\./);
   });
 });
+
+describe("BT63. \"Your lists say different things\": its advice works, and two lists saying all, or the rest, are flagged", () => {
+  const SAYS = "check|Your lists say different things";
+  const why = () => p.evaluate(() => runChecks().filter(f => f.title === "Your lists say different things").map(f => f.why).join(" "));
+  test("admitted 1, denied all, third list 4: the advice names 1 and 4, and following it leaves no flag", async () => {
+    assert.ok((await listFlags("1", "all", "4")).includes(SAYS));
+    assert.match(await why(), /your lists of paragraphs you admit and .+ name paragraphs 1 and 4\. .*"all except 1 and 4"/);
+    assert.deepEqual(await listFlags("1", "all except 1 and 4", "4"), []);
+  });
+  test("\"all\" in two lists, \"the rest\" in two, or one of each: flagged", async () => {
+    for (const [ad, de, ne, says] of [["all", "all", "", "all of them"], ["the rest", "", "the rest", "the rest"], ["all", "everything else", "", "all of them or the rest"]]) {
+      assert.deepEqual(await listFlags(ad, de, ne), [SAYS], `${ad} / ${de} / ${ne}`);
+      assert.match(await why(), new RegExp(`each say ${says}\\. A paragraph can only be in one list`));
+    }
+  });
+  test("edge: one list says the rest next to numbers, or all on its own: no flag", async () => {
+    assert.deepEqual(await listFlags("1-3", "the rest"), []);
+    assert.deepEqual(await listFlags("all", ""), []);
+  });
+});
