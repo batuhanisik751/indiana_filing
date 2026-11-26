@@ -74,7 +74,8 @@ function readSaved() {
   try {
     const d = JSON.parse(raw);
     const age = d ? Date.now() - d.savedAt : NaN;
-    const fresh = d && d.v === 1 && Number.isFinite(d.savedAt) && age > -864e5 && age <= MAX_AGE_DAYS * 864e5;
+    // Saved "in the future" means this device's clock is behind: the answers are kept, not deleted with no word (BT103).
+    const fresh = d && d.v === 1 && Number.isFinite(d.savedAt) && age <= MAX_AGE_DAYS * 864e5;
     const usable = fresh && (d.triageOnly
       ? triageAnswered(strings(d.triage)) // only the sorting answers so far
       : Object.hasOwn(SITUATIONS, d.sitKey)
@@ -164,8 +165,11 @@ function saveProgress() {
   // What's in the open box replaces the old answer right away, so erased text doesn't stay on the device.
   // During an edit the old answer stays for Cancel, unless the box was emptied.
   // Once it has been emptied, the old answer stays out, even as new text is typed.
-  if (mode === "step" && draft && empty(draft.value) && returnToSummary) editErased = draft.id;
-  const emptied = mode === "step" && draft && (empty(draft.value) || (returnToSummary && editErased === draft.id));
+  // Only typed text: unticking every kind of income isn't erasing something private, and Cancel after a reload puts the
+  // ticks back (BT103).
+  const typed = draft && !["choice", "checks", "select"].includes(steps.find(s => s.id === draft.id)?.type);
+  if (mode === "step" && typed && empty(draft.value) && returnToSummary) editErased = draft.id;
+  const emptied = mode === "step" && typed && (empty(draft.value) || (returnToSummary && editErased === draft.id));
   let inCopy = withDraft !== answers && (!returnToSummary || emptied) ? withDraft : answers;
   // The same for an answer being changed in place on the summary: once its box is emptied, the old answer leaves the copy.
   if (mode === "summary" && inlineEdit && inlineEdit.erased) inCopy = { ...inCopy, [inlineEdit.id]: "" };
@@ -247,6 +251,12 @@ function restoreSaved(d, keep) {
   }
   triageHist = []; triageFromSummary = false; triageBeforeEdit = null;
   sitKey = d.sitKey; steps = SITUATIONS[sitKey].steps(); answers = strings(d.answers);
+  // A choice that isn't one of its question's options (a damaged copy) is left out, so it can't break the form (BT103).
+  for (const s of steps) {
+    const v = answers[s.id], opts = (Array.isArray(s.options) ? s.options : []).map(o => (Array.isArray(o) ? o[0] : o));
+    if (empty(v) || !opts.length || !["choice", "checks", "select"].includes(s.type)) continue;
+    if (s.type === "checks" ? !String(v).split(",").every(x => opts.includes(x)) : !opts.includes(v)) delete answers[s.id];
+  }
   clearedContact = Array.isArray(d.cleared) ? d.cleared.filter(k => Object.hasOwn(CONTACT_WORDS, k) && steps.some(s => s.id === k)) : [];
   unsure = Object.fromEntries(Object.entries(d.unsure && typeof d.unsure === "object" ? d.unsure : {}).filter(([, v]) => v === true));
   caseConfirmFor = typeof d.caseConfirmFor === "string" ? d.caseConfirmFor : null; // checked against the number before the next screen

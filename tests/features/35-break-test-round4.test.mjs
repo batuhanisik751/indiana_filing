@@ -980,6 +980,7 @@ describe("BT83. Box text and a county-and-court choice aren't lost in a few savi
     if (await b.locator("#resume").count()) await b.click("#resume");
     await editHere(a, "defenses");
     await a.type("#inEdit", " And I have the receipt.");
+    await b.bringToFront(); // a tab in the background waits to ask until it's in front
     b.removeAllListeners("dialog");
     let asked = null;
     b.once("dialog", d => { asked = d.message(); d.dismiss(); });
@@ -1151,6 +1152,47 @@ describe("BT102. Small problems with the page shown large", () => {
     const lum = c => { const [r, g, b] = c.match(/\d+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
     assert.ok(1.05 / (lum(rgb) + 0.05) >= 3, rgb);
     assert.ok(bar <= 60, `${bar}px`);
+    await q.context().close();
+  });
+});
+
+describe("BT103. Small saving problems", () => {
+  test("a device clock more than a day behind keeps the saved answers", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "appearance");
+    await q.evaluate(() => saveProgress());
+    await q.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); d.savedAt = Date.now() + 2 * 864e5; localStorage.setItem(k, JSON.stringify(d)); }, SAVED);
+    await q.reload(); await q.waitForSelector("#app h1");
+    assert.equal(await q.locator("#resume").count(), 1);
+    await q.context().close();
+  });
+  test("the fee waiver's kinds of income, all unticked in an edit, come back with a reload and Cancel", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "feewaiver", { incomeKinds: "wages,ssi" });
+    await q.evaluate(() => saveProgress());
+    await editAnswer(q, "incomeKinds");
+    for (const v of ["wages", "ssi"]) await q.locator(`input[name=ans][value="${v}"]`).uncheck({ force: true });
+    await q.reload(); await q.waitForSelector("#app h1");
+    if (await q.locator("#resume").count()) await q.click("#resume");
+    await q.waitForSelector("#back");
+    await q.click("#back");
+    assert.equal(await q.evaluate(() => answers.incomeKinds), "wages,ssi");
+    await q.context().close();
+  });
+  test("a damaged copy with a choice that isn't an option opens, without that choice, and the form is made", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "appearance");
+    await q.evaluate(() => saveProgress());
+    await q.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); d.answers.receiveAt = "Choice9"; d.answers.county = "Atlantis"; localStorage.setItem(k, JSON.stringify(d)); }, SAVED);
+    await q.reload(); await q.waitForSelector("#app h1");
+    await q.click("#resume");
+    assert.equal(await q.evaluate(() => [answers.receiveAt, answers.county].join("|")), "|");
+    await q.evaluate(() => { mode = "summary"; render(); });
+    await q.waitForFunction(() => (pdfState.result || pdfState.error) && !pdfState.busy, null, { timeout: 120000 });
+    assert.equal(await q.evaluate(() => [!!pdfState.result, pdfState.error].join()), "true,false");
     await q.context().close();
   });
 });
