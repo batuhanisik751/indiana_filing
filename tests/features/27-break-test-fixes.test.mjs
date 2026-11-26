@@ -281,7 +281,8 @@ describe("BT12: with bigger text, the header stays small and the question comes 
     await q.context().close();
   });
   test("edge: at the usual size the header is exactly as tall as before", async () => {
-    for (const [w, h] of [[320, 159], [375, 159], [390, 128], [412, 137], [1280, 109]]) {
+    // 375px: 128 since BT105 (the logo and Get help fit on one row; it was 159).
+    for (const [w, h] of [[320, 159], [375, 128], [390, 128], [412, 137], [1280, 109]]) {
       const q = await fresh({ viewport: { width: w, height: 800 } });
       assert.ok(Math.abs(await headerH(q) - h) <= 1, `${w}px: ${await headerH(q)} vs ${h}`);
       await q.context().close();
@@ -535,7 +536,9 @@ describe("BT18: a kept look applies before the page has loaded", () => {
   });
   test("edge: the page's early copy of the sizes, keys and 30 days matches the app's", async () => {
     await reset(p);
-    const html = await p.evaluate(() => [...document.head.querySelectorAll("script")].map(s => s.textContent).join("\n"));
+    // Since BT107 the early copy is boot/look.js, loaded first in the page's head.
+    const html = (await import("node:fs")).readFileSync(new URL("../../boot/look.js", import.meta.url), "utf8");
+    assert.match(await p.evaluate(() => document.head.querySelector("script")?.getAttribute("src")), /^boot\/look\.js$/);
     const app = await p.evaluate(() => ({ sizes: TEXT_SIZES, key: DISPLAY_KEY, pref: PREF_KEY, store: STORE_KEY, days: MAX_AGE_DAYS }));
     assert.ok(html.includes(`sizes = ${JSON.stringify(app.sizes).replace(/,/g, ", ")}`), "sizes");
     for (const k of [app.key, app.pref, app.store]) assert.ok(html.includes(`"${k}"`), k);
