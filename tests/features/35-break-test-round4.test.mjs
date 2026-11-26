@@ -1069,3 +1069,21 @@ describe("BT98. An address typed on lines ending in commas doesn't print two com
     }
   });
 });
+
+describe("BT99. Characters the font lacks print as their plain form, or \"?\", never as something else", () => {
+  const safe = (t) => p.evaluate(async t => { await loadPdfTools(OFFICIAL[SITUATIONS.respond.official.packet].file); const d = await PDFLib.PDFDocument.create(), f = await d.embedFont(PDFLib.StandardFonts.Helvetica); const seen = []; return [makeSafe(f, (c, o) => seen.push(`${c}>${o}`))(t), seen.join(" ")]; }, t);
+  test("\"≠\" prints \"!=\", not \"=\"; ligatures, full-width digits, U+02BC and primes print plain", async () => {
+    assert.equal((await safe("Amount owed ≠ $5,000"))[0], "Amount owed != $5,000");
+    assert.equal((await safe("Certiﬁed"))[0], "Certified");
+    assert.equal((await safe("OʼBrien"))[0], "O'Brien");
+    assert.equal((await safe("１２３"))[0], "123");
+    assert.equal((await safe("5′ 10″"))[0], "5' 10\"");
+  });
+  test("a defense in another alphabet makes a short flag", async () => {
+    await inject(p, "respond", { defenses: "我没有欠这笔钱。我每个月都按时付款，房东从来没有修理任何东西。他们说的数字是错的，我有收据可以证明。".repeat(3) });
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    const why = await p.evaluate(() => pdfFlags().filter(f => f.fix === "defenses" && /can't print/.test(f.why)).map(f => f.why).join(""));
+    assert.ok(why.length > 0 && why.length < 400, `${why.length} characters`);
+    assert.match(why, /and \d+ more/);
+  });
+});

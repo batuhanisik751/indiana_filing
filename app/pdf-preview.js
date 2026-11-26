@@ -89,7 +89,8 @@ function pdfFlags() {
       why: `This is printed in small ${n.size}-point text so it fits the box on the official form. Check in the preview below that it's readable.`, fix: n.step })),
     ...[...continued.values()].map(n => ({ level: "check", title: n.label, why: `This is longer than the lines on the form, so it continues on a page added at the end of the ${n.doc}, marked "continued on attached page." Check it in the preview below.`, fix: n.step })),
     ...[...chars.values()].map(n => {
-      const list = [...n.list].map(([c, o]) => `"${c}" (printed as "${o}")`).join(", ");
+      // At most ten of them, so a paragraph in another alphabet doesn't make a flag thousands of characters long (BT99).
+      const all = [...n.list], list = all.slice(0, 10).map(([c, o]) => `"${c}" (printed as "${o}")`).join(", ") + (all.length > 10 ? `, and ${all.length - 10} more` : "");
       return { level: "check", title: steps.find(s => s.id === n.step)?.label || n.label, why: `The form's font can't print some characters exactly: ${list}. Check that this is how you want it to appear.`, fix: n.step };
     }),
   ];

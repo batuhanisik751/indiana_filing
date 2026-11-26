@@ -51,7 +51,9 @@ const b64ToBytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 // outside that set is printed as its closest plain letter when there is one
 // (for example "Ł" as "L"), otherwise as "?". Either way it is reported.
 const LOOKALIKE = { "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ": "h", "ı": "i", "Ŀ": "L", "ŀ": "l", "Ŧ": "T", "ŧ": "t", "ĸ": "k",
-  "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "..." };
+  "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "...",
+  // Signs whose plain form would turn the meaning around ("≠" isn't "="), and apostrophes and primes pasted in names (BT99).
+  "\u2260": "!=", "\u2264": "<=", "\u2265": ">=", "\u226E": "not <", "\u226F": "not >", "\u02BC": "'", "\u02B9": "'", "\u02BA": '"', "\u2032": "'", "\u2033": '"' };
 // Accents typed as separate marks become one letter (NFC). Invisible formatting characters (zero-width spaces,
 // soft hyphens, direction marks) are dropped, and look-alike spaces and hyphens, common in pasted text, become plain ones.
 const cleanText = v => String(v ?? "").normalize("NFC").replace(/\p{Cf}/gu, "").replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, " ").replace(/[\u2010-\u2012\u2212]/g, "-");
@@ -78,7 +80,10 @@ function makeSafe(font, report) {
     return Array.from(clean).map(ch => {
       if (ch === "\n" || ch === "\r" || fits(ch)) return ch;
       if (/[\u0300-\u036f]/.test(ch)) return ""; // a leftover accent mark with no letter
-      const plain = LOOKALIKE[ch] ?? ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Its plain form: without accents, and ligatures and full-width letters as plain ones ("ﬁ" is "fi", "１" is "1"). A
+      // mark that changes the meaning, like a stroke through a sign, isn't dropped: that prints "?" (BT99).
+      const bare = ch.normalize("NFKD");
+      const plain = LOOKALIKE[ch] ?? (/[\u0337\u0338\u20D2\u20E5]/.test(bare) ? "" : bare.replace(/[\u0300-\u036f]/g, ""));
       const out = plain && plain !== ch && Array.from(plain).every(fits) ? plain : "?";
       report(ch, out);
       return out;
