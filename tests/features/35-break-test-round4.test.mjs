@@ -861,3 +861,20 @@ describe("BT92. The fee waiver's next steps don't give $157 as the fee for every
     assert.match(step.body, /small claims and eviction cases, for example, have fees of their own\. The clerk's office can tell you the fee for your case\./);
   });
 });
+
+describe("BT88. A township, town or city court case isn't sent to the county clerk", () => {
+  const filing = () => p.evaluate(() => nextSteps(sitKey, visibleAnswers()).find(s => /courthouse/.test(s.title)));
+  test("49K01, 06I02 and 20H01: the step names the kind of court and points to the directory, not the clerk's address", async () => {
+    for (const [cn, county, kind] of [["49K01-2611-SC-001234", "Marion", "township small claims court"], ["06I02-2611-SC-001234", "Boone", "town court"], ["20H01-2611-SC-001234", "Elkhart", "city court"]]) {
+      await inject(p, "appearance", { caseNumber: cn, county, fileMethod: "paper" });
+      const step = await filing();
+      assert.match(step.body, new RegExp(`means a ${kind}\\. Its office isn't the ${county} County Clerk's Office`), cn);
+      assert.doesNotMatch(step.short + step.body, /lists the \w+ County Clerk's Office at/, cn);
+    }
+    assert.match((await filing()).body, /city court/);
+  });
+  test("edge: a circuit or superior court case still gets the county clerk", async () => {
+    await inject(p, "appearance", { caseNumber: "02D01-2611-CC-001234", county: "Allen", fileMethod: "paper" });
+    assert.match((await filing()).short, /Allen County Clerk's Office/);
+  });
+});

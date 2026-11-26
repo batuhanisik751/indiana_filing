@@ -239,7 +239,20 @@ function nextSteps(key, a) {
       body: parts.filter(Boolean).join(" "),
       links: [SOURCES.efileSite, SOURCES.efileGuide, SOURCES.efile, ...(key === "feewaiver" ? [SOURCES.waiverAccount, SOURCES.efileSchedule] : [])] });
   }
-  if (mayPaper) {
+  // Administrative Rule 8: the letter after the county number is the court. H is a city court, I a town court and K a
+  // township small claims court: each has its own office, not the County Clerk's (BT88).
+  const ownCourt = { H: "city court", I: "town court", K: "township small claims court" }[caseMatch(a.caseNumber) ? a.caseNumber.trim().toUpperCase()[2] : ""];
+  if (mayPaper && ownCourt) {
+    out.push({ title: paper ? "File at the courthouse" : "If you file at the courthouse",
+      short: `Indiana Legal Help says to bring the forms to the court where they need to be filed. Administrative Rule 8 says the letter in your case number, ${a.caseNumber.trim().toUpperCase()[2]}, means a ${ownCourt}, which has its own office: the court directory lists its address.`,
+      body: [
+        "Indiana Legal Help says to bring the forms to the court where they need to be filed.",
+        `Administrative Rule 8 says the letter after the county number in your case number, ${a.caseNumber.trim().toUpperCase()[2]}, means a ${ownCourt}. Its office isn't the ${a.county ? `${a.county} County` : "County"} Clerk's Office, so look up its address and phone in the Indiana court directory, or on your court papers.`,
+        a.county === "Marion" && ownCourt.startsWith("township") ? `The directory lists Marion County's nine township small claims courts: ${MARION_SMALL_CLAIMS.map(([n, ad, ph]) => `${n}, ${ad} (${ph})`).join("; ")}.` : "",
+        "Indiana Legal Help says courts differ on copies: some courts require you to bring one, two or three copies of each document, and some prefer you not bring any, so you may want to contact the court first.",
+      ].filter(Boolean).join(" "),
+      links: [SOURCES.inPerson, SOURCES.directory] });
+  } else if (mayPaper) {
     out.push({ title: paper ? "File at the courthouse" : "If you file at the courthouse",
       short: `Indiana Legal Help says to bring the forms to the court where they need to be filed.${!clerk ? " It says courts differ on how many copies to bring."
         : clerk.mailing ? ` The court directory lists the ${a.county} County Clerk's Office phone as ${clerk.phone}.`
