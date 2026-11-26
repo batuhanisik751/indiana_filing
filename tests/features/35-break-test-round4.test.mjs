@@ -729,3 +729,18 @@ describe("BT76. If the PDF viewer can't load, the pages can be tried again", () 
     await q.context().close();
   });
 });
+
+describe("BT78. A keyboard can scroll a page shown large that has nothing on it to change", () => {
+  test("the fee waiver's page 2: the page can be focused, and Page Down scrolls it", async () => {
+    const q = await fresh({ viewport: { width: 1000, height: 600 } });
+    await inject(q, "feewaiver");
+    await openPage(q, 2);
+    assert.equal(await q.$eval("dialog.pageview .pvbody", b => [b.tabIndex, b.getAttribute("role")].join()), "0,region");
+    await q.focus("dialog.pageview .pvbody");
+    const top = await q.$eval("dialog.pageview .pvbody", b => b.scrollTop);
+    await q.keyboard.press("PageDown");
+    await q.waitForFunction(t => document.querySelector("dialog.pageview .pvbody").scrollTop > t, top, { timeout: 3000 }).catch(() => {});
+    assert.ok(await q.$eval("dialog.pageview .pvbody", b => b.scrollTop) > top);
+    await q.context().close();
+  });
+});

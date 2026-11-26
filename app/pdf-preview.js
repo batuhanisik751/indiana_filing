@@ -133,7 +133,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, s
   const dlg = document.createElement("dialog");
   dlg.className = "pageview";
   dlg.setAttribute("aria-labelledby", "pvTitle");
-  dlg.innerHTML = `<div class="pvbar"><h2 class="sub" id="pvTitle"></h2><span class="pvnav">${count > 1 ? `<button class="ghost small" id="pvPrev">Previous page</button><button class="ghost small" id="pvNext">Next page</button>` : ""}<button class="primary small" id="pvClose">Close</button></span></div><div class="pvbody"></div>`;
+  dlg.innerHTML = `<div class="pvbar"><h2 class="sub" id="pvTitle"></h2><span class="pvnav">${count > 1 ? `<button class="ghost small" id="pvPrev">Previous page</button><button class="ghost small" id="pvNext">Next page</button>` : ""}<button class="primary small" id="pvClose">Close</button></span></div><div class="pvbody" tabindex="0" role="region" aria-labelledby="pvTitle"></div>`;
   document.body.appendChild(dlg);
   const body = dlg.querySelector(".pvbody"), prev = dlg.querySelector("#pvPrev"), next = dlg.querySelector("#pvNext");
   let token = 0;

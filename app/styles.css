@@ -272,7 +272,9 @@ dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
 .pvbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); }
 .pvbar h2.sub { margin: 0; font-size: 1.05rem; }
 .pvnav { display: flex; flex-wrap: wrap; gap: .5rem; }
+/* Focusable, so a keyboard can scroll it in Safari when the page has nothing on it to tab to (BT78). */
 .pvbody { flex: 1; min-height: 0; overflow: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+.pvbody:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .pvpage { position: relative; z-index: 0; } /* its own layers: the answers, then the margins around them, then the page */
 .pvpage canvas { position: relative; z-index: -2; display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
 /* Item 17: an answer on a page of the filled form, to tap and change, and the box that opens over the page. */
