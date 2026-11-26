@@ -489,3 +489,32 @@ describe("BT72. A second case's calendar file doesn't replace the first case's e
     assert.equal(part(back, "SEQUENCE"), "2");
   });
 });
+
+describe("BT71. Choosing the same form again keeps its sorting answers", () => {
+  test("eviction, Notice of Claim, Appearance; then Choose a different form and the same Appearance: \"Change these answers\" stays, and no Answer deadline", async () => {
+    const q = await fresh();
+    await q.click('.pick[data-kind="eviction"]');
+    for (const v of ["notice", "yes"]) { await q.locator(`input[name=ans][value="${v}"]`).check({ force: true }); await q.click("#next"); }
+    await q.click('[data-start="appearance"]');
+    await walk(q, "summary", { caseNumber: "02D01-2611-EV-001234" });
+    assert.equal(await q.locator("#editTriage").count(), 1, "from the sorting questions");
+    const before = await q.evaluate(() => nextSteps(sitKey, visibleAnswers()).map(s => s.title));
+    assert.ok(!before.includes("Check whether an Answer is due"), before.join(" | "));
+    await q.click("#changeForm");
+    await pick(q, "appearance");
+    assert.equal(await q.evaluate(() => [mode, sitKey, fromTriage, triage.kind].join()), "summary,appearance,true,eviction");
+    assert.equal(await q.locator("#editTriage").count(), 1);
+    assert.deepEqual(await q.evaluate(() => nextSteps(sitKey, visibleAnswers()).map(s => s.title)), before);
+    await q.context().close();
+  });
+  test("edge: a form first chosen from the list, chosen again, is as before", async () => {
+    const q = await fresh();
+    await pick(q, "appearance");
+    await walk(q, "summary");
+    await q.click("#changeForm");
+    await pick(q, "appearance");
+    assert.equal(await q.evaluate(() => [mode, fromTriage].join()), "summary,false");
+    assert.equal(await q.locator("#editTriage").count(), 0);
+    await q.context().close();
+  });
+});

@@ -108,9 +108,13 @@ function finishTriageChange() {
 }
 function startSituation(key, from = "pick") {
   const cameFrom = () => { fromTriage = from === "triage"; if (from !== "triage") fromNotSure = from === "notsure"; };
-  // Coming back to the same form (for example with Back from its first question) keeps the answers.
+  // Coming back to the same form (for example with Back from its first question) keeps the answers. Chosen again from the
+  // list, it's the same as Go back: sorting answers set aside come back, and it's still the form they led to, with
+  // "Change these answers" and next steps that fit (BT71). From the sorting questions, those are its new answers.
   if (sitKey === key && (hasAnswers() || triageFromSummary)) {
-    cameFrom(); cur = 0; returnToSummary = false;
+    if (from === "triage" || (!fromTriage && !triageBeforeEdit)) cameFrom();
+    else if (triageBeforeEdit) { triage = triageBeforeEdit; fromNotSure = notSureBeforeEdit; triageHist = []; }
+    cur = 0; returnToSummary = false;
     mode = triageFromSummary ? "summary" : "step"; finishTriageChange(); return render();
   }
   const saved = hasAnswers() ? null : readSaved();
