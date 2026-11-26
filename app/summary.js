@@ -89,9 +89,9 @@ function redrawSummaryAt(sel, then) {
   if (then) then();
 }
 const inlineChanged = () => !!inlineEdit && (inlineEdit.erased || inlineEdit.value !== String(answers[inlineEdit.id] ?? ""));
-// Lets go of the answer being changed, as Cancel does: one emptied in its box goes back on the device (until then the
-// saved copy keeps it off).
-function dropInline() { const erased = !!inlineEdit && inlineEdit.erased; inlineEdit = null; if (erased) saveProgress(); }
+// Lets go of the answer being changed, as Cancel does, and saves the copy again without the box: what was typed in it
+// leaves the device, and an answer emptied in it goes back on (until then the saved copy keeps it off).
+function dropInline() { const had = !!inlineEdit; inlineEdit = null; if (had) saveProgress(); }
 function openInline(id, nth) {
   if (inlineEdit && inlineChanged() && !confirm(`Discard your change to "${steps.find(s => s.id === inlineEdit.id)?.label}"?`)) { document.getElementById("inEdit")?.focus(); return; }
   inlineEdit = { id, nth, value: String(answers[id] ?? ""), erased: false, err: "" };
