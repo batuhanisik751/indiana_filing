@@ -237,3 +237,45 @@ describe("BT57. A page translator can't change the county that prints", () => {
     assert.equal(await p.evaluate(() => answerProblem(steps.find(s => s.id === "county"), "Lake")), "");
   });
 });
+
+describe("BT58. Showing the filled form's pages doesn't keep using more memory", () => {
+  const pagesShown = q => q.waitForFunction(() => document.querySelectorAll("#preview canvas").length >= 4, null, { timeout: 180000 });
+  const open = q => q.evaluate(() => pdfHolders.size);
+  test("with the pages shown, opening and cancelling a box, or saving a change, keeps one worker and closes the old PDFs", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await ready(q);
+    await q.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; });
+    await pagesShown(q);
+    const workers = q.workers().length;
+    for (let i = 0; i < 4; i++) { await editHere(q, "plaintiff"); await q.click("#ieCancel"); await pagesShown(q); }
+    assert.equal(q.workers().length, workers, "open and cancel: no new worker");
+    for (const name of ["Acme Credit Co", "Acme Credit Inc"]) {
+      await editHere(q, "plaintiff"); await q.fill("#inEdit", name); await q.click("#ieSave");
+      await ready(q); await q.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; }); await pagesShown(q);
+    }
+    assert.equal(q.workers().length, workers, "saved changes: no new worker");
+    assert.equal(await open(q), 1, "only the preview's PDF is open");
+    await q.context().close();
+  });
+  test("a page shown large and changed there twice, then closed: the old PDFs are closed", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await openPage(q, 1);
+    const workers = q.workers().length;
+    for (const name of ["Acme Credit Co", "Acme Credit Inc"]) {
+      await tap(q, "plaintiff");
+      await q.fill("#inEdit", name);
+      await q.keyboard.press("Enter");
+      await q.waitForFunction(n => document.querySelector("dialog.pageview .pvpage canvas") && !document.getElementById("pvEdit") && answers.plaintiff === n, name, { timeout: 120000 });
+      await q.waitForFunction(() => !document.querySelector("dialog.pageview .draftnote[role=status]"), null, { timeout: 120000 });
+    }
+    assert.equal(q.workers().length, workers);
+    assert.ok(await open(q) <= 2, `open: ${await open(q)}`);
+    await q.click("#pvClose");
+    await q.waitForFunction(() => !document.querySelector("dialog.pageview"));
+    await q.waitForFunction(() => pdfHolders.size <= 1, null, { timeout: 5000 }).catch(() => {});
+    assert.ok(await open(q) <= 1, `after Close: ${await open(q)}`);
+    await q.context().close();
+  });
+});

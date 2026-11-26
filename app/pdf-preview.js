@@ -118,11 +118,41 @@ function pdfFlags() {
   ];
 }
 
+// The filled form's PDFs shown here (the preview, and a page of it shown large) share one pdf.js worker, and each is
+// closed once nothing shows it, so its memory is given back. Before, each redraw of the summary started another
+// worker that was never closed, and a phone could close the tab (BT58).
+let pdfWorker = null;
+const pdfHolders = new Map(); // an open PDF -> what shows it: "preview", or the page shown large
+async function openPdf(bytes) {
+  pdfWorker ||= new pdfjsLib.PDFWorker();
+  try { return await pdfjsLib.getDocument({ data: bytes.slice(), worker: pdfWorker }).promise; }
+  catch (e) { if (pdfWorker.destroyed) pdfWorker = null; throw e; }
+}
+function holdPdf(doc, who) { if (!pdfHolders.has(doc)) pdfHolders.set(doc, new Set()); pdfHolders.get(doc).add(who); }
+function letGoPdf(doc, who) {
+  const holders = pdfHolders.get(doc);
+  if (!holders || !holders.delete(who) || holders.size) return;
+  pdfHolders.delete(doc);
+  doc.destroy();
+}
+// The PDF the preview shows. Drawn again with the same form (the summary redraws when a box opens), it's used again.
+let previewPdf = null; // { bytes, doc }
+async function previewDoc(bytes, el) {
+  if (previewPdf?.bytes === bytes) return previewPdf.doc;
+  const doc = await openPdf(bytes);
+  if (!el.isConnected || previewPdf?.bytes === bytes) { doc.destroy(); return el.isConnected ? previewPdf.doc : null; }
+  if (previewPdf) letGoPdf(previewPdf.doc, "preview");
+  previewPdf = { bytes, doc };
+  holdPdf(doc, "preview");
+  return doc;
+}
+
 // A page shown large, over the summary or question: "Enlarge" under a page opens it. Close, Escape or Back closes it.
 // render(n, cssWidth) draws page n and resolves to { canvas, marks }, marks being highlight markup placed in percent.
 // beforeTurn, if given, is asked before Previous or Next turns the page, and can say no.
 function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, shown, beforeTurn }) {
-  document.querySelector("dialog.pageview")?.remove();
+  const old = document.querySelector("dialog.pageview");
+  if (old) { old.onGone?.(); old.remove(); }
   const dlg = document.createElement("dialog");
   dlg.className = "pageview";
   dlg.setAttribute("aria-labelledby", "pvTitle");
@@ -155,6 +185,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, s
   if (prev) { prev.onclick = step(() => at - 1, prev, next); next.onclick = step(() => at + 1, next, prev); }
   dlg.querySelector("#pvClose").onclick = () => dlg.close();
   dlg.addEventListener("close", () => {
+    dlg.onGone?.();
     dlg.remove();
     const back = opener && opener.isConnected ? opener : refocus && refocus(at);
     if (back) back.focus();
@@ -188,7 +219,7 @@ function showFilledPage(pdf, n, opener, focusId = null) {
       dlg.querySelector("#pvClose").focus(); // what was focused is gone
       return;
     }
-    pdfjsLib.getDocument({ data: pdfState.result.all.slice() }).promise.then(doc => { showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
+    openPdf(pdfState.result.all).then(doc => { showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
       .catch(e => { console.error(e); dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but this page couldn't be shown again. Close it to see your form.</p>`; dlg.querySelector("#pvClose").focus(); });
   };
   const dlg = showPageLarge({
@@ -217,6 +248,9 @@ function showFilledPage(pdf, n, opener, focusId = null) {
   });
   // While the page is being made again with a change, its answers can't be tapped: the page is about to be replaced.
   const hold = () => dlg.querySelectorAll(".pvspot").forEach(b => { b.disabled = true; });
+  // This page holds its PDF open until it closes or another page replaces it.
+  holdPdf(pdf, dlg);
+  dlg.onGone = () => letGoPdf(pdf, dlg);
   // Closing the page, or Back, closes a box on it as Cancel would.
   dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") dropInline(); });
   dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit")) { e.preventDefault(); closePdfEdit(dlg); } });
@@ -277,7 +311,8 @@ function closePdfEdit(dlg) {
 }
 
 async function renderPreview(bytes, el) {
-  const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  const pdf = await previewDoc(bytes, el);
+  if (!pdf) return; // the user moved on
   for (let i = 1; i <= pdf.numPages; i++) {
     if (!el.isConnected) return; // the user moved on
     const page = await pdf.getPage(i);
@@ -298,7 +333,8 @@ async function renderPreview(bytes, el) {
     const above = getComputedStyle(el).overflowAnchor !== "auto" && el.getBoundingClientRect().bottom <= 0, before = el.offsetHeight;
     el.appendChild(fig);
     if (above) window.scrollBy(0, el.offsetHeight - before);
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    try { await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise; }
+    catch (e) { if (el.isConnected) throw e; return; } // a newer form replaced this preview, and its PDF was closed
   }
 }
 
