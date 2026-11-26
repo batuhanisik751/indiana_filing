@@ -255,7 +255,7 @@ async function buildPdf(key, a) {
   // Where each answer prints, so it can be tapped on a page of the filled form to change it (item 17):
   // { step, label, page (of the packet), rect: [x1, y1, x2, y2] } in PDF points. Not a total worked out from others.
   const spots = [];
-  const spotAt = (item, page, rect) => { if (page >= 0 && item.step && !item.from) spots.push({ step: item.step, label: item.label, page, rect }); };
+  const spotAt = (item, page, rect) => { if (page >= 0 && item.step && !item.from) spots.push({ step: item.noteStep || item.step, label: item.label, page, rect }); };
   const widgetRect = w => { const r = w.getRectangle(); return [r.x, r.y, r.x + r.width, r.y + r.height]; };
   const blankWidgets = []; // boxes whose text is drawn on their rule instead
   const srcPages = src.getPages();
@@ -276,7 +276,7 @@ async function buildPdf(key, a) {
   }
 
   for (const item of sit.fields(a)) {
-    const safe = makeSafe(font, item.quietChars ? () => {} : (ch, out) => notes.push({ kind: "chars", step: item.step, label: item.label, ch, out }));
+    const safe = makeSafe(font, item.quietChars ? () => {} : (ch, out) => notes.push({ kind: "chars", step: item.noteStep || item.step, label: item.label, ch, out }));
     for (const op of item.pdf) {
       if (op.t === "text") {
         const tf = form.getTextField(op.name);
@@ -322,8 +322,8 @@ async function buildPdf(key, a) {
         if (widgets.length === 1 && tf.isMultiline() && !fits[0].drawn)
           tf.setText(wrap(fitsBoxes, font, fits[0].size, innerWidth(widgets[0].getRectangle())).join("\n"));
         else if (fitsBoxes !== value) tf.setText(fitsBoxes);
-        if (real.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.step, label: item.label });
-        else if (real.length && Math.min(...real.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: Math.min(...real.map(x => x.size)) });
+        if (real.some(x => x.overflow)) notes.push({ kind: "overflow", step: item.noteStep || item.step, label: item.label });
+        else if (real.length && Math.min(...real.map(x => x.size)) < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.noteStep || item.step, label: item.label, size: Math.min(...real.map(x => x.size)) });
       } else if (op.t === "radio") {
         const group = form.getRadioGroup(op.name);
         group.select(op.option);
@@ -361,8 +361,8 @@ async function buildPdf(key, a) {
       while (op.w && size > 6 && font.widthOfTextAtSize(value, size) > op.w) size -= 0.5;
       pages[op.page].drawText(value, { x: op.x, y: op.y, size, font });
       spotAt(item, op.page, [op.x - 1, op.y - 3, op.x + Math.max(8, font.widthOfTextAtSize(value, size)) + 1, op.y + size + 1]);
-      if (op.w && font.widthOfTextAtSize(value, size) > op.w) notes.push({ kind: "overflow", step: item.step, label: item.label });
-      else if (size < 7.5) notes.push({ kind: "small", step: item.step, label: item.label, size });
+      if (op.w && font.widthOfTextAtSize(value, size) > op.w) notes.push({ kind: "overflow", step: item.noteStep || item.step, label: item.label });
+      else if (size < 7.5) notes.push({ kind: "small", step: item.noteStep || item.step, label: item.label, size });
       continue;
     }
     let fit = fitLines(value, font, op);
@@ -375,7 +375,7 @@ async function buildPdf(key, a) {
       // The rest of the answer, exactly as typed (line breaks kept).
       const rest = value.slice(all.ends[keep - 1]).replace(/^[ \t]+/, "").replace(/^\r?\n/, "");
       (continuations[doc] = continuations[doc] || []).push({ label: op.continues, text: rest });
-      notes.push({ kind: "continued", step: item.step, label: item.label, doc: off.docs[doc].name });
+      notes.push({ kind: "continued", step: item.noteStep || item.step, label: item.label, doc: off.docs[doc].name });
     }
     const ys = fit.ys || op.ys;
     fit.lines.forEach((line, i) => {
@@ -387,8 +387,8 @@ async function buildPdf(key, a) {
       const used = ys.slice(0, fit.lines.length), left = Math.min(...fit.lines.map((_, i) => lineX0(op, i)));
       spotAt(item, op.page, [left, Math.min(...used) - 1, op.x1, Math.max(...used) + 2.5 + fit.size + 1]);
     }
-    if (fit.overflow) notes.push({ kind: "overflow", step: item.step, label: item.label });
-    else if (fit.size < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.step, label: item.label, size: fit.size });
+    if (fit.overflow) notes.push({ kind: "overflow", step: item.noteStep || item.step, label: item.label });
+    else if (fit.size < (op.smallOk || 7.5)) notes.push({ kind: "small", step: item.noteStep || item.step, label: item.label, size: fit.size });
   }
 
   cleanUpAfterFlatten(src);

@@ -1087,3 +1087,13 @@ describe("BT99. Characters the font lacks print as their plain form, or \"?\", n
     assert.match(why, /and \d+ more/);
   });
 });
+
+describe("BT100. The flag for a signature too small or too long opens the name", () => {
+  test("fee waiver, e-file, a 71-character name: the signature flag's Fix is the name", async () => {
+    await inject(p, "feewaiver", { fileMethod: "efile", name: "Maximiliana Alexandrovna Konstantinopoulou-Vanderbilt-Rothschild Jr." });
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    const sig = await p.evaluate(() => pdfFlags().filter(f => /^Signature/.test(f.title)).map(f => f.fix));
+    assert.ok(sig.length, "flagged");
+    assert.deepEqual([...new Set(sig)], ["name"]);
+  });
+});

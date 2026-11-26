@@ -115,7 +115,8 @@ function signatureFields(a, key) {
   // Characters the font can't print are already flagged on your name, so not again here.
   return [{ ...f(FORM.sign, `Signature${lines.length > 1 ? ` (${lines.length} lines)` : ""}`,
     efile ? (empty(a.name) ? "" : `/s/ ${signedName(a.name)}`) : a.fileMethod === "paper" ? "Left blank. Sign by hand after you print." : "",
-    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${signedName(a.name)}` })) : []), quietChars: true }];
+    "fileMethod", efile && !empty(a.name) ? lines.map(s => ({ t: "lines", page: s.page, x0: s.x - 2, x1: s.x + s.w + 2, ys: [s.y - 2.5], layouts: SIGN_LAYOUTS, value: `/s/ ${signedName(a.name)}` })) : []), quietChars: true,
+    noteStep: "name" }]; // a signature too long or too small is the name's length: its flag's Fix opens the name (BT100)
 }
 
 // To the cent, half a cent up, so the total matches adding up the printed lines.
