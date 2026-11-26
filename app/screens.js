@@ -296,11 +296,13 @@ function renderStep() {
   // Without moving the page: on a small screen, scrolling to the box would hide the question itself.
   // With bigger text, a new question starts just past the header, so the question is what's on screen.
   // Safari scrolls a focused choice into view in the next frame all the same, so the place is set again then.
+  // That place is where the page was put last: below, it's moved to a selected part of the answer (BT59).
   const el = app.querySelector("input[name=ans]:checked") || app.querySelector("#ans, input[name=ans]");
+  let placed = 0;
   if (el) {
-    const y = look.size ? Math.max(0, app.getBoundingClientRect().top + window.scrollY - 8) : 0;
-    el.focus({ preventScroll: true }); window.scrollTo(0, y);
-    requestAnimationFrame(() => { if (document.activeElement === el && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y); });
+    placed = look.size ? Math.max(0, app.getBoundingClientRect().top + window.scrollY - 8) : 0;
+    el.focus({ preventScroll: true }); window.scrollTo(0, placed);
+    requestAnimationFrame(() => { if (document.activeElement === el && Math.abs(window.scrollY - placed) > 1) window.scrollTo(0, placed); });
   }
   // Opened from a flag about part of this answer: that part is selected, so it's easy to find and change.
   const hit = selectOnOpen && selectOnOpen.id === step.id && el && el.id === "ans" && typeof el.setSelectionRange === "function" ? selectOnOpen.spans[0] : null;
@@ -314,6 +316,7 @@ function renderStep() {
     scrollToSelection(el);
     const note = document.getElementById("hitnote").getBoundingClientRect();
     if (note.bottom > window.innerHeight) window.scrollBy(0, Math.min(note.bottom - window.innerHeight + 8, el.getBoundingClientRect().top - 8));
+    placed = window.scrollY;
     announce("The part the flag is about is selected.");
   }
   document.getElementById("back").onclick = () => {

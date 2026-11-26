@@ -1,7 +1,7 @@
 // Fixes from the second break-test, of the features added after looking at other teams' projects (BT23 on).
 import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editAnswer } from "../lib.mjs";
+import { fresh, close, inject, editAnswer, settle } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -133,6 +133,7 @@ describe("BT27: the selected part is in sight", () => {
       await size(n);
       await inject(p, "respond", { defenses: lines(31, 30) });
       await fixPrivate("defenses");
+      await settle(p); // and still in sight a frame later (BT59)
       assert.equal(await onScreen(), true, `size ${n}`);
       assert.equal(await lineShown(30), true, `size ${n}`);
     }

@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, SAVED } from "../lib.mjs";
+import { fresh, close, inject, editHere, settle, SAVED } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -276,6 +276,28 @@ describe("BT58. Showing the filled form's pages doesn't keep using more memory",
     await q.waitForFunction(() => !document.querySelector("dialog.pageview"));
     await q.waitForFunction(() => pdfHolders.size <= 1, null, { timeout: 5000 }).catch(() => {});
     assert.ok(await open(q) <= 1, `after Close: ${await open(q)}`);
+    await q.context().close();
+  });
+});
+
+describe("BT59. \"Fix\" on a flagged part keeps the selected part in sight after the page settles", () => {
+  const PW = "my portal password is Tr0ub4dor&3";
+  const long = Array.from({ length: 30 }, (_, i) => `Line ${i + 1} of what happened.`).concat(PW).join("\n");
+  // The selected text's line is in the box's view, and the box and its note are on the screen.
+  const inSight = q => q.evaluate(() => {
+    const el = document.getElementById("ans"), box = el.getBoundingClientRect(), note = document.getElementById("hitnote").getBoundingClientRect();
+    const cs = getComputedStyle(el), lh = (el.scrollHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / el.value.split("\n").length;
+    const line = el.value.slice(0, el.selectionStart).split("\n").length - 1, top = parseFloat(cs.paddingTop) + line * lh;
+    return box.top >= 0 && note.bottom <= window.innerHeight && top >= el.scrollTop - 1 && top + lh <= el.scrollTop + el.clientHeight + 1;
+  });
+  for (const [what, w, h, size] of [["360x640 at 150%", 360, 640, 2], ["a landscape phone", 740, 360, 0]]) test(what, async () => {
+    const q = await fresh({ viewport: { width: w, height: h } });
+    await q.evaluate(n => { look.size = n; applyDisplay(); }, size);
+    await inject(q, "respond", { defenses: long });
+    await q.click('ul.flags button[data-fix="defenses"][data-hit]');
+    await settle(q); await settle(q);
+    assert.equal(await q.evaluate(() => { const el = document.getElementById("ans"); return el.value.slice(el.selectionStart, el.selectionEnd).length > 0; }), true);
+    assert.equal(await inSight(q), true);
     await q.context().close();
   });
 });
