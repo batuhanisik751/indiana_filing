@@ -744,3 +744,18 @@ describe("BT78. A keyboard can scroll a page shown large that has nothing on it 
     await q.context().close();
   });
 });
+
+describe("BT79. Turning the phone or zooming keeps an open box on a page shown large on the screen", () => {
+  test("opened sideways at 844x390, then turned upright: the box is within the screen's width, near its answer", async () => {
+    const q = await fresh({ viewport: { width: 844, height: 390 } });
+    await inject(q, "respond");
+    await openPage(q, 1);
+    await tap(q, "address");
+    await q.setViewportSize({ width: 390, height: 844 });
+    await q.waitForTimeout(300);
+    const [box, spot] = await q.evaluate(() => [document.getElementById("pvEdit"), document.querySelector(".pvspot.on")].map(e => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
+    assert.ok(box.left >= 0 && box.right <= 390, JSON.stringify(box));
+    assert.ok(Math.abs(box.top - spot.bottom) < 40 || Math.abs(spot.top - box.bottom) < 40, `${JSON.stringify(box)} ${JSON.stringify(spot)}`);
+    await q.context().close();
+  });
+});

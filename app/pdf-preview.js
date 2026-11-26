@@ -269,11 +269,18 @@ function openPdfEdit(dlg, page, spot, button, onSaved) {
       ${typed ? inlineBoxHtml(step, spot.label) : `<p class="need">This is a choice, so it's changed on its question.</p>
       <div class="ienav"><button class="primary small" id="ieFull">Open the question</button><button class="ghost small" id="ieCancel">Cancel</button></div>`}
     </div>`);
-  const box = page.querySelector("#pvEdit"), W = page.clientWidth, H = page.clientHeight;
-  const r = button.getBoundingClientRect(), p = page.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
-  const below = r.bottom - p.top + 6, above = r.top - p.top - bh - 6;
-  box.style.left = `${Math.max(0, Math.min(r.left - p.left, W - bw))}px`;
-  box.style.top = `${below + bh <= H || above < 0 ? below : above}px`;
+  const box = page.querySelector("#pvEdit");
+  // Under the answer (or above it, near the bottom of the page), inside the page. Placed again when the screen changes
+  // size, as when a phone is turned or the page is zoomed (BT79).
+  const place = () => {
+    if (!box.isConnected) return;
+    const W = page.clientWidth, H = page.clientHeight, r = button.getBoundingClientRect(), p = page.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+    const below = r.bottom - p.top + 6, above = r.top - p.top - bh - 6;
+    box.style.left = `${Math.max(0, Math.min(r.left - p.left, W - bw))}px`;
+    box.style.top = `${below + bh <= H || above < 0 ? below : above}px`;
+  };
+  place();
+  window.addEventListener("resize", () => { place(); if (box.isConnected && box.contains(document.activeElement)) box.scrollIntoView({ block: "nearest" }); });
   wireInline(box);
   box.scrollIntoView({ block: "nearest" });
   (box.querySelector("#inEdit") || box.querySelector("#ieFull")).focus({ preventScroll: true });
