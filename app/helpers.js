@@ -110,12 +110,22 @@ document.addEventListener("pointerover", e => {
   clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => { if (d.isConnected && !d.open && d.matches(":hover")) { d.dataset.hovered = "1"; d.open = true; } }, 350);
 });
+// Moving away upward closes it again. Moving down or to the side, toward the answers below it, keeps it open: closing it
+// then would move everything below up as the click lands, so the wrong answer was chosen (BT68).
 document.addEventListener("pointerout", e => {
   const d = e.target.closest && e.target.closest("details.more");
   if (!d || d.contains(e.relatedTarget)) return;
   clearTimeout(hoverTimer);
-  if (d.dataset.hovered && !d.contains(document.activeElement)) d.open = false;
+  if (d.dataset.hovered && !d.contains(document.activeElement) && e.clientY < d.getBoundingClientRect().top + 2) d.open = false;
   delete d.dataset.hovered;
+});
+// Escape closes a "More" the pointer or focus is in, as it does other things that open (BT68).
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || e.defaultPrevented || e.isComposing) return;
+  const d = (document.activeElement?.closest && document.activeElement.closest("details.more[open]")) || [...document.querySelectorAll("details.more[open]")].find(x => x.matches(":hover"));
+  if (!d || d.closest("dialog")) return;
+  d.open = false; delete d.dataset.hovered;
+  if (d.contains(document.activeElement) && document.activeElement !== d.querySelector("summary")) d.querySelector("summary").focus();
 });
 document.addEventListener("click", e => {
   const d = e.target.closest && e.target.closest("details.more > summary")?.parentElement;

@@ -640,3 +640,36 @@ describe("BT67. A quick double tap on Continue on a touch screen doesn't skip or
     await q.context().close();
   });
 });
+
+describe("BT68. With a mouse, a \"More\" opened by resting on it doesn't close and move the answers as the pointer goes down", () => {
+  test("continuance, court type: rest on More, then click Superior Court where it is: Superior Court is chosen", async () => {
+    const q = await fresh({ viewport: { width: 1280, height: 900 } });
+    await inject(q, "continuance", { caseConfirm: "" });
+    await q.evaluate(() => { cur = visible().findIndex(s => s.id === "courtType"); mode = "step"; returnToSummary = false; render(); });
+    const more = q.locator("details.more:not(.nohover) > summary").first();
+    assert.ok(await more.count(), "the question has a More");
+    const m = await more.boundingBox();
+    await q.mouse.move(m.x + 10, m.y + m.height / 2);
+    await q.waitForTimeout(600);
+    assert.equal(await q.$eval("details.more:not(.nohover)", d => d.open), true, "it opened on resting");
+    const target = await q.locator('input[name=ans][value="SUPERIOR"]').locator("xpath=..").boundingBox();
+    await q.mouse.move(target.x + 20, target.y + target.height / 2, { steps: 8 });
+    await q.mouse.down(); await q.mouse.up();
+    assert.equal(await q.$eval('input[name=ans]:checked', i => i.value), "SUPERIOR");
+    await q.context().close();
+  });
+  test("Escape closes it; moving back up above it closes it too", async () => {
+    const q = await fresh({ viewport: { width: 1280, height: 900 } });
+    await inject(q, "continuance", { caseConfirm: "" });
+    await q.evaluate(() => { cur = visible().findIndex(s => s.id === "courtType"); mode = "step"; returnToSummary = false; render(); });
+    const m = await q.locator("details.more:not(.nohover) > summary").first().boundingBox();
+    await q.mouse.move(m.x + 10, m.y + m.height / 2); await q.waitForTimeout(600);
+    await q.keyboard.press("Escape");
+    assert.equal(await q.$eval("details.more:not(.nohover)", d => d.open), false, "Escape");
+    await q.mouse.move(m.x + 10, m.y + m.height + 200); await q.mouse.move(m.x + 10, m.y + m.height / 2); await q.waitForTimeout(600);
+    assert.equal(await q.$eval("details.more:not(.nohover)", d => d.open), true);
+    await q.mouse.move(m.x + 10, m.y - 40, { steps: 4 });
+    assert.equal(await q.$eval("details.more:not(.nohover)", d => d.open), false, "moved up and away");
+    await q.context().close();
+  });
+});
