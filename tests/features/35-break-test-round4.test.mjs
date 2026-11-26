@@ -1281,3 +1281,24 @@ describe("BT106. Screen readers hear changes on a page shown large, and a PDF er
     await q.context().close();
   });
 });
+
+describe("BT94. Mistakes a clerk would notice are flagged", () => {
+  const titled = async (form, over) => { await inject(p, form, over); return p.evaluate(() => runChecks().map(f => `${f.fix}|${f.why}`)); };
+  test("your own name as the plaintiff, or as someone sent a copy; the same person twice; this case's number as related", async () => {
+    let f = await titled("respond", { plaintiff: "Pat Example" });
+    assert.ok(f.some(x => /^plaintiff\|This is your own name/.test(x)));
+    f = await titled("respond", { svc1Name: "Acme Credit LLC", svcMore1: "yes", svc2Name: "acme credit llc", svc2Address: "2 Oak St, Fort Wayne, IN 46802", svc2Method: "First Class U.S. mail", svcMore2: "no" });
+    assert.ok(f.some(x => /^svc2Name\|This person is listed twice/.test(x)));
+    f = await titled("appearance", { related: "yes", relatedNumbers: "02D01-2611-CC-001234" });
+    assert.ok(f.some(x => /^relatedNumbers\|This is this case's own number/.test(x)));
+  });
+  test("a court date on a Sunday or December 25 is flagged; a weekday isn't", async () => {
+    const day = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const next = await p.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 10); while (d.getDay() !== 0) d.setDate(d.getDate() + 1); return dayString(d); });
+    assert.ok((await titled("appearance", { courtDate: next })).some(x => /^courtDate\|.* is a Sunday, when courts are closed/.test(x)));
+    const y = new Date().getFullYear() + 1;
+    assert.ok((await titled("continuance", { hearingDate: day(y, 12, 25) })).some(x => /^hearingDate\|.* is December 25/.test(x)));
+    const weekday = await p.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 10); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return dayString(d); });
+    assert.ok(!(await titled("appearance", { courtDate: weekday })).some(x => /courts are closed/.test(x)));
+  });
+});

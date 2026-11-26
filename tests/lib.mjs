@@ -99,7 +99,8 @@ export async function walk(p, target = "summary", over = {}) {
     if (s.id === target || s.id !== undefined && !s.type) break;
     let v = vals[s.id];
     // The page's own local date, as its date box gives it (not UTC, which is already tomorrow in a US evening).
-    if (s.type === "date") v ??= await p.evaluate(n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }, DAYS_AHEAD[s.id] ?? 0);
+    // A court date never falls on a Sunday or December 25, which the app flags (BT94): it moves on a day.
+    if (s.type === "date") v ??= await p.evaluate(([n, court]) => { const d = new Date(); d.setDate(d.getDate() + n); while (court && (d.getDay() === 0 || (d.getMonth() === 11 && d.getDate() === 25))) d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }, [DAYS_AHEAD[s.id] ?? 0, s.id in DAYS_AHEAD]);
     if (s.type === "checks") { for (const k of String(v ?? "").split(",").filter(Boolean)) await p.locator(`input[name=ans][value="${k}"]`).check({ force: true }); } // left blank: every amount is asked
     else if (s.type === "choice") await p.locator(`input[name=ans][value="${s.options.includes(v) ? v : s.options[0]}"]`).check({ force: true });
     else if (s.type === "select") await p.selectOption("#ans", v && s.options.includes(v) ? v : s.options[0]);
@@ -133,7 +134,9 @@ export async function reset(p) { await p.goto(p.url().startsWith("http://app.tes
 // Date questions not given get a date counted from today, as in walk().
 export const inject = (p, form, answers = {}, unsure = {}) => p.evaluate(([form, answers, unsure, ahead, given]) => {
   for (const s of SITUATIONS[form].steps()) if (s.type === "date" && !given.includes(s.id)) {
-    const d = new Date(); d.setDate(d.getDate() + (ahead[s.id] ?? 0)); answers[s.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; // local, like the date box
+    const d = new Date(); d.setDate(d.getDate() + (ahead[s.id] ?? 0));
+    while (s.id in ahead && (d.getDay() === 0 || (d.getMonth() === 11 && d.getDate() === 25))) d.setDate(d.getDate() + 1); // not a Sunday or December 25 (BT94)
+    answers[s.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; // local, like the date box
   }
   window.__set = { form, answers, unsure };
   // Through eval, because the page's own variables are top-level lets.

@@ -487,6 +487,24 @@ function runChecks() {
   if (notMail)
     flags.push({ level: "check", title: "Certificate of Service wording", why: "The Appearance's Certificate of Service is printed as \"I certify that I mailed a copy.\" You chose another way to send a copy. Read that wording before you sign.", fix: notMail.id });
 
+  // Mistakes a clerk would notice (BT94): your own name as the other side, the same person sent a copy twice, this
+  // case's own number as a related case, and a court date on a Sunday or December 25, when courts are closed.
+  const sameName = (x, y) => !empty(x) && !empty(y) && String(x).trim().toLowerCase().replace(/\s+/g, " ") === String(y).trim().toLowerCase().replace(/\s+/g, " ");
+  for (const id of ["plaintiff", "otherParty", "otherPerson"]) if (has(id) && sameName(a[id], a.name))
+    flags.push({ level: "check", title: vis.find(s => s.id === id).label, fix: id, why: "This is your own name. It should be the other side in the case: the person or company on the other side of the \"v.\" on your papers." });
+  const sent = vis.filter(s => /^svc\dName$/.test(s.id) && !empty(a[s.id]));
+  sent.forEach((s, i) => {
+    if (sameName(a[s.id], a.name)) flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, fix: s.id, why: "This is your own name. The Certificate of Service lists the people you send a copy to." });
+    else if (sent.slice(0, i).some(t => sameName(a[t.id], a[s.id]))) flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, fix: s.id, why: "This person is listed twice. Each person you send a copy to is listed once." });
+  });
+  const ownCase = caseMatch(a.caseNumber) ? a.caseNumber.trim().toUpperCase() : "";
+  if (ownCase) vis.filter(s => /^rel\dNumber$|^relatedNumbers$/.test(s.id) && String(a[s.id] ?? "").toUpperCase().includes(ownCase)).forEach(s =>
+    flags.push({ level: "check", title: s.label, fix: s.id, why: "This is this case's own number. A related case is a different case, with its own number." }));
+  for (const id of ["courtDate", "hearingDate"]) if (has(id) && isDay(a[id])) {
+    const d = new Date(`${a[id]}T12:00:00`), xmas = a[id].slice(5) === "12-25";
+    if (d.getDay() === 0 || xmas) flags.push({ level: "check", title: vis.find(s => s.id === id).label, fix: id, why: `${formDate(a[id])} is ${xmas ? "December 25" : "a Sunday"}, when courts are closed. Check the date on your papers.` });
+  }
+
   if (sitKey === "continuance") {
     // Item 4 asks for a number of days or weeks. A date, a bare number, or words with no amount of time get a flag (BT75).
     const need = String(a.timeNeeded ?? "").trim();
