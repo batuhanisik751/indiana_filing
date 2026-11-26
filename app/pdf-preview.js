@@ -138,7 +138,7 @@ function showPageLarge({ count = 1, at = 1, titleFor, render, opener, refocus, s
   const dlg = document.createElement("dialog");
   dlg.className = "pageview";
   dlg.setAttribute("aria-labelledby", "pvTitle");
-  dlg.innerHTML = `<div class="pvbar"><h2 class="sub" id="pvTitle"></h2><span class="pvnav">${count > 1 ? `<button class="ghost small" id="pvPrev">Previous page</button><button class="ghost small" id="pvNext">Next page</button>` : ""}<button class="primary small" id="pvClose">Close</button></span></div><div class="pvbody" tabindex="0" role="region" aria-labelledby="pvTitle"></div>`;
+  dlg.innerHTML = `<div class="pvbar"><h2 class="sub" id="pvTitle"></h2><span class="pvnav">${count > 1 ? `<button class="ghost small" id="pvPrev">Previous page</button><button class="ghost small" id="pvNext">Next page</button>` : ""}<button class="primary small" id="pvClose">Close</button></span></div><div class="pvbody" tabindex="0" role="region" aria-labelledby="pvTitle"></div><p class="sr-only pvannounce" role="status" aria-live="polite"></p>`;
   document.body.appendChild(dlg);
   const body = dlg.querySelector(".pvbody"), prev = dlg.querySelector("#pvPrev"), next = dlg.querySelector("#pvNext");
   let token = 0;
@@ -361,7 +361,9 @@ function downloadPdf(bytes, name) {
 
 function pdfSectionHtml(sit) {
   if (pdfState.busy || !pdfState.key) return `<p class="note" id="pdfStatus" tabindex="-1">${pdfSlow ? `Filling in the official form is taking longer than usual, so the connection may be slow.${pendingLoads.size ? ` You can keep waiting, or <button class="link" id="stopPdf">stop and try again</button>.` : ""}` : "Filling in the official form…"}</p>`;
-  if (pdfState.error) return `<div class="note" role="alert">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
+  // Not an alert: the summary is drawn again often, and each time would say it again. It's announced once, when the
+  // form fails (BT106).
+  if (pdfState.error) return `<div class="note">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
     <p class="need unsaved" hidden></p>

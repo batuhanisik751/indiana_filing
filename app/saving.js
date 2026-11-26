@@ -59,7 +59,8 @@ let announceTimer = null;
 let gonePageNote = "";
 function tellGone(msg) { gonePageNote = msg; if (mode === "pick") renderPick(); announce(msg); }
 function announce(msg) {
-  const el = document.getElementById("announce");
+  // While a page is shown large, the page behind it is out of reach for screen readers, so it's said in the page (BT106).
+  const el = document.querySelector("dialog.pageview[open] .pvannounce") || document.getElementById("announce");
   if (!el) return;
   el.textContent = "";
   // Two at once would talk over each other. The last one is what's true now.

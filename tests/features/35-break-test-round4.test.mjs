@@ -1254,3 +1254,30 @@ describe("BT105. Small phone and first-screen points", () => {
     await q.context().close();
   });
 });
+
+describe("BT106. Screen readers hear changes on a page shown large, and a PDF error once", () => {
+  test("a change saved on a page shown large is announced inside the page", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await openPage(q, 1);
+    await tap(q, "plaintiff");
+    await q.fill("#inEdit", "Acme Credit Holdings LLC");
+    await q.keyboard.press("Enter");
+    await q.waitForFunction(() => /The page shows your change/.test(document.querySelector("dialog.pageview[open] .pvannounce")?.textContent || ""), null, { timeout: 120000 });
+    await q.context().close();
+  });
+  test("when the PDF can't be made, it's said once, not again with every redraw", async () => {
+    const q = await fresh();
+    q.allowErrors = true; // the failed build is reported in the console on purpose
+    await q.evaluate(() => { window.__said = []; new MutationObserver(() => __said.push(document.getElementById("announce").textContent)).observe(document.getElementById("announce"), { childList: true, characterData: true, subtree: true }); });
+    await q.evaluate(() => globalThis.eval("buildPdf = async () => { throw new Error('test'); }"));
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.error && !pdfState.busy, null, { timeout: 60000 });
+    await editHere(q, "plaintiff"); await q.click("#ieCancel");
+    await editHere(q, "email"); await q.click("#ieCancel");
+    await q.waitForTimeout(300);
+    assert.equal(await q.locator("#app [role=alert]").count(), 0, "no alert drawn again");
+    assert.equal(await q.evaluate(() => __said.filter(t => /couldn't make/.test(t)).length), 1);
+    await q.context().close();
+  });
+});
