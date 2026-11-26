@@ -1,6 +1,6 @@
 # How well the checks do on a fixed test set
 
-Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-19, at commit 054a7d0.
+Item 18 on the MVP list. Made by `npm run quality` in `tests/` on 2026-11-26, at commit 29790cf.
 
 The test set is in [cases.mjs](cases.mjs): 117 filled-in forms. 74 have one planted mistake each, the kind a careful reader would flag. 43 have only correct answers that look a little like mistakes, like a PO box, a phone number written with dots, or a nine-digit invoice number. Each case starts from the same sample answers, which get no flags on their own.
 
@@ -36,9 +36,7 @@ Nothing missed.
 
 None.
 
-On cases with a planted mistake, 1 also got a flag on another, correct answer:
-
-- Dates, signing year typed as 2062: "Certificate of Service: Date of service (person 1)" (Check)
+No case with a planted mistake got a flag on another, correct answer.
 
 ## What these numbers don't say
 

@@ -244,7 +244,8 @@ const listsParagraphs = (s, a) => !empty(a[s.id]) && !notAnAnswer(s, a[s.id]) &&
 // What's wrong with the shape of a typed U.S. phone or fax number, if anything: "impossible", "foreign", "letters" or "short".
 // Words around a good number, like "(cell)", and an extension are fine.
 function phoneShape(v) {
-  const raw = String(v ?? "");
+  // A time after the number, as in "260-555-0100 after 5pm", isn't part of it (BT97).
+  const raw = String(v ?? "").replace(/\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?![a-z])/gi, " ");
   if (raw.length > 100) return "short";
   // An extension comes after a number. Before one, "Cell #" or "Ex:" is a label, and the digits are the number itself.
   const t = raw.trim().replace(/^[a-z]+\s*#?\s*\d\s*:?\s+(?=\(?\d{3})/i, "").replace(/(^|[^a-z])(?:extension|ext|ex|x)[.:#\s]*\d{1,6}\)?/gi, (m, pre, at, all) => (/\d/.test(all.slice(0, at) + pre) ? pre : m))

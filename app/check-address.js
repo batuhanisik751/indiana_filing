@@ -59,7 +59,8 @@ function addressGaps(text) {
   const none = { missing: [], note: "" }, raw = String(text ?? "");
   if (raw.length > 1000) return none; // far too long to be an address, and it has its own flag
   const lines = raw.split(/\n+/).map(x => x.trim().replace(/,$/, "")).filter(Boolean).join(", ").replace(/\s+/g, " ");
-  let s = trimEnd(lines).replace(/[,\s]*\b(?:usa|u\.s\.a|united states(?: of america)?)$/i, "");
+  // "IN ZIP 46401": the word ZIP (or "zip code") between the state and the number is left out (BT97).
+  let s = trimEnd(lines).replace(/[,\s]*\b(?:usa|u\.s\.a|united states(?: of america)?)$/i, "").replace(/\s*\bzip(?:\s*code)?\s*:?\s*(?=\d{5})/gi, " ");
   s = trimEnd(s);
   if (!s || startsNo(s) || SAYS_NONE.test(s) || /(?:^|,\s*)(?:canada|mexico)$/i.test(s)) return none;
   if (/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(s)) return { missing: [], note: "This looks like an email address, not a mailing address." };

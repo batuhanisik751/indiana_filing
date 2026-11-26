@@ -1302,3 +1302,27 @@ describe("BT94. Mistakes a clerk would notice are flagged", () => {
     assert.ok(!(await titled("appearance", { courtDate: weekday })).some(x => /courts are closed/.test(x)));
   });
 });
+
+describe("BT97. Small wrong or repeated check messages", () => {
+  const fl = async (form, over) => { await inject(p, form, over); return p.evaluate(() => runChecks().map(f => `${f.fix}|${f.why}`)); };
+  test("a mistyped signing year gets one flag, not three", async () => {
+    const y = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear() + 10}-06-15`; });
+    const f = (await fl("continuance", { signDate: y })).filter(x => /^(signDate|svc\dDate)\|/.test(x));
+    assert.deepEqual(f.map(x => x.split("|")[0]), ["signDate"], f.join(" || "));
+  });
+  test("no address and no email: one flag on where court papers go that says what to do", async () => {
+    for (const receiveAt of ["Choice1", "Choice2"]) {
+      const f = (await fl("appearance", { address: "No fixed address", email: "None", receiveAt })).filter(x => /^receiveAt\|/.test(x));
+      assert.equal(f.length, 1, f.join(" || "));
+      assert.match(f[0], /no way to send you papers\. Ask the clerk's office/);
+    }
+  });
+  test("\"260-555-0100 after 5pm\" is a whole number; \"Gary, IN ZIP 46401\" has its state", async () => {
+    assert.ok(!(await fl("appearance", { phone: "260-555-0100 after 5pm" })).some(x => /^phone\|/.test(x)));
+    assert.ok(!(await fl("appearance", { address: "1 Main St, Gary, IN ZIP 46401" })).some(x => /^address\|.*missing the state/.test(x)));
+  });
+  test("a date exactly 180 days back, across a clock change, isn't called more than 180", async () => {
+    const back = await p.evaluate(() => { const d = new Date(`${todayDay()}T12:00:00`); d.setDate(d.getDate() - 180); return dayString(d); });
+    assert.ok(!(await fl("continuance", { spokeDate: back })).some(x => /more than 180 days/.test(x)));
+  });
+});

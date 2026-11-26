@@ -460,18 +460,26 @@ function runChecks() {
     flags.push({ level: "check", title: "Case type", fix: "fwCaseType", link: RULE8, why: "The form asks for the two-letter case type from Administrative Rule 8, like PL or CT. If you don't know it, the official instructions say to leave it blank." });
 
   // A date this far off is usually a mistyped year. It prints as typed. A hearing that has passed has its own flag.
-  const daysOff = v => (new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5;
+  // Whole days: across a clock change, noon to noon is a day and an hour, and 180 days read as more than 180 (BT97).
+  const daysOff = v => Math.round((new Date(`${v}T12:00:00`) - new Date(`${todayDay()}T12:00:00`)) / 864e5);
+  // A date already flagged as a likely mistyped year isn't flagged again against the other dates (BT97).
+  const yearOff = id => isDay(a[id]) && /^(?:signDate|spokeDate|svc\dDate)$/.test(id) && Math.abs(daysOff(a[id])) > 180;
   vis.filter(s => isDay(a[s.id]) && ((/^(?:signDate|spokeDate|svc\dDate)$/.test(s.id) && Math.abs(daysOff(a[s.id])) > 180) || ((s.id === "hearingDate" || s.id === "courtDate") && daysOff(a[s.id]) > FAR_HEARING_DAYS))).forEach(s =>
     flags.push({ level: "check", title: s.service ? `Certificate of Service: ${s.label}` : s.label, fix: s.id, why: `${formDate(a[s.id])} is more than ${s.id === "hearingDate" || s.id === "courtDate" ? "a year" : "180 days"} from today. Check the year.` }));
   if (isDay(a.spokeDate) && has("spokeDate") && daysOff(a.spokeDate) > 0 && daysOff(a.spokeDate) <= 180)
     flags.push({ level: "check", title: "Date you spoke to the other party", fix: "spokeDate", why: `${formDate(a.spokeDate)} is in the future, but item 6 of this sworn form says this conversation already happened. Check the date.` });
 
   // The Appearance's certificate is pre-printed "I certify that I mailed a copy".
-  if (a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
+  // No address and no email: every choice of where court papers go would be flagged, so one flag says what to do (BT97).
+  const noEmail = empty(a.email) || NO_WORDS.test(a.email.trim()) || SAYS_NONE.test(a.email.trim());
+  const noPapers = has("receiveAt") && a.acp !== "yes" && startsNo(a.address) && noEmail;
+  if (noPapers)
+    flags.push({ level: "check", title: "Where you want court papers", fix: "receiveAt", why: "You've said you have no mailing address and no email address, so the court has no way to send you papers. Ask the clerk's office how you can get them, and add an address or email if you can." });
+  if (!noPapers && a.receiveAt === "Choice2" && (empty(a.email) || NO_WORDS.test(a.email.trim())))
     flags.push({ level: "check", title: "Where you want court papers", why: "You chose to receive court papers at your email address, but no email address is entered.", fix: "receiveAt" });
   // It quotes the address, unless the privacy check flags it: then only the word it starts with, since no flag repeats
   // what that check found.
-  if (a.receiveAt === "Choice1" && a.acp !== "yes" && startsNo(a.address)) {
+  if (!noPapers && a.receiveAt === "Choice1" && a.acp !== "yes" && startsNo(a.address)) {
     const typed = String(a.address).trim();
     flags.push({ level: "check", title: "Where you want court papers", fix: "receiveAt",
       why: `You chose to receive court papers at your street address, but ${privateKind(typed, true) ? `your address starts with "${typed.match(/^\S+?(?=[\s,.;:!]|$)/)[0]}"` : `you typed "${typed}" as your address`}.` });
@@ -556,12 +564,12 @@ function runChecks() {
     const limit = dateLimit(s, a);
     const title = s.service ? `Certificate of Service: ${s.label}` : s.label;
     if (s.type === "date" && !empty(a[s.id]) && !isDay(a[s.id])) flags.push({ level: "check", title, why: "This date doesn't look right. Check the year.", fix: s.id });
-    else if (pastLimit(a[s.id], limit)) flags.push({ level: "check", title,
+    else if (pastLimit(a[s.id], limit) && !yearOff(s.id)) flags.push({ level: "check", title,
       why: `${formDate(a[s.id])} is after your ${limit.name} (${formDate(limit.date)}). Change whichever one is wrong.`, fix: s.id });
   });
 
   // The Certificate of Service says a copy was sent on its date, so a date before the form is signed is worth a look.
-  if (isDay(a.signDate)) vis.filter(s => /^svc\dDate$/.test(s.id) && isDay(a[s.id]) && a[s.id] < a.signDate).forEach(s =>
+  if (isDay(a.signDate) && !yearOff("signDate")) vis.filter(s => /^svc\dDate$/.test(s.id) && isDay(a[s.id]) && a[s.id] < a.signDate && !yearOff(s.id)).forEach(s =>
     flags.push({ level: "check", title: `Certificate of Service: ${s.label}`, fix: s.id,
       why: `${formDate(a[s.id])} is before the date you'll sign the form (${formDate(a.signDate)}). The certificate says a copy was sent on this date. Check both dates.` }));
 
