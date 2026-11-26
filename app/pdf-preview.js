@@ -37,34 +37,11 @@ function ensurePdf() {
   })();
 }
 
-// A finger or mouse button down: a redraw now would replace what it's pressing. (Up counts after its click is handled.)
-let pointerDown = false;
-document.addEventListener("pointerdown", () => { pointerDown = true; }, true);
-for (const t of ["pointerup", "pointercancel"]) document.addEventListener(t, () => setTimeout(() => { pointerDown = false; }), true);
 // Re-drawing the summary replaces its buttons; put focus back on the same one.
 // The page also keeps its place: the focused element (or the edited row) stays
 // where it was on screen, even though the PDF section above it has grown.
 function keepFocus(redraw) {
   const el = document.activeElement;
-  // A date being typed in a box on the summary has no value until it's whole (and is "whole" from the first digit of the
-  // year), so drawing the box again would wipe it or break into the year. The summary waits until the date has been
-  // whole for a moment with no key pressed, and no finger or mouse button is down (a redraw then would lose the click).
-  if (el && el.id === "inEdit" && el.type === "date" && (el.validity?.badInput || el.dataset.redrawWaits)) {
-    if (!el.dataset.redrawWaits) {
-      el.dataset.redrawWaits = "1";
-      let timer = 0;
-      const later = () => { clearTimeout(timer); timer = setTimeout(go, 1500); };
-      const stop = () => { clearTimeout(timer); el.removeEventListener("input", later); el.removeEventListener("keydown", later); delete el.dataset.redrawWaits; };
-      const go = () => {
-        if (!el.isConnected || mode !== "summary") return stop(); // closed or saved: drawn again already
-        if (el.validity?.badInput || pointerDown) return later();
-        stop(); keepFocus(() => renderSummary(true));
-      };
-      el.addEventListener("input", later); el.addEventListener("keydown", later);
-      later();
-    }
-    return;
-  }
   let find = null;
   if (el && el !== document.body && app.contains(el)) {
     const attr = el.id ? "id" : ["data-fix", "data-dl", "data-ics", "href"].find(n => el.hasAttribute(n));
@@ -88,8 +65,8 @@ function keepFocus(redraw) {
   // A6: after "Try again", the status note is replaced by the downloads (or the error).
   if (!target && wasPdfNote) target = document.getElementById("dlAll") || document.getElementById("retryPdf");
   if (target) {
-    target.focus({ preventScroll: true });
-    if (sel && typeof target.setSelectionRange === "function") { try { target.setSelectionRange(sel[0], sel[1]); } catch { /* not a text box */ } target.scrollTop = sel[2]; }
+    if (target !== document.activeElement) target.focus({ preventScroll: true }); // focusing a date box again restarts what's typed in it
+    if (sel && target !== el && typeof target.setSelectionRange === "function") { try { target.setSelectionRange(sel[0], sel[1]); } catch { /* not a text box */ } target.scrollTop = sel[2]; }
     if (top !== null) window.scrollBy(0, target.getBoundingClientRect().top - top); else target.scrollIntoView({ block: "center" });
   } else window.scrollTo(0, y);
 }

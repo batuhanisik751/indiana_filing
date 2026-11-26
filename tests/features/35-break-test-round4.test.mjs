@@ -2,7 +2,7 @@
 // important first. BT50's tests are in ../loading.test.mjs.
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fresh, close, inject, editHere, settle, SAVED } from "../lib.mjs";
+import { fresh, close, inject, editHere, settle, SAVED, BROWSER } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -298,6 +298,62 @@ describe("BT59. \"Fix\" on a flagged part keeps the selected part in sight after
     await settle(q); await settle(q);
     assert.equal(await q.evaluate(() => { const el = document.getElementById("ans"); return el.value.slice(el.selectionStart, el.selectionEnd).length > 0; }), true);
     assert.equal(await inSight(q), true);
+    await q.context().close();
+  });
+});
+
+describe("BT60 and BT61. A box on the summary being typed in isn't drawn again; the rest of the summary is", () => {
+  const NO_DATES = { skip: BROWSER === "webkit" && "Playwright's WebKit date box takes no typed dates" };
+  // The filled form is made again slowly, so it finishes while the box is being typed in.
+  const slowBuild = q => q.evaluate(() => { window.__realBuild ||= buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1500)).then(() => window.__realBuild(...a))"); pdfState = { key: null }; ensurePdf(); renderSummary(true); });
+  test("only the year of a whole date retyped, with the summary drawn again halfway: the same box, and the date typed is saved", NO_DATES, async () => {
+    const q = await fresh();
+    await inject(q, "continuance", { hearingDate: "2027-01-15" });
+    await ready(q);
+    await editHere(q, "hearingDate");
+    const box = await q.$("#inEdit");
+    await q.focus("#inEdit");
+    await q.keyboard.press("ArrowRight"); await q.keyboard.press("ArrowRight"); // to the year, whatever the order of the parts
+    await q.keyboard.type("20");
+    await q.evaluate(() => keepFocus(() => renderSummary(true))); // what the filled form finishing does
+    assert.equal(await box.evaluate(b => b.isConnected && document.activeElement === b), true, "the same box, still focused");
+    await q.keyboard.type("28");
+    assert.equal(await q.$eval("#inEdit", b => b.value), "2028-01-15");
+    await q.click("#ieSave");
+    assert.equal(await q.evaluate(() => answers.hearingDate), "2028-01-15");
+    await q.context().close();
+  });
+  test("a date left half typed: the downloads still come up when the form is ready", NO_DATES, async () => {
+    const q = await fresh();
+    await inject(q, "continuance");
+    await ready(q);
+    await slowBuild(q);
+    await editHere(q, "hearingDate");
+    await q.evaluate(() => { document.getElementById("inEdit").value = ""; });
+    await q.focus("#inEdit");
+    await q.keyboard.type("02");
+    await q.waitForFunction(() => !pdfState.busy, null, { timeout: 120000 });
+    await q.waitForSelector("#dlAll", { timeout: 5000 });
+    assert.equal(await q.evaluate(() => [document.activeElement.id, document.getElementById("inEdit").validity.badInput].join()), "inEdit,true");
+    await q.context().close();
+  });
+  test("text being typed: the box, its cursor and its undo stay through a redraw, and the downloads and flags are new", async () => {
+    const q = await fresh();
+    await inject(q, "continuance");
+    await ready(q);
+    await editHere(q, "reason");
+    const box = await q.$("#inEdit");
+    await q.focus("#inEdit");
+    await q.keyboard.press("End");
+    await q.keyboard.type(" Surgery");
+    const status = await q.$(".status");
+    await q.evaluate(() => keepFocus(() => renderSummary(true)));
+    assert.equal(await box.evaluate(b => b.isConnected && document.activeElement === b && b.selectionStart === b.value.length), true);
+    assert.equal(await status.evaluate(s => s.isConnected), false, "the status was drawn again");
+    assert.ok(await q.$("#dlAll"));
+    await q.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
+    assert.equal(await q.$eval("#inEdit", b => b.value.endsWith("Surgery")), false, "undo still works");
+    await q.keyboard.press("Enter").catch(() => {});
     await q.context().close();
   });
 });

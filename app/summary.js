@@ -80,6 +80,38 @@ function inlineBoxHtml(step, label) {
             <div class="ienav"><button class="primary small" id="ieSave">Save</button><button class="ghost small" id="ieCancel">Cancel</button><button class="link" id="ieFull">Open the full question</button></div>
           </div>`;
 }
+// Puts the summary's markup on the page. While a box on it is being typed in, the box isn't drawn again: everything
+// around it is replaced instead, so the box keeps what's being typed, its cursor, a date being retyped, an open date
+// picker, text being composed and undo. The rest (the flags, the downloads) is brought up to date all the same (BT60,
+// BT61). Before, the summary waited for a half-typed date, for good if it was left that way, and broke up other ones.
+function paintSummary(html) {
+  const box = document.getElementById("inEdit"), keep = box && box === document.activeElement && app.contains(box) && box.closest(".inedit");
+  if (!keep || !paintAround(html, keep)) app.innerHTML = html;
+}
+function paintAround(html, keep) {
+  const made = document.createElement("div");
+  made.innerHTML = html;
+  const newKeep = made.querySelector(".inedit");
+  if (!newKeep) return false; // the box is gone in the new summary
+  const live = [], next = [];
+  for (let n = keep; n !== app; n = n.parentElement) live.unshift(n);
+  for (let n = newKeep; n !== made; n = n.parentElement) next.unshift(n);
+  if (live.length !== next.length || live.some((n, i) => n.tagName !== next[i].tagName || n.className !== next[i].className)) return false;
+  // Level by level, from the page down to the box: the kept element stays where it is, and what's around it is replaced.
+  let liveParent = app, nextParent = made;
+  live.forEach((kept, i) => {
+    for (const c of [...liveParent.childNodes]) if (c !== kept) c.remove();
+    const kids = [...nextParent.childNodes], at = kids.indexOf(next[i]);
+    kept.before(...kids.slice(0, at));
+    kept.after(...kids.slice(at + 1));
+    if (i < live.length - 1) {
+      for (const { name } of [...kept.attributes]) if (!next[i].hasAttribute(name)) kept.removeAttribute(name);
+      for (const { name, value } of [...next[i].attributes]) if (kept.getAttribute(name) !== value) kept.setAttribute(name, value);
+    }
+    liveParent = kept; nextParent = next[i];
+  });
+  return true;
+}
 // Draw the summary again with one row kept where it is on screen, then do what's next (usually focus that row).
 function redrawSummaryAt(sel, then) {
   const a = app.querySelector(sel), top = a ? a.getBoundingClientRect().top : null, y = window.scrollY;
@@ -170,7 +202,8 @@ function wireInline(root = app) {
   const box = root.querySelector("#inEdit"), on = (id, f) => { const b = root.querySelector(`#${id}`); if (b) b.onclick = f; };
   on("ieFull", () => inlineToQuestion());
   on("ieCancel", closeInline);
-  if (!box) return;
+  if (!box || box.wired) return; // a box kept through a redraw is wired already
+  box.wired = true;
   box.addEventListener("input", () => {
     if (box.validity?.badInput) return; // a half-typed date isn't an answer yet
     inlineEdit.value = box.value;
@@ -224,7 +257,7 @@ function renderSummary(rerender = false) {
           <dd>${here ? inlineBoxHtml(steps.find(s => s.id === k), `${x.label} (${g.form})`) : empty(x.value) ? `<span class="miss">Blank</span>` : markParts(x.value, marked[x.step])}</dd>
           ${k && !here ? `<button class="link edit" data-fix="${k}" data-nth="${nth}"${k === x.step && editsInPlace(k) ? ' data-inline="1"' : ""} aria-label="Edit ${esc(x.label)} (${esc(g.form)})">Edit</button>` : ""}</div>`;
   };
-  app.innerHTML = `
+  paintSummary(`
     <div class="bar" role="progressbar" aria-label="Needed answers filled in" aria-valuenow="${scorePct}" aria-valuetext="${score.filled} of ${score.total} needed answers filled in" aria-valuemin="0" aria-valuemax="100"><span style="width:${scorePct}%"></span></div>
     <div class="barlabel"><span>Summary</span><span>${score.filled} of ${score.total} needed answers filled in</span></div>
     <h1 tabindex="-1">Your ${esc(sit.title)} forms</h1>
@@ -266,7 +299,7 @@ function renderSummary(rerender = false) {
       <button class="ghost" id="restart">Start over</button>
     </div>
     <p class="need"><button class="link" id="changeForm">Choose a different form</button></p>
-    <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`;
+    <div class="note">This tool checks for blank and mistyped entries. It can't tell whether your answers are right for your case. For free help, visit <a href="${LINKS.getHelp}" target="_blank" rel="noopener">Indiana Legal Help</a>.</div>`);
 
   if (inlineEdit && inlineEdit.where !== "pdf" && !boxPlaced) dropInline(); // its row is gone (the answer moved or was hidden)
   wireInline();
