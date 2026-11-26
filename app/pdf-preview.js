@@ -197,7 +197,8 @@ function showFilledPage(pdf, n, opener, focusId = null) {
       dlg.querySelector("#pvClose").focus(); // what was focused is gone
       return;
     }
-    openPdf(pdfState.result.all).then(doc => { showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
+    // Closed (or cleared) while the PDF was being opened: it stays closed (BT102).
+    openPdf(pdfState.result.all).then(doc => { if (!dlg.isConnected) return doc.destroy(); showFilledPage(doc, Math.min(at, doc.numPages), null, waiting); announce("Saved. The page shows your change."); })
       .catch(e => { console.error(e); dlg.querySelector(".pvbody").innerHTML = `<p class="draftnote" role="alert">Your change is saved, but this page couldn't be shown again. Close it to see your form.</p>`; dlg.querySelector("#pvClose").focus(); });
   };
   const dlg = showPageLarge({
@@ -225,7 +226,11 @@ function showFilledPage(pdf, n, opener, focusId = null) {
     },
   });
   // While the page is being made again with a change, its answers can't be tapped: the page is about to be replaced.
-  const hold = () => dlg.querySelectorAll(".pvspot").forEach(b => { b.disabled = true; });
+  const hold = () => {
+    dlg.querySelectorAll(".pvspot").forEach(b => { b.disabled = true; });
+    const hint = dlg.querySelector(".pvhint");
+    if (hint) hint.textContent = "Making the page again with your change…"; // not "tap it", while nothing can be tapped (BT102)
+  };
   // Close (or Back) with a change in its box that isn't saved asks first (BT70).
   dlg.beforeClose = () => !inlineEdit || inlineEdit.where !== "pdf" || okToDropInline();
   // This page holds its PDF open until it closes or another page replaces it.
@@ -233,7 +238,9 @@ function showFilledPage(pdf, n, opener, focusId = null) {
   dlg.onGone = () => letGoPdf(pdf, dlg);
   // Closing the page, or Back, closes a box on it as Cancel would.
   dlg.addEventListener("close", () => { window.removeEventListener("pdfready", reopen); if (inlineEdit && inlineEdit.where === "pdf") dropInline(); });
-  dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit")) { e.preventDefault(); closePdfEdit(dlg); } });
+  // Escape closes a box on the page, as Cancel would. While the page is being made again (the box is a "Saved" note),
+  // it closes the page instead of dropping focus (BT102).
+  dlg.addEventListener("cancel", e => { if (dlg.querySelector("#pvEdit") && !dlg.querySelector("#pvSaving")) { e.preventDefault(); closePdfEdit(dlg); } });
   return dlg;
 }
 // The answers on page i of the filled form that can be changed, top to bottom: { id, label, rect }.
@@ -245,7 +252,15 @@ function pageSpots(result, i) {
     const id = s.page === at.src && editTarget(s.step);
     if (id && !list.some(x => x.id === id && x.rect.every((v, j) => Math.abs(v - s.rect[j]) < .5))) list.push({ id, label: s.label, rect: s.rect });
   }
-  return list.sort((x, y) => (Math.max(y.rect[1], y.rect[3]) - Math.max(x.rect[1], x.rect[3])) || (x.rect[0] - y.rect[0]));
+  list.sort((x, y) => (Math.max(y.rect[1], y.rect[3]) - Math.max(x.rect[1], x.rect[3])) || (x.rect[0] - y.rect[0]));
+  // A box that reaches up over the answer above it (the fee waiver's address box, under the petitioner's name) starts
+  // below that answer, so a tap on the name opens the name (BT102). PDF points: y goes up.
+  const lo = r => Math.min(r[1], r[3]), hi = r => Math.max(r[1], r[3]), across = (p, q) => Math.min(p[0], p[2]) < Math.max(q[0], q[2]) && Math.min(q[0], q[2]) < Math.max(p[0], p[2]);
+  list.forEach((s, k) => {
+    for (const up of list.slice(0, k)) if (up.id !== s.id && across(up.rect, s.rect) && hi(s.rect) > lo(up.rect) && lo(s.rect) < lo(up.rect))
+      s.rect = [s.rect[0], lo(s.rect), s.rect[2], lo(up.rect)];
+  });
+  return list;
 }
 function spotHtml(s, k, view) {
   const [x1, y1, x2, y2] = view.convertToViewportRectangle(s.rect), pct = (v, of) => `${(v / of * 100).toFixed(2)}%`;

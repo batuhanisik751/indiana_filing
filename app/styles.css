@@ -279,7 +279,8 @@ dialog.pageview::backdrop { background: rgba(10, 15, 29, .6); }
 .pvpage canvas { position: relative; z-index: -2; display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--line); }
 /* Item 17: an answer on a page of the filled form, to tap and change, and the box that opens over the page. */
 .pvhint { margin: 0 0 .5rem; }
-.pvspot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 2px; outline: 2px dashed rgba(30, 90, 128, .55); outline-offset: 1px; cursor: pointer; }
+/* The dashed outline is at least 3 to 1 against the white page (BT102). */
+.pvspot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 2px; outline: 2px dashed #2B6A94; outline-offset: 1px; cursor: pointer; }
 .pvspot::after { content: ""; position: absolute; inset: -6px; z-index: -1; } /* a bigger place to tap than a small box, under any answer it reaches */
 .pvspot:hover, .pvspot.on { background: rgba(255, 196, 0, .35); outline: 2px solid #B45309; }
 .pvspot:focus-visible { outline: 3px solid var(--accent); background: rgba(255, 196, 0, .35); }
@@ -421,4 +422,20 @@ ol.rail li.current .rail-ic { background: var(--accent); color: var(--accent-ink
 @media print {
   body > *:not(.wrap), .wrap > *:not(.printnote), dialog { display: none !important; }
   .printnote { display: block !important; font: 14pt/1.4 Georgia, serif; color: #000; margin: 1in; }
+}
+
+/* Forced colors (Windows high contrast) drop backgrounds and soften outlines: the tap spots and the progress bar keep
+   showing in system colors (BT102). */
+@media (forced-colors: active) {
+  .pvspot { outline: 2px dashed CanvasText; }
+  .pvspot:hover, .pvspot.on, .pvspot:focus-visible { outline: 3px solid Highlight; }
+  .bar { border: 1px solid CanvasText; }
+  .bar > span { forced-color-adjust: none; background: Highlight; }
+}
+/* At high zoom the screen is short: the page shown large keeps its title bar to one tight row (BT102). */
+@media (max-height: 420px) {
+  .pvbar { padding: .25rem .5rem; gap: .25rem .5rem; flex-wrap: nowrap; }
+  .pvbar h2.sub { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pvbar .pvnav { display: flex; gap: .25rem; flex-shrink: 0; }
+  .pvbar .small { padding: .2rem .45rem; white-space: nowrap; }
 }

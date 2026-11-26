@@ -1109,3 +1109,48 @@ describe("BT101. A blank answer can be tapped on a page shown large", () => {
     await q.context().close();
   });
 });
+
+describe("BT102. Small problems with the page shown large", () => {
+  const slow = q => q.evaluate(() => { window.__realBuild ||= buildPdf; globalThis.eval("buildPdf = (...a) => new Promise(r => setTimeout(r, 1500)).then(() => window.__realBuild(...a))"); });
+  test("no tap spot reaches over the answer above it (the fee waiver's page 5)", async () => {
+    const q = await fresh();
+    await inject(q, "feewaiver");
+    await openPage(q, 5);
+    const boxes = await q.evaluate(() => [...document.querySelectorAll(".pvspot")].map(s => { const r = s.getBoundingClientRect(); return { id: s.dataset.id, l: r.left, r: r.right, t: r.top, b: r.bottom }; }));
+    for (const a of boxes) for (const b of boxes) if (a !== b && a.id !== b.id && a.l < b.r && b.l < a.r)
+      assert.ok(a.b <= b.t + 1 || b.b <= a.t + 1, `${a.id} and ${b.id} overlap`);
+    await q.context().close();
+  });
+  test("while the page is made again: the hint says so, Escape closes the page, and a closed page stays closed", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await openPage(q, 1);
+    await slow(q);
+    await tap(q, "plaintiff");
+    await q.fill("#inEdit", "Acme Credit Holdings LLC");
+    await q.keyboard.press("Enter");
+    await q.waitForSelector("#pvSaving");
+    assert.match(await q.textContent("dialog.pageview .pvhint"), /Making the page again/);
+    await q.keyboard.press("Escape");
+    await q.waitForFunction(() => !document.querySelector("dialog.pageview"));
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await q.waitForTimeout(800);
+    assert.equal(await q.locator("dialog.pageview").count(), 0, "it doesn't open itself again");
+    assert.notEqual(await q.evaluate(() => document.activeElement === document.body), true, "focus isn't dropped");
+    await q.context().close();
+  });
+  test("the dashed outline is at least 3 to 1 on the white page, and the title bar is one row at 400% zoom", async () => {
+    const q = await fresh({ viewport: { width: 320, height: 256 } });
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await q.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; });
+    await q.waitForSelector('#preview [data-page="1"]', { timeout: 60000 });
+    await q.evaluate(() => document.querySelector('#preview [data-page="1"]').click());
+    await q.waitForSelector("dialog.pageview .pvspot", { timeout: 60000 });
+    const [rgb, bar] = await q.evaluate(() => [getComputedStyle(document.querySelector(".pvspot")).outlineColor, document.querySelector(".pvbar").getBoundingClientRect().height]);
+    const lum = c => { const [r, g, b] = c.match(/\d+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    assert.ok(1.05 / (lum(rgb) + 0.05) >= 3, rgb);
+    assert.ok(bar <= 60, `${bar}px`);
+    await q.context().close();
+  });
+});
