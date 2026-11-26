@@ -807,3 +807,19 @@ describe("BT81. When answers vanish, the first screen says why", () => {
     await q.context().close();
   });
 });
+
+describe("BT84. Typing in a box on the summary while saving fails says so, as the question does", () => {
+  test("storage full: the header stops saying it's saved, and screen readers are told", async () => {
+    const q = await fresh();
+    await q.click("#saveToggle");
+    await inject(q, "respond");
+    await q.evaluate(() => saveProgress());
+    assert.match(await q.textContent("#privacy"), /^Saved/);
+    await editHere(q, "defenses");
+    await q.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); }; });
+    await q.type("#inEdit", " More.");
+    await q.waitForFunction(() => /can't be saved on this device right now/.test(document.getElementById("announce").textContent), null, { timeout: 3000 });
+    assert.doesNotMatch(await q.textContent("#privacy"), /^Saved/);
+    await q.context().close();
+  });
+});

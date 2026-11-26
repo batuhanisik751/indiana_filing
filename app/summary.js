@@ -217,7 +217,10 @@ function wireInline(root = app) {
     inlineEdit.value = box.value;
     // Emptying the box takes the old answer off the device right away, as on the question screen. Cancel brings it back.
     if (!inlineEdit.erased && empty(box.value) && !empty(answers[inlineEdit.id])) inlineEdit.erased = true;
-    saveProgress(); // what's typed is kept through a reload, as on the question
+    // What's typed is kept through a reload, as on the question. If that fails, the header and screen readers say so,
+    // as on the question (BT84).
+    const wasOk = saveOk; saveProgress(); updatePrivacyNote();
+    if (wasOk && !saveOk) announce("Your answers can't be saved on this device right now.");
     showUnsaved();
   });
   box.addEventListener("keydown", e => {
