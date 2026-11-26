@@ -1326,3 +1326,11 @@ describe("BT97. Small wrong or repeated check messages", () => {
     assert.ok(!(await fl("continuance", { spokeDate: back })).some(x => /more than 180 days/.test(x)));
   });
 });
+
+describe("BT109. The step linking a page that says there's no Answer form says which Answer this tool fills in", () => {
+  test("\"Check whether an Answer is due\" names the form from the Answer instructions", async () => {
+    await inject(p, "appearance");
+    const step = await p.evaluate(() => nextSteps(sitKey, visibleAnswers()).find(s => s.title === "Check whether an Answer is due"));
+    assert.match(step.body, /its website doesn't have an Answer form, but its Answer instructions come with one, form CCA-GF-0626-6008/);
+  });
+});

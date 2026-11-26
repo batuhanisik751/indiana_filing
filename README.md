@@ -2,7 +2,7 @@
 
 **Indiana Court Form Helper** is a step-by-step web tool for self-represented Indiana litigants. People pick what their case is about (or the form they need) and answer one question at a time. Each answer fills its spot on an official Indiana court form. At the end, a summary shows the completed form and flags anything missing or incomplete, and people fix it by changing their own answers.
 
-The tool explains what each question means but never suggests what to write. It does not give legal advice and does not file anything with the court.
+The tool explains what each question means and never writes an answer for you. Where a flag points out a likely mistake, it may show the form's own way of writing it, like "all except 3" for the Answer's lists or "None" for a phone number you don't have. It does not give legal advice and does not file anything with the court.
 
 Every question says where its answer prints and links to the blank official form. "Show it on the form" opens a small picture of the form with that spot highlighted, and it stays open from one question to the next.
 
