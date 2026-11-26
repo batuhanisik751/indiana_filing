@@ -831,3 +831,24 @@ describe("BT82. The saving note says Safari can delete saved answers sooner than
     assert.match(text, /If you don't change your answers for 30 days, they are deleted.*Safari on an iPhone, iPad or Mac can delete them sooner, after 7 days of using Safari without using this page\./);
   });
 });
+
+describe("BT66. The phone question has a button for no phone number, since a phone's number pad can't type None", () => {
+  test("\"I don't have a phone number\" puts None in the box; Continue saves it, and it isn't flagged", async () => {
+    for (const form of ["appearance", "feewaiver"]) {
+      await inject(p, form, { phone: "" });
+      await p.evaluate(() => { cur = visible().findIndex(s => s.id === "phone"); mode = "step"; returnToSummary = false; render(); });
+      assert.equal(await p.$eval("#ans", b => b.type), "tel");
+      await p.click("#noPhone");
+      assert.equal(await p.$eval("#ans", b => b.value), "None");
+      assert.equal(await p.evaluate(() => document.activeElement.id), "next");
+      await p.click("#next");
+      assert.equal(await p.evaluate(() => answers.phone), "None", form);
+      assert.deepEqual(await p.evaluate(() => runChecks().filter(f => f.fix === "phone").map(f => f.title)), [], form);
+    }
+  });
+  test("edge: the fax question has no such button", async () => {
+    await inject(p, "appearance");
+    await p.evaluate(() => { cur = visible().findIndex(s => s.id === "fax"); mode = "step"; render(); });
+    assert.equal(await p.locator("#noPhone").count(), 0);
+  });
+});

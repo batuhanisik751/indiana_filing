@@ -234,6 +234,8 @@ function renderStep() {
     const ac = step.id === "fax" ? "off" : { tel: "tel", email: "email" }[step.type] || (step.id === "name" ? "name" : "off");
     // Email is a text box with the email keyboard: an email box rewrites accented domains, and they'd print that way.
     input = `<input id="ans" type="${step.type === "email" ? "text" : step.type}"${step.type === "email" ? ' inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"' : ""} aria-labelledby="q" ${desc} value="${esc(v)}" autocomplete="${ac}"${limit ? ` max="${limit.date}"` : ""}>`;
+    // A phone's number pad has no letters, so "type None" can't be followed there. This puts it in the box (BT66).
+    if (step.id === "phone") input += `<p class="need"><button class="link" id="noPhone" type="button">I don't have a phone number</button></p>`;
   }
   const need = (step.need || (step.optional ? "Optional." : "Needed for your form. You can skip it for now; it will be flagged at the end."))
     + (limit ? ` It can't be later than your ${limit.name} (${formDate(limit.date)}).` : "")
@@ -354,6 +356,13 @@ function renderStep() {
   if (barGrew && !justMarked) announce(grewNote(barGrew)); // the bar moved back: say why
   document.getElementById("next").onclick = () => save(step);
   document.getElementById("unsure").onclick = () => markUnsure(step);
+  const noPhone = document.getElementById("noPhone");
+  if (noPhone) noPhone.onclick = () => {
+    const box = document.getElementById("ans");
+    box.value = "None"; box.dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("next").focus();
+    announce("None is in the box. Press Continue.");
+  };
   let typedHere = false; // something was typed or chosen on this question since it appeared
   app.querySelectorAll("#ans, input[name=ans]").forEach(i => i.addEventListener(i.type === "radio" || i.type === "checkbox" ? "change" : "input", () => {
     typedHere = true;
