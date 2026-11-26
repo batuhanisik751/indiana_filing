@@ -64,3 +64,36 @@ test("with JavaScript off, the page says it needs it", async () => {
   assert.match(await p.textContent("#app"), /needs JavaScript/);
   await ctx.close();
 });
+
+// Safari before 16.4 (iPhones that stop at iOS 15, like the 6s, 7 and first SE) can't read regex lookbehind, and one
+// use stops the whole page at "didn't finish loading" (BT50, and V12 before it).
+test("no app file uses regex lookbehind, which older iPhones can't read", () => {
+  for (const f of ["form-builder-mvp.html", ...FILES]) {
+    const text = fs.readFileSync(path.join(ROOT, f), "utf8"), at = text.search(/\(\?<[=!]/);
+    assert.equal(at, -1, `${f} uses lookbehind: ${text.slice(Math.max(0, at - 30), at + 30)}`);
+  }
+});
+
+test("the app starts and checks answers in a browser without lookbehind, like Safari before 16.4", async () => {
+  const ctx = await (await launch()).newContext();
+  const p = await ctx.newPage(), errors = [];
+  p.on("pageerror", e => errors.push(e.message));
+  await p.addInitScript(() => {
+    const Real = RegExp, lookbehind = s => /\(\?<[=!]/.test(String(s instanceof Real ? s.source : s));
+    const refuse = () => { throw new SyntaxError("Invalid regular expression: invalid group specifier name"); };
+    window.RegExp = new Proxy(Real, { construct: (t, a, n) => (lookbehind(a[0]) ? refuse() : Reflect.construct(t, a, n)), apply: (t, th, a) => (lookbehind(a[0]) ? refuse() : Reflect.apply(t, th, a)) });
+  });
+  await p.goto(APP);
+  await p.waitForSelector("#app h1");
+  assert.equal(await broken(p), false);
+  assert.deepEqual(await p.evaluate(() => [window.appParts, window.appPartsNeeded]), [FILES.length, FILES.length]);
+  assert.ok(await p.locator(".pick").count() > 5);
+  // The patterns that used it still work: a password after "my pass" (not a bus pass), each password marked without
+  // the word before it, and "all 12" read as all of them.
+  assert.equal(await p.evaluate(() => privateKind("my pass is ab12!")), "pin");
+  assert.equal(await p.evaluate(() => privateKind("my bus pass is $45/mo")), null);
+  assert.deepEqual(await p.evaluate(() => privateSpans("my pass is ab12! and wifi pass is cd34!", privateKind)), [[3, 16], [26, 39]]);
+  assert.equal(await p.evaluate(() => saysAll("all 12") && namesParagraphs("all 12 paragraphs")), true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

@@ -60,7 +60,7 @@ const PW_LABEL = "(?:pass ?(?:word|code)|passwd|pwd|pw)";
 // "my pass is x" ("is:", "-" and "pass's" too), as above; "user pat88 pass x"; and "my password for the portal is x".
 // An amount after "pw:" or "pwd:" ("PWD: $40", a water bill) isn't one.
 const PASSWORD_RES = [new RegExp(`\\b${PW_LABEL}\\b ?[:=] ?(?!\\$ ?\\d)\\S+`, "i"),
-  new RegExp(`(?:(?<=${PASS_OWNER})pass|\\b(?:pwd|pw))\\b(?: ?(?:is|was)(?: ?[:=])?| ?[:=]| -|['\u2019]s) ?${PW_VALUE}`, "iu"),
+  new RegExp(`(?:(?<owner>${PASS_OWNER})pass|\\b(?:pwd|pw))\\b(?: ?(?:is|was)(?: ?[:=])?| ?[:=]| -|['\u2019]s) ?${PW_VALUE}`, "iu"),
   new RegExp(`\\b(?:pass ?(?:word|code)|passwd)\\b ?(?:is|was):? (?!(?:not|wrong|incorrect|expired|lost|the|my|a|an|that|this|required|needed|on|in|for|reset|changed|stolen|hacked)\\b)\\S+`, "i"),
   new RegExp(`\\bpass ?(?:word|code)\\b (?=\\S*[\\d!@#$%^&*])\\S+`, "i"),
   new RegExp(`\\b(?:user ?(?:name|id)?|login)\\b:? ?\\S+,? (?:and )?(?:pass|${PW_LABEL})\\b:? ?${PW_VALUE}`, "iu"),
@@ -100,6 +100,19 @@ function privateKind(text, isAddress = false) {
   if (PASSWORD_RES.some(re => re.test(s))) return "pin";
   return null;
 }
+// Each match of one of those, as [start, end], leaving out the word before "pass" that makes it count ("my", or a
+// period). That word can end the password before it, as in "pass: ab12. pass: cd34", so each search starts up to 10
+// characters back (the longest such word is "computer "), and a match whose "pass" is before the last one's end is skipped.
+function passwordsIn(re, s) {
+  const g = new RegExp(re.source, re.flags + "g"), out = [];
+  for (let from = 0, m; (m = g.exec(s)); ) {
+    const start = m.index + (m.groups?.owner?.length || 0);
+    if (start < from) { g.lastIndex = m.index + 1; continue; }
+    out.push([start, (from = m.index + m[0].length)]);
+    g.lastIndex = Math.max(m.index + 1, from - 10);
+  }
+  return out;
+}
 // Where in an answer the private information is, as [start, end] pieces: each number that's enough by itself to be
 // flagged, or, failing that, the words the flag needs (like "password:" and what follows). Used to select it when the
 // person fixes it and to mark it where the answer is already shown, never to repeat it in a flag. Pieces a few
@@ -127,7 +140,7 @@ function privateSpans(text, kindOf, skip = []) {
   };
   // Each password with its label (every one), and each number outside them, is a part if the answer is still flagged
   // with all the others taken out. So a Social Security number next to a password is one too.
-  const pws = PASSWORD_RES.flatMap(re => [...s.matchAll(new RegExp(re.source, re.flags + "g"))]).map(m => [m.index, m.index + m[0].length])
+  const pws = PASSWORD_RES.flatMap(re => passwordsIn(re, s))
     .sort((x, y) => x[0] - y[0]).reduce((out, [a, b]) => { const last = out[out.length - 1]; if (last && a < last[1]) last[1] = Math.max(last[1], b); else out.push([a, b]); return out; }, []);
   const parts = [...pws, ...nums.filter(([a, b]) => !pws.some(([c, d]) => a < d && c < b))];
   let hits = parts.flatMap((c, i) => { const others = parts.filter((_, j) => j !== i); return !flagged(blank(s, others)) ? [] : i < pws.length ? [c] : narrow(c, others); });
@@ -186,9 +199,9 @@ const EXCEPT_NUM = "(?:(?:paragraphs?|paras?|nos?\\.?|numbers?|#|\u00b6|\u00a7)\
 const EXCEPT_RANGE = `${EXCEPT_NUM}(?:\\s*(?:[-\u2013\u2014]+|to|through|thru|until)\\s*${EXCEPT_NUM})?`;
 const EXCEPT_PART = `\\b(?:except(?: for)?|but(?: not)?|other than|excluding|apart from|aside from|besides|save(?: for)?)\\s+${EXCEPT_RANGE}(?:\\s*(?:,\\s*and|,|and|or|&)\\s*${EXCEPT_RANGE})*`;
 // How many there are, after "all": "all 12", "all 12 paragraphs", "all 12 of them". Not "all 3 through 5".
-const ALL_COUNT = "(?<=\\b(?:all|every one of|each of)(?: (?:of )?the)? )\\d+(?=\\s*(?:paragraphs?|paras?|allegations?|of them|$|[,.;!]))";
+const ALL_COUNT = "(?<all>\\b(?:all|every one of|each of)(?: (?:of )?the)? )\\d+(?=\\s*(?:paragraphs?|paras?|allegations?|of them|$|[,.;!]))";
 const NOT_PARAGRAPHS = new RegExp(`\\$\\s*[\\d,.]+|\\b\\d[\\d,.]{0,20}\\s*(?:dollars?|bucks|usd)\\b|\\bpages?\\s*\\d+|\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b|\\b\\d{1,2}-\\d{1,2}-(?:19|20)\\d\\d\\b|\\b\\d{1,2}(?::\\d{2})?\\s*[ap]\\.?m\\b|${EXCEPT_PART}|${ALL_COUNT}`, "gi");
-const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, " "); // "$500", "page 12", "3/15/2024", "5pm" and "except 3" aren't paragraphs in this list
+const notAmounts = v => String(v ?? "").replace(NOT_PARAGRAPHS, (...m) => (m[m.length - 1].all || "") + " "); // "$500", "page 12", "3/15/2024", "5pm" and "except 3" aren't paragraphs in this list
 // A list that says all of them, in whatever words: "all", "I agree with all of it", "every single one", "all 12". Not
 // "all except 3", "the rest" or "not all".
 const ALL_SAYS = /\b(?:all|each|every|everything|entire|whole)\b/i, BUT_SAYS = /\b(?:except|but|other|others|else|rest|remaining|remainder|besides|excluding|not|save|apart|aside)\b/i;
