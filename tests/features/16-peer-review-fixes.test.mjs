@@ -91,7 +91,10 @@ describe("Fix 2: each flag is one line, Missing first, with the reason on tap", 
     const r = row("email");
     const before = await shown(r);
     assert.match(before, /The end of this email, gmial\.com, may be a typo for gmail\.com\./);
-    assert.doesNotMatch(before, /If it's right/);
+    // What's on the line is the summary; the rest is in the closed More. (WebKit's innerText can include a closed
+    // More's text at some moments, so the line is read from the summary itself.)
+    assert.equal(await r.evaluate(e => e.querySelector("details.more").open), false, "the More starts closed");
+    assert.doesNotMatch(await r.locator("summary").innerText(), /If it's right/);
     await r.locator("summary").click();
     assert.match(await shown(r), /If it's right, you can leave it\./);
   });

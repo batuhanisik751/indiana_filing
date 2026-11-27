@@ -107,21 +107,29 @@ function moreHtml(inner, label = "More", key = "", opts = {}) {
 // A click right after that keeps it open, and so does tabbing into it. A whole section (like the pages of the
 // form) opens only when asked, since it can download things. Phones and keyboards work as before: tap or Enter.
 const hoverMore = window.matchMedia ? matchMedia("(hover: hover) and (pointer: fine)") : null;
-let hoverTimer = null;
-document.addEventListener("pointerover", e => {
-  if (!hoverMore || !hoverMore.matches || e.pointerType !== "mouse") return;
+let hoverTimer = null, hoverFor = null;
+// The pointer moving onto a "More", or within one, starts the moment. It starts on a move, not on the pointer coming
+// "over" it: Safari says the pointer came over whatever the page draws under it though it hasn't moved, and after a
+// redraw a "More" under a resting mouse opened by itself (found by the WebKit run on GitHub, TG19). A move to the
+// same place is the page changing, not the person.
+let lastPointerAt = "";
+document.addEventListener("pointermove", e => {
+  if (e.pointerType !== "mouse") return;
+  const at = `${e.clientX},${e.clientY}`, moved = at !== lastPointerAt;
+  lastPointerAt = at;
+  if (!moved || !hoverMore || !hoverMore.matches) return;
   // Not a whole section, or a long list (.nohover: the ready list, the word list), which would push the page down.
   const d = e.target.closest && e.target.closest("details.more:not(.section):not(.nohover)");
-  if (!d || d.open || d.contains(e.relatedTarget)) return;
-  clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => { if (d.isConnected && !d.open && d.matches(":hover")) { d.dataset.hovered = "1"; d.open = true; } }, 350);
-});
+  if (!d || d.open || hoverFor === d) return;
+  clearTimeout(hoverTimer); hoverFor = d;
+  hoverTimer = setTimeout(() => { hoverFor = null; if (d.isConnected && !d.open && d.matches(":hover")) { d.dataset.hovered = "1"; d.open = true; } }, 350);
+}, true);
 // Moving away upward closes it again. Moving down or to the side, toward the answers below it, keeps it open: closing it
 // then would move everything below up as the click lands, so the wrong answer was chosen (BT68).
 document.addEventListener("pointerout", e => {
   const d = e.target.closest && e.target.closest("details.more");
   if (!d || d.contains(e.relatedTarget)) return;
-  clearTimeout(hoverTimer);
+  clearTimeout(hoverTimer); hoverFor = null;
   if (d.dataset.hovered && !d.contains(document.activeElement) && e.clientY < d.getBoundingClientRect().top + 2) d.open = false;
   delete d.dataset.hovered;
 });

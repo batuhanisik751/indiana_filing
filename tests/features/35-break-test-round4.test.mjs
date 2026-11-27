@@ -1573,3 +1573,28 @@ describe("TG19, what the first GitHub runs found in WebKit and Firefox", () => {
     await ctx.close();
   });
 });
+
+describe("TG19, a \"More\" opening by itself under a resting mouse in Safari", () => {
+  // WebKit on GitHub: after the summary was drawn again, a flag's "More" under the resting mouse opened by itself.
+  // Safari sends "pointer over" (and sometimes a move) at the same place when the page changes under the pointer.
+  // Here those events are sent to a flag's More as Safari sends them, with :hover true.
+  const send = async (q, type, x, y) => {
+    await q.evaluate(([type, x, y]) => {
+      const d = document.querySelector("ul.flags details.more"), m = d.matches.bind(d);
+      d.open = false; d.matches = s => s === ":hover" || m(s);
+      d.querySelector("summary").dispatchEvent(new PointerEvent(type, { pointerType: "mouse", clientX: x, clientY: y, bubbles: true }));
+    }, [type, x, y]);
+    await q.waitForTimeout(500);
+    return q.evaluate(() => document.querySelector("ul.flags details.more").open);
+  };
+  test("the page drawn again under a mouse that hasn't moved opens nothing; a mouse that moves there still does", async () => {
+    const q = await fresh();
+    await inject(q, "appearance", { email: "pat@gmial.com" });
+    await ready(q); // the form finishing draws the summary again, which would replace the flag being watched
+    await q.mouse.move(5, 5);
+    assert.equal(await send(q, "pointerover", 5, 5), false, "the pointer \"came over\" it without moving");
+    assert.equal(await send(q, "pointermove", 5, 5), false, "a move to the same place");
+    assert.equal(await send(q, "pointermove", 40, 60), true, "a pointer that moved there");
+    await q.context().close();
+  });
+});
