@@ -1461,3 +1461,48 @@ describe("TG20, the rest. Clear my data with storage failing, Try again after a 
     }
   });
 });
+
+describe("BT110. Back from a downloaded PDF shown in the same tab, as iPhone Safari does, keeps the answers", () => {
+  // iPhone Safari shows the PDF in the page's own tab. Back brings the page back from memory, where, with saving off,
+  // every answer was cleared (seen on iOS 26.1 in the simulator).
+  const away = q => q.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+  const back = q => q.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  const kept = q => q.evaluate(() => mode === "summary" && hasAnswers() && !document.getElementById("goneNote"));
+  test("saving off: download, the PDF takes the tab, Back: the answers are still there", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await ready(q);
+    const dl = q.waitForEvent("download"); await q.click("#dlAll"); await dl;
+    await away(q); await back(q);
+    assert.equal(await kept(q), true);
+    await q.context().close();
+  });
+  test("edge: a touch on the page after the download means the person moved on, so leaving clears them as before", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await ready(q);
+    const dl = q.waitForEvent("download"); await q.click("#dlAll"); await dl;
+    await q.click("h1");
+    await away(q); await back(q);
+    assert.equal(await kept(q), false);
+    assert.match(await q.textContent("#goneNote"), /cleared because saving is off/);
+    await q.context().close();
+  });
+  test("edge: the page going more than 30 seconds after the download clears them, and so does a second leave", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await ready(q);
+    const dl = q.waitForEvent("download"); await q.click("#dlAll"); await dl;
+    await q.evaluate(() => { downloadAt = performance.now() - 31000; });
+    await away(q); await back(q);
+    assert.equal(await kept(q), false);
+    await inject(q, "appearance");
+    await ready(q);
+    const dl2 = q.waitForEvent("download"); await q.click("#dlAll"); await dl2;
+    await away(q); await back(q);
+    assert.equal(await kept(q), true, "back from the PDF");
+    await away(q); await back(q);
+    assert.equal(await kept(q), false, "a second leave, with no new download");
+    await q.context().close();
+  });
+});

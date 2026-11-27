@@ -354,6 +354,7 @@ function downloadPdf(bytes, name) {
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
   const link = document.createElement("a");
   link.href = url; link.download = `${fileStem(name).slice(0, 95 - caseNo.length)}${caseNo}.pdf`;
+  downloadAt = performance.now(); // iPhone Safari may show it in this tab: Back from it keeps the answers (BT110)
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   announce("Your PDF is downloading. What to do next is just below the download buttons.");

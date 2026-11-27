@@ -419,9 +419,18 @@ window.addEventListener("storage", e => {
 lastSavingOn = savingOn();
 // Cleared in the browser's own settings, nothing tells the page. Check again when the tab comes back to the front.
 window.addEventListener("focus", updatePrivacyNote);
+// A downloaded PDF that the browser shows in this same tab, as iPhone Safari does, takes the page away without the
+// person leaving the site, and Back from the PDF cleared every answer (BT110). So a page that goes within 30 seconds of a
+// download, with no touch or key on it since, is coming back from the PDF. Leaving any other way still clears them.
+let downloadAt = -Infinity, leftForPdf = false;
+const PDF_LEAVE_MS = 30000;
+for (const t of ["pointerdown", "keydown"]) document.addEventListener(t, () => { downloadAt = -Infinity; }, true);
+window.addEventListener("pagehide", () => { leftForPdf = performance.now() - downloadAt < PDF_LEAVE_MS; });
 // Back after leaving can show this page from the browser's memory. With saving off, the answers shouldn't come back with it.
 window.addEventListener("pageshow", e => {
-  if (!e.persisted || savingOn() || (!sitKey && mode === "pick")) return;
+  const fromPdf = leftForPdf;
+  leftForPdf = false; downloadAt = -Infinity;
+  if (!e.persisted || savingOn() || (!sitKey && mode === "pick") || fromPdf) return;
   resetAnswers(); mode = "pick"; render();
   tellGone("Your answers were cleared because saving is off, so they don't come back when you return to this page.");
 });
