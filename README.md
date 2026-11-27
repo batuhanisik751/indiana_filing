@@ -84,7 +84,7 @@ Then go to http://localhost:5190/. If that port is busy, pass another one, for e
 
 To copy the tool somewhere, keep the `app/` and `forms/` folders next to `form-builder-mvp.html`.
 
-`vercel.json` serves the page at the site's root when hosted on Vercel, and asks search engines not to list it (`X-Robots-Tag: noindex`), because no lawyer has yet reviewed the wording. Remove that header once it's ready to be found. It also sends security headers: a Content-Security-Policy that allows scripts only from this site and cdnjs (no inline scripts, so the page's own small start-up scripts are in `boot/`), and refuses framing, plus `nosniff`, `Referrer-Policy` and `Permissions-Policy`. `tests/loading.test.mjs` serves the page with exactly those headers and fails if anything is refused, so run it after changing them or adding a library.
+`vercel.json` serves the page at the site's root when hosted on Vercel, and asks search engines not to list it (`X-Robots-Tag: noindex`), because no lawyer has yet reviewed the wording. Remove that header once it's ready to be found. It also sends security headers: a Content-Security-Policy that allows scripts only from this site (no inline scripts, so the page's own small start-up scripts are in `boot/`), and refuses framing, plus `nosniff`, `Referrer-Policy` and `Permissions-Policy`. `tests/loading.test.mjs` serves the page with exactly those headers and fails if anything is refused, so run it after changing them or adding a library.
 
 ## Tests
 
@@ -141,7 +141,7 @@ To test a hosted copy instead of the local file, give its address, for example `
 
 ## Privacy
 
-Nothing anyone types is sent anywhere, and the PDF is filled in the browser. The page uses the device's own fonts, so opening it contacts no other site; the PDF tools load from cdnjs only when the summary first builds the form or someone opens the picture of the form on a question.
+Nothing anyone types is sent anywhere, and the PDF is filled in the browser. The page uses the device's own fonts and serves the PDF tools itself, so using it contacts no other site. The PDF tools download only when the summary first builds the form or someone opens the picture of the form on a question.
 
 Saving is off unless the person turns it on, because many people use a shared or public computer, like a library or courthouse kiosk. "Turn on saving," at the top of every screen, and a checkbox on the first screen turn it on. When it's on, answers are saved only in the person's own browser, so a refresh or a closed tab doesn't erase them, and the first screen offers to continue where they left off. Turning it off asks first, because it deletes what's saved. With saving off, the browser warns before a page with answers is closed or refreshed. In a private or incognito window, saved answers are gone when the window closes.
 
@@ -149,7 +149,7 @@ Saving is off unless the person turns it on, because many people use a shared or
 
 ## How the PDF is made
 
-The official PDFs in `forms/` are packed into one script per packet in `forms/data/` (run `node scripts/build-form-data.mjs` after replacing one), and the app loads only the packet the person needs. The app fills them with [pdf-lib](https://pdf-lib.js.org) 1.17.1 and shows the preview with [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174. Both, and the PDF.js worker, load from cdnjs with integrity checks, so the first PDF needs an internet connection. If only the preview fails to load, the downloads still work.
+The official PDFs in `forms/` are packed into one script per packet in `forms/data/` (run `node scripts/build-form-data.mjs` after replacing one), and the app loads only the packet the person needs. The app fills them with [pdf-lib](https://pdf-lib.js.org) 1.17.1 and shows the preview with [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174. Both, and the PDF.js worker, are in `vendor/` with their licenses, so networks that block CDNs (as many school, library and court networks do) don't stop the PDF. They are the files cdnjs serves, byte for byte: `tests/loading.test.mjs` checks each against its published SHA-384 hash, so to update one, replace the file and its hash there together. The first PDF still needs the connection to this site. If only the preview fails to load, the downloads still work. Opened straight from the disk, the page can't start the PDF.js worker, so PDF.js runs on the page itself, more slowly.
 
 Answers that are longer than the lines on the official form (Answer items 3 to 6, and the reason on the Verified Motion for Continuance) continue on a page added right after that form, titled "Attachment to" the form, and the form's last line says "(continued on attached page)." The summary points this out. Characters the forms' standard font can't print are printed as the closest plain letter (for example "Ł" as "L") or "?", and the summary points those out too. Long names and other text that must be printed smaller than 7.5 points to fit a box on the official form (for example, a long company name in the caption) are pointed out as well, so people can check them in the preview.
 

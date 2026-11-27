@@ -6,7 +6,7 @@
    ===================================================================== */
 const loaded = {}, loadTries = {}, pendingLoads = new Set();
 const LOAD_TIMEOUT_MS = 120000; // the whole download, which is about 1.6 MB for the largest form
-function loadScript({ src, integrity }) {
+function loadScript({ src, global }) {
   if (!loaded[src]) loaded[src] = new Promise((resolve, reject) => {
     const s = document.createElement("script");
     const fail = () => { clearTimeout(timer); pendingLoads.delete(fail); delete loaded[src]; loadTries[src] = (loadTries[src] || 0) + 1; s.remove(); reject(new Error("load")); };
@@ -14,8 +14,8 @@ function loadScript({ src, integrity }) {
     const timer = setTimeout(fail, LOAD_TIMEOUT_MS); // a stalled connection never reports an error
     // A stalled request can't be cancelled, and a new one for the same address can wait behind it, so a retry uses a new address.
     s.src = loadTries[src] ? `${src}${src.includes("?") ? "&" : "?"}retry=${loadTries[src]}` : src;
-    if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
-    s.onload = () => { clearTimeout(timer); pendingLoads.delete(fail); resolve(); };
+    // A library cut short on the way still "loads", as a script that stops at its first error: what it defines is missing.
+    s.onload = () => { if (global && !window[global]) return fail(); clearTimeout(timer); pendingLoads.delete(fail); resolve(); };
     s.onerror = fail;
     document.head.appendChild(s);
   });
@@ -28,20 +28,22 @@ async function loadPdfTools(file) {
   // Each official PDF is packed in its own script (see scripts/build-form-data.mjs).
   await Promise.all([loadScript(LIBS.pdfLib), loadScript({ src: formDataSrc(file) })]);
 }
-// What only the preview needs: PDF.js and its worker. The worker is fetched with
-// an integrity check too, then started from a local copy.
+// What only the preview needs: PDF.js and its worker. The worker is fetched first, with a time limit, then started
+// from that copy. A page opened straight from the disk can't fetch or start a worker from a file, so there PDF.js is
+// given the file and runs it on the page itself.
 let workerReady = null;
 async function loadPreviewTools() {
   await loadScript(LIBS.pdfJs);
+  if (!workerReady && location.protocol === "file:") workerReady = Promise.resolve(LIBS.pdfJsWorker.src);
   if (!workerReady) {
     const stop = new AbortController(), timer = setTimeout(() => stop.abort(), LOAD_TIMEOUT_MS); // a stalled connection never reports an error
-    workerReady = fetch(LIBS.pdfJsWorker.src, { integrity: LIBS.pdfJsWorker.integrity, mode: "cors", signal: stop.signal })
+    workerReady = fetch(LIBS.pdfJsWorker.src, { signal: stop.signal })
       .then(r => { if (!r.ok) throw new Error("worker"); return r.blob(); })
       .then(b => URL.createObjectURL(b))
       .catch(e => { workerReady = null; throw e; })
       .finally(() => clearTimeout(timer));
   }
-  // Set each time: a stalled copy of the viewer that arrives late replaces this setting, and without it the viewer would fetch a worker unchecked.
+  // Set each time: a stalled copy of the viewer that arrives late, after a retry, replaces this setting.
   pdfjsLib.GlobalWorkerOptions.workerSrc = await workerReady;
 }
 

@@ -5,7 +5,7 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fresh, close, inject } from "../lib.mjs";
+import { fresh, close, inject, site } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -99,9 +99,9 @@ describe("Download PDF", () => {
     assert.ok(!(await inspect((await download("#dlAll")).bytes)).pages.some(x => x.text.includes("/s/")));
   });
   test("edge: if the PDF tools don't load, it says so, and Try again makes the PDF once they do", async () => {
-    const q = await fresh();
+    // pdf-lib is served by this site (BT77), so the page is served over http, where that file can be blocked.
     let block = true;
-    await q.context().route(/cdnjs\.cloudflare\.com\/ajax\/libs\/pdf-lib\//, r => (block ? r.abort() : r.continue()));
+    const q = await (await site({ change: rel => (block && rel.startsWith("vendor/pdf-lib/") ? "abort" : null) })).open();
     await inject(q, "appearance");
     await q.waitForSelector("#retryPdf", { timeout: 120000 });
     assert.match(await q.textContent("#app"), /couldn't make the PDF/);

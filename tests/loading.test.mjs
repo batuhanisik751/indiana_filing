@@ -103,10 +103,15 @@ test("the app starts and checks answers in a browser without lookbehind, like Sa
 local("with the live site's security headers, a form, its PDF, its pages and a download work, with nothing refused", async () => {
   const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
   const headers = Object.fromEntries(vercel.headers[0].headers.map(h => [h.key, h.value]));
-  assert.match(headers["Content-Security-Policy"], /script-src 'self' https:\/\/cdnjs\.cloudflare\.com;/);
+  assert.match(headers["Content-Security-Policy"], /script-src 'self';/);
+  assert.doesNotMatch(headers["Content-Security-Policy"], /https?:/, "nothing from another site (BT77)");
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "form-builder-mvp.html"), "utf8"), /<script>/, "no inline scripts for the policy to refuse");
   const types = { html: "text/html", js: "text/javascript", css: "text/css", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", json: "application/json" };
   const ctx = await (await launch()).newContext({ acceptDownloads: true });
+  // Every other site is blocked, as on a network that blocks CDNs (BT77): nothing should be asked of one.
+  const elsewhere = [];
+  // (Only web addresses: Playwright's WebKit routes the worker's blob: address too.)
+  await ctx.route(url => /^https?:$/.test(url.protocol) && url.host !== "app.test", route => { elsewhere.push(route.request().url()); return route.abort(); });
   await ctx.route("http://app.test/**", route => {
     const rel = decodeURIComponent(new URL(route.request().url()).pathname.slice(1)) || "form-builder-mvp.html", file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file)) return route.fulfill({ status: 404, body: "" });
@@ -130,6 +135,25 @@ local("with the live site's security headers, a form, its PDF, its pages and a d
   assert.match((await dl).suggestedFilename(), /\.pdf$/);
   refused.push(...(await p.evaluate(() => window.__refused || [])));
   assert.deepEqual(refused, []);
+  assert.deepEqual(elsewhere, []);
   assert.deepEqual(errors, []);
   await ctx.close();
+});
+
+// BT77: the PDF tools are served from vendor/, and they must be cdnjs's files byte for byte, the hashes cdnjs publishes
+// (the ones the page checked when it loaded them from there). To update one, replace the file and its hash together.
+test("the PDF tools in vendor/ are exactly the files cdnjs serves", async () => {
+  const { createHash } = await import("node:crypto");
+  const pinned = {
+    "vendor/pdf-lib/1.17.1/pdf-lib.min.js": "sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI",
+    "vendor/pdf.js/3.11.174/pdf.min.js": "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e",
+    "vendor/pdf.js/3.11.174/pdf.worker.min.js": "sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2",
+  };
+  for (const [file, hash] of Object.entries(pinned))
+    assert.equal(`sha384-${createHash("sha384").update(fs.readFileSync(path.join(ROOT, file))).digest("base64")}`, hash, file);
+  // And the page loads exactly these, each with its license beside it.
+  const libs = fs.readFileSync(path.join(ROOT, "app/official-forms.js"), "utf8").match(/const LIBS = \{[\s\S]*?\n\};/)[0];
+  assert.deepEqual([...libs.matchAll(/src: "([^"]+)"/g)].map(m => m[1]).sort(), Object.keys(pinned).sort());
+  for (const dir of ["vendor/pdf-lib/1.17.1", "vendor/pdf.js/3.11.174"])
+    assert.ok(fs.readdirSync(path.join(ROOT, dir)).some(f => /^LICENSE/.test(f)), `${dir} has its license`);
 });

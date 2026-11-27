@@ -694,8 +694,9 @@ describe("BT74. Sentences about a password aren't flagged, and more ways of typi
 
 describe("BT76. If the PDF viewer can't load, the pages can be tried again", () => {
   const openPages = q => q.evaluate(() => { const d = document.querySelector('details[data-more="preview"]'); d.open = false; d.open = true; });
+  // The viewer is served by this site (BT77): the page is served over http, where its file can be blocked.
   test("blocked: it says so with Try again; unblocked, Try again (or opening the section again) shows the pages", async () => {
-    const q = await fresh();
+    const q = await (await site()).open();
     q.allowErrors = true; // the blocked viewer is reported in the console on purpose
     await q.route("**/pdf.min.js*", r => r.abort());
     await inject(q, "respond");
@@ -709,7 +710,7 @@ describe("BT76. If the PDF viewer can't load, the pages can be tried again", () 
     await q.context().close();
   });
   test("closing and opening the section after a failure tries again; while loading, it says so", async () => {
-    const q = await fresh();
+    const q = await (await site()).open();
     q.allowErrors = true;
     await q.route("**/pdf.min.js*", r => r.abort());
     await inject(q, "respond");
@@ -718,7 +719,7 @@ describe("BT76. If the PDF viewer can't load, the pages can be tried again", () 
     await q.waitForSelector("#preview [data-retry-preview]", { timeout: 60000 });
     await q.unroute("**/pdf.min.js*");
     let release;
-    await q.route("**/pdf.min.js*", async r => { await new Promise(res => { release = res; }); await r.continue(); });
+    await q.route("**/pdf.min.js*", async r => { await new Promise(res => { release = res; }); await r.fallback(); });
     await openPages(q);
     await q.waitForSelector("#preview [data-loading]", { timeout: 5000 });
     assert.equal(await q.textContent("#preview [data-loading]"), "Loading the pages…");
@@ -941,18 +942,19 @@ describe("TG12 and TG13. Protected contact details don't come back or stay on th
   });
 });
 
-describe("TG15. A changed library is refused", () => {
-  test("pdf-lib changed on its way: the form isn't made with it, and the page says so", async () => {
-    const q = await fresh();
-    q.allowErrors = true; // the refused library is reported in the console on purpose
-    await q.route("**/pdf-lib.min.js*", async r => { const res = await r.fetch(); await r.fulfill({ response: res, body: `${await res.text()}\n/* changed */` }); });
+// The libraries were on cdnjs, checked by integrity hashes. They're on this site now (BT77), checked against those
+// hashes by tests/loading.test.mjs, so what's left to refuse is a file cut short on its way.
+describe("TG15. A library that didn't arrive whole isn't used", () => {
+  test("pdf-lib cut short on its way: the form isn't made with it, and the page says so", async () => {
+    const q = await (await site({ change: (rel, read) => (rel.startsWith("vendor/pdf-lib/") ? read().slice(0, 200000) : null) })).open();
+    q.allowErrors = true; // the broken library is reported in the console on purpose
     await inject(q, "respond");
     await q.waitForFunction(() => pdfState.error || pdfState.result, null, { timeout: 120000 });
     assert.equal(await q.evaluate(() => [pdfState.error, !!pdfState.result, typeof window.PDFLib].join()), "load,false,undefined");
     await q.context().close();
   });
-  test("every library the page loads has an integrity hash", async () => {
-    assert.equal(await p.evaluate(() => Object.values(LIBS).every(l => /^sha384-[A-Za-z0-9+/=]{64}$/.test(l.integrity || ""))), true);
+  test("every library the page loads comes from this site", async () => {
+    assert.equal(await p.evaluate(() => Object.values(LIBS).every(l => /^vendor\//.test(l.src))), true);
   });
 });
 
@@ -1376,6 +1378,32 @@ describe("TG16, TG18 and TG20. Tests for what the test round couldn't see", () =
     assert.match(await q.textContent("#privacy"), /^Saved/);
     await q.evaluate(k => { localStorage.removeItem(k); window.dispatchEvent(new Event("focus")); }, SAVED);
     assert.doesNotMatch(await q.textContent("#privacy"), /^Saved/);
+    await q.context().close();
+  });
+});
+
+describe("BT77. The PDF tools come from this site, and when they can't load the note says what to do instead", () => {
+  test("blocked: the note links the blank forms, and its button opens the list of answers", async () => {
+    const q = await (await site({ change: rel => (rel.startsWith("vendor/pdf-lib/") ? "abort" : null) })).open();
+    q.allowErrors = true; // the blocked library is reported in the console on purpose
+    await inject(q, "respond");
+    await q.waitForSelector("#retryPdf", { timeout: 120000 });
+    const note = await q.textContent("#retryPdf >> xpath=..");
+    assert.match(note, /check your internet connection\. If it keeps failing, you can fill in the blank official forms \(PDF\)( \(opens in a new tab\))? by hand, copying from the list of your answers\. Try again$/);
+    assert.equal(await q.getAttribute("#retryPdf >> xpath=.. >> a", "href"), await q.evaluate(() => OFFICIAL[SITUATIONS.respond.official.packet].source));
+    assert.equal(await q.evaluate(() => document.querySelector('details[data-more="answers"]').open), false);
+    await q.click("#showAnswers");
+    assert.equal(await q.evaluate(() => document.querySelector('details[data-more="answers"]').open), true);
+    assert.equal(await q.evaluate(() => document.activeElement === document.querySelector('details[data-more="answers"] > summary')), true);
+    await q.context().close();
+  });
+  test("edge: a form too long to build says to shorten answers, without the by-hand note", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await q.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
+    await q.evaluate(() => { pdfState = { key: pdfState.key, result: null, error: "build", busy: false }; renderSummary(true); });
+    assert.match(await q.textContent("#retryPdf >> xpath=.."), /Check any very long answers/);
+    assert.equal(await q.locator("#showAnswers").count(), 0);
     await q.context().close();
   });
 });

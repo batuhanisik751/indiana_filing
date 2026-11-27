@@ -108,15 +108,15 @@ const OFFICIAL = {
   },
 };
 
-// PDF tools, loaded only when the summary needs them. Pinned versions with
-// integrity hashes so a changed file on the CDN is refused.
+// PDF tools, loaded only when the summary needs them. They're served from this site (vendor/), not a CDN, since
+// school, library and court networks often block cdnjs (BT77). They are cdnjs's files byte for byte: the tests check
+// each against the hash cdnjs publishes for it. No integrity attribute: on this site it guards nothing the page itself
+// doesn't, and it stops a page opened straight from the disk from loading them. A file cut short on the way is caught
+// by its global missing instead.
 const LIBS = {
-  pdfLib: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js",
-    integrity: "sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" },
-  pdfJs: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
-    integrity: "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" },
-  pdfJsWorker: { src: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
-    integrity: "sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2" },
+  pdfLib: { src: "vendor/pdf-lib/1.17.1/pdf-lib.min.js", global: "PDFLib" },
+  pdfJs: { src: "vendor/pdf.js/3.11.174/pdf.min.js", global: "pdfjsLib" },
+  pdfJsWorker: { src: "vendor/pdf.js/3.11.174/pdf.worker.min.js" },
 };
 
 const FORM = {

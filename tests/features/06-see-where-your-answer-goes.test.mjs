@@ -4,7 +4,7 @@ import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { fresh, close, reset, pick, walk, step } from "../lib.mjs";
+import { fresh, close, reset, pick, walk, step, site } from "../lib.mjs";
 
 let p;
 before(async () => { p = await fresh(); });
@@ -61,8 +61,8 @@ describe("6. See where your answer goes", () => {
     assert.equal(await p.getAttribute("#whereToggle", "aria-expanded"), "false");
   });
   test("edge: if the viewer can't load, it says so, offers Try again, and the blank form link stays", async () => {
-    const q = await fresh();
-    await q.context().route(/cdnjs\.cloudflare\.com/, r => r.abort());
+    // The viewer is served by this site (BT77), so the page is served over http, where that file can be blocked.
+    const q = await (await site({ change: rel => (rel.startsWith("vendor/pdf.js/") ? "abort" : null) })).open();
     await pick(q, "appearance"); await walk(q, "name");
     await q.click("#whereToggle");
     await q.waitForSelector("#whereRetry", { timeout: 60000 });

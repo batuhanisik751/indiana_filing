@@ -363,7 +363,10 @@ function pdfSectionHtml(sit) {
   if (pdfState.busy || !pdfState.key) return `<p class="note" id="pdfStatus" tabindex="-1">${pdfSlow ? `Filling in the official form is taking longer than usual, so the connection may be slow.${pendingLoads.size ? ` You can keep waiting, or <button class="link" id="stopPdf">stop and try again</button>.` : ""}` : "Filling in the official form…"}</p>`;
   // Not an alert: the summary is drawn again often, and each time would say it again. It's announced once, when the
   // form fails (BT106).
-  if (pdfState.error) return `<div class="note">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."} <button class="link" id="retryPdf">Try again</button></div>`;
+  // When the tools or the form can't download, the blank form can still be filled in by hand from the list of answers,
+  // which this opens: printing the page doesn't print that list (BT77).
+  const byHand = pdfState.error === "build" ? "" : ` If it keeps failing, you can fill in the <a href="${OFFICIAL[sit.official.packet].source}" target="_blank" rel="noopener">blank official forms (PDF)</a> by hand, copying from <button class="link" id="showAnswers">the list of your answers</button>.`;
+  if (pdfState.error) return `<div class="note">${pdfState.error === "form" ? "The official form didn't come through properly, so we couldn't fill it in. Check your connection, then try again." : pdfState.error === "build" ? "We couldn't make the PDF from these answers. Check any very long answers, then try again." : "We couldn't make the PDF. The PDF tools and the official form are downloaded the first time you get here, so check your internet connection."}${byHand} <button class="link" id="retryPdf">Try again</button></div>`;
   const { each } = pdfState.result;
   return `
     <p class="need unsaved" hidden></p>
@@ -384,6 +387,14 @@ function wirePdfSection(sit) {
   if (stop) stop.onclick = () => { [...pendingLoads].forEach(give => give()); setTimeout(() => document.getElementById("retryPdf")?.focus()); };
   const retry = document.getElementById("retryPdf");
   if (retry) retry.onclick = () => { if (pdfState.error === "build" || pdfState.error === "form") formDataTry++; pdfState = { key: null }; ensurePdf(); renderSummary(true); document.getElementById("pdfStatus")?.focus(); };
+  const list = document.getElementById("showAnswers");
+  if (list) list.onclick = () => {
+    const more = document.querySelector('details.more[data-more="answers"]');
+    if (!more) return;
+    more.open = true;
+    more.querySelector("summary").focus();
+    more.scrollIntoView({ block: "start" });
+  };
   if (!pdfState.result) return;
   const { all, each } = pdfState.result;
   const docs = sit.official.docs.map(k => OFFICIAL[sit.official.packet].docs[k]);
