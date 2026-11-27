@@ -108,7 +108,7 @@ cd tests && node --test features/07-email-check.test.mjs
 
 To run the same tests in WebKit, the engine inside Safari, install it once with `npx playwright install webkit`, then run `npm run webkit`. This is the closest these tests get to an iPhone; it isn't a real phone or screen reader. `BROWSER=firefox npm test` runs them in Firefox (`npx playwright install firefox` first).
 
-GitHub Actions runs the whole suite in all three browsers on every push to `main` and every pull request (`.github/workflows/tests.yml`). Vercel still builds every push, but with Deployment Checks turned on in the Vercel project (Settings, Build and Deployment, Deployment Checks, with the "Tests" checks chosen), a push reaches the live site only once its tests pass. A failing check can be skipped with Force Promote on the deployment's page.
+GitHub Actions runs the whole suite in all three browsers on every push to `main` and every pull request (`.github/workflows/tests.yml`), on macOS, since several layout tests measure the page with the system font iPhones and Macs use. Vercel still builds every push, but with Deployment Checks turned on in the Vercel project (Settings, Build and Deployment, Deployment Checks, with the "Tests" checks chosen), a push reaches the live site only once its tests pass. A failing check can be skipped with Force Promote on the deployment's page.
 
 To test a hosted copy instead of the local file, give its address, for example `BASE_URL=https://indiana-court-form-helper.vercel.app/ npm test`. That also checks the site serves every file and asks search engines not to list it.
 

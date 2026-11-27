@@ -561,13 +561,17 @@ describe("BT19: a mistyped far-off court date gets a check, and no countdown or 
     assert.equal(await p.$("[data-ics]"), null);
   });
   test("edge: a year away exactly still counts down; a day more doesn't, and is flagged", async () => {
+    // Only this check's flags: either date can fall on a Sunday or December 25, which has a flag of its own (BT94).
+    const farFlags = async () => (await flagsFor(p, "courtDate")).filter(f => !/when courts are closed/.test(f));
     await inject(p, "appearance", { courtDate: await dayAhead(365) });
     assert.match(await p.textContent("ol.steps"), /, 365 days from today\./);
     assert.notEqual(await p.$("[data-ics]"), null);
-    assert.deepEqual(await flagsFor(p, "courtDate"), []);
+    assert.deepEqual(await farFlags(), []);
     await inject(p, "appearance", { courtDate: await dayAhead(366) });
     assert.equal(await p.$("[data-ics]"), null);
-    assert.equal((await flagsFor(p, "courtDate")).length, 1);
+    const far = await farFlags();
+    assert.equal(far.length, 1);
+    assert.match(far[0], /is more than a year from today\. Check the year\./);
   });
 });
 
