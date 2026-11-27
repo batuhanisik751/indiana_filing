@@ -1506,3 +1506,34 @@ describe("BT110. Back from a downloaded PDF shown in the same tab, as iPhone Saf
     await q.context().close();
   });
 });
+
+describe("BT110. A box the keyboard opens over is brought into view", () => {
+  // Seen in the iPhone simulator: Edit on the summary opened the box low on the screen, and the keyboard covered it.
+  // Here the window getting shorter stands in for the keyboard: both make the visible part of the page shorter.
+  const where = q => q.evaluate(() => { const f = document.getElementById("inEdit").getBoundingClientRect(), s = document.getElementById("ieSave").getBoundingClientRect(), v = visualViewport; return { fieldTop: f.top, fieldBottom: f.bottom, saveBottom: s.bottom, visible: v.offsetTop + v.height }; });
+  test("the box low on the screen, then the visible part gets shorter: the box and its Save button are in view", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await ready(q);
+    await editHere(q, "name");
+    await q.evaluate(() => { const r = document.getElementById("inEdit").getBoundingClientRect(); window.scrollBy(0, r.top - (innerHeight - 140)); });
+    await q.setViewportSize({ width: 1000, height: 450 });
+    await q.waitForFunction(() => document.getElementById("ieSave").getBoundingClientRect().bottom <= visualViewport.height, null, { timeout: 3000 }).catch(() => {});
+    const w = await where(q);
+    assert.ok(w.fieldTop >= 0 && w.fieldBottom <= w.visible, `the field is in view: ${JSON.stringify(w)}`);
+    assert.ok(w.saveBottom <= w.visible, `Save is in view: ${JSON.stringify(w)}`);
+    await q.context().close();
+  });
+  test("edge: a box already in view doesn't move", async () => {
+    const q = await fresh();
+    await inject(q, "appearance");
+    await ready(q);
+    await editHere(q, "name");
+    await q.evaluate(() => { const r = document.getElementById("inEdit").getBoundingClientRect(); window.scrollBy(0, r.top - 100); });
+    const before = await q.evaluate(() => scrollY);
+    await q.setViewportSize({ width: 1000, height: 600 });
+    await q.waitForTimeout(200);
+    assert.equal(await q.evaluate(() => scrollY), before);
+    await q.context().close();
+  });
+});

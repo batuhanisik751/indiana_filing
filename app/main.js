@@ -29,6 +29,20 @@ document.addEventListener("keydown", e => {
   if (performance.now() < enterQuietUntil || (enterHeldOver && e.repeat)) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 document.addEventListener("keyup", e => { if (e.key === "Enter") enterHeldOver = false; }, true);
+// On a phone, the keyboard can cover the box being typed in: Edit on the summary opens one where it was tapped, often
+// low on the screen, and nothing moved it (seen in the iPhone simulator, BT110). When the visible part of the page
+// gets shorter, a box now under the keyboard is brought just above it, with its Save and Cancel when they fit.
+function keepTypingInView() {
+  const vv = window.visualViewport, el = document.activeElement;
+  if (!vv || !el || !el.matches || !el.matches("input:not([type=radio]):not([type=checkbox]), textarea")) return;
+  const top = vv.offsetTop, bottom = vv.offsetTop + vv.height, pad = 12;
+  const field = el.getBoundingClientRect(), whole = (el.closest(".inedit") || el).getBoundingClientRect();
+  if (field.bottom <= bottom - pad && field.top >= top) return; // in view: nothing moves
+  // Enough to show the whole box with its buttons, but never so much that the field itself goes off the top.
+  const by = Math.min(whole.bottom - (bottom - pad), field.top - (top + pad));
+  if (by > 0) window.scrollBy(0, by);
+}
+if (window.visualViewport) visualViewport.addEventListener("resize", keepTypingInView);
 // A mouse button or finger is down: a redraw now would replace what it's pressing, so a redraw that can wait does (BT104).
 let pointerHeld = false;
 document.addEventListener("pointerdown", () => { pointerHeld = true; }, true);
