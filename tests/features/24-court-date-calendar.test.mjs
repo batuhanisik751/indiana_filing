@@ -32,8 +32,9 @@ describe("Court date: days to go and a calendar file", () => {
   test("the file is a calendar file for that whole day, with two reminders", async () => {
     const day = await dayAhead(10);
     await inject(p, "appearance", { courtDate: day });
-    // Every announcement is kept: the filled form can finish just after the click and be announced over this one, as in
-    // the Firefox run on GitHub (TG19).
+    // The filled form is made first. Finishing just after the click, its announcement replaced this one before it was
+    // said (the newest is what's true now), as in the Firefox runs on GitHub, where the form is slower to make (TG19).
+    await p.waitForFunction(() => pdfState.result && !pdfState.busy, null, { timeout: 120000 });
     await p.evaluate(() => { window.__said = []; new MutationObserver(() => window.__said.push(document.getElementById("announce").textContent)).observe(document.getElementById("announce"), { childList: true, characterData: true, subtree: true }); });
     const { name, text } = await download();
     assert.equal(name, `court-date-${day}.ics`);
