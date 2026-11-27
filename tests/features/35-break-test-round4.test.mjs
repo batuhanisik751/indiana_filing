@@ -1537,3 +1537,39 @@ describe("BT110. A box the keyboard opens over is brought into view", () => {
     await q.context().close();
   });
 });
+
+describe("TG19, what the first GitHub runs found in WebKit and Firefox", () => {
+  test("Escape closing a page shown large leaves \"Show the pages\" open, though Safari counts the pointer as over it", async () => {
+    const q = await fresh();
+    await inject(q, "respond");
+    await ready(q);
+    await q.evaluate(() => { document.querySelector('details[data-more="preview"]').open = true; });
+    await q.waitForSelector("#preview canvas", { timeout: 120000 });
+    // As WebKit on GitHub had it: the pointer still over the section under the page.
+    await q.evaluate(() => { const d = document.querySelector('details[data-more="preview"]'), m = d.matches.bind(d); d.matches = s => s === ":hover" || m(s); });
+    await q.click('#preview [data-page="1"]');
+    await q.waitForSelector("dialog.pageview[open] .pvpage canvas", { timeout: 120000 });
+    await q.keyboard.press("Escape");
+    await q.waitForFunction(() => !document.querySelector("dialog.pageview[open]"));
+    assert.equal(await q.evaluate(() => document.querySelector('details[data-more="preview"]').open), true);
+    await q.context().close();
+  });
+  test("focus, another tab's change, or leaving while the files are still loading throws nothing", async () => {
+    let hold = false;
+    const ctx = await site({ change: rel => (hold && rel === "app/state.js" ? "hold" : null) });
+    hold = true;
+    const q = await ctx.newPage(), errors = [];
+    q.on("pageerror", e => errors.push(e.message));
+    await q.goto("http://app.test/form-builder-mvp.html", { waitUntil: "commit" });
+    await q.waitForFunction(() => typeof updatePrivacyNote === "function"); // saving.js has run; state.js hasn't come
+    await q.evaluate(() => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new StorageEvent("storage", { key: "icfh-progress-v1", newValue: "{}" }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "icfh-cleared", newValue: "1" }));
+      window.dispatchEvent(new Event("beforeunload", { cancelable: true }));
+    });
+    await q.waitForTimeout(100);
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+});

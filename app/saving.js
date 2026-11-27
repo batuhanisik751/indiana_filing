@@ -318,10 +318,14 @@ function updatePrivacyNote() {
     : working && savedIsMine() ? "Saved only on this device. Nothing is sent."
     : "Answers save only on this device. Nothing is sent.";
 }
+// The page's own events can come while its files are still loading, when what these handlers use (in state.js and
+// later files) isn't there yet: Firefox gives a new tab focus then, and the handler threw (found by the Firefox run on
+// GitHub, TG19). They wait until every file has arrived; a page that didn't finish loading ignores them.
+const appReady = () => window.appChecked === true && !window.appFileFailed;
 // Another tab saving the same form would replace this tab's answers (and the other way around).
 // Deleting answers reaches other tabs by a storage event. That needs working storage, so a channel carries it too.
 let lastClearSignal = null, clearChannel = null;
-try { clearChannel = new BroadcastChannel("icfh-clear"); clearChannel.onmessage = e => heardClear(e.data); } catch { /* the storage event still works */ }
+try { clearChannel = new BroadcastChannel("icfh-clear"); clearChannel.onmessage = e => { if (appReady()) heardClear(e.data); }; } catch { /* the storage event still works */ }
 function sendClear(signal) { store.set(CLEAR_KEY, signal); store.del(CLEAR_KEY); try { clearChannel?.postMessage(signal); } catch { /* the storage event still works */ } }
 function heardClear(signal) {
   if (signal === lastClearSignal) return; // it arrived both ways
@@ -357,6 +361,7 @@ function heardClear(signal) {
   if (had) tellGone("Your answers were deleted in another tab.");
 }
 window.addEventListener("storage", e => {
+  if (!appReady()) return;
   if (e.key === CLEAR_KEY) { if (e.newValue !== null) heardClear(e.newValue); return; } // null: the signal removing itself
   if (e.key === PREF_KEY) {
     const now = savingOn();
@@ -418,7 +423,7 @@ window.addEventListener("storage", e => {
 });
 lastSavingOn = savingOn();
 // Cleared in the browser's own settings, nothing tells the page. Check again when the tab comes back to the front.
-window.addEventListener("focus", updatePrivacyNote);
+window.addEventListener("focus", () => { if (appReady()) updatePrivacyNote(); });
 // A downloaded PDF that the browser shows in this same tab, as iPhone Safari does, takes the page away without the
 // person leaving the site, and Back from the PDF cleared every answer (BT110). So a page that goes within 30 seconds of a
 // download, with no touch or key on it since, is coming back from the PDF. Leaving any other way still clears them.
@@ -436,6 +441,7 @@ window.addEventListener("pageshow", e => {
 });
 // With nothing being saved, warn before the page is closed or refreshed.
 window.addEventListener("beforeunload", e => {
+  if (!appReady()) return;
   const formAtRisk = (!savingOn() || !saveOk || !savedHere || !savedIsMine()) && sitKey && holdsAnswers();
   const sortingAtRisk = mode === "triage" && triageAnswered(triage) && !(sitKey && hasAnswers()) && (!savingOn() || !saveOk || !sortingInCopy());
   // A browser doesn't tell a page what's in a half-typed date, so it can't be saved. All this page can do is warn.

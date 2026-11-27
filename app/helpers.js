@@ -128,6 +128,9 @@ document.addEventListener("pointerout", e => {
 // Escape closes a "More" the pointer or focus is in, as it does other things that open (BT68).
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape" || e.defaultPrevented || e.isComposing) return;
+  // A page shown large is open: Escape is for it. Safari still counts the pointer as over the section under the page,
+  // so the same Escape also closed "Show the pages" (found by the WebKit run on GitHub, TG19).
+  if (document.querySelector("dialog[open]")) return;
   const d = (document.activeElement?.closest && document.activeElement.closest("details.more[open]")) || [...document.querySelectorAll("details.more[open]")].find(x => x.matches(":hover"));
   if (!d || d.closest("dialog")) return;
   d.open = false; delete d.dataset.hovered;

@@ -32,6 +32,9 @@ describe("Court date: days to go and a calendar file", () => {
   test("the file is a calendar file for that whole day, with two reminders", async () => {
     const day = await dayAhead(10);
     await inject(p, "appearance", { courtDate: day });
+    // Every announcement is kept: the filled form can finish just after the click and be announced over this one, as in
+    // the Firefox run on GitHub (TG19).
+    await p.evaluate(() => { window.__said = []; new MutationObserver(() => window.__said.push(document.getElementById("announce").textContent)).observe(document.getElementById("announce"), { childList: true, characterData: true, subtree: true }); });
     const { name, text } = await download();
     assert.equal(name, `court-date-${day}.ics`);
     const ymd = day.replace(/-/g, "");
@@ -40,7 +43,7 @@ describe("Court date: days to go and a calendar file", () => {
     assert.match(text, /\r\nSUMMARY:Court date\r\n/);
     assert.equal((text.match(/BEGIN:VALARM/g) || []).length, 2);
     assert.match(text, /END:VEVENT\r\nEND:VCALENDAR\r\n$/);
-    await p.waitForFunction(() => /calendar file is downloading/.test(document.getElementById("announce").textContent)); // said 50 ms later, like every announcement
+    await p.waitForFunction(() => window.__said.some(t => /calendar file is downloading/.test(t))); // said 50 ms later, like every announcement
   });
 
   test("continuance: the hearing date gets the same, and the file is for it", async () => {
