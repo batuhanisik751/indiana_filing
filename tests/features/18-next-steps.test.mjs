@@ -86,8 +86,11 @@ describe("Next steps", () => {
   test("edge: after Download, it says the next steps are just below the download buttons", async () => {
     await inject(p, "appearance");
     await p.waitForFunction(() => pdfState.result && pdfState.key === pdfKey() && !pdfState.busy, null, { timeout: 120000 });
+    // What the page says is recorded as it's said: on GitHub's WebKit something said just after could replace it in the
+    // live region before the test read it (TG19).
+    await p.evaluate(() => { window.__said = []; const say = announce; announce = msg => { window.__said.push(msg); say(msg); }; });
     await Promise.all([p.waitForEvent("download"), p.click("#dlAll")]);
-    await p.waitForFunction(() => /What to do next is just below the download buttons/.test(document.getElementById("announce").textContent));
+    await p.waitForFunction(() => window.__said.some(m => /What to do next is just below the download buttons/.test(m)));
     const [dl, next] = await p.evaluate(() => [document.getElementById("dlAll"), [...document.querySelectorAll("h2.sub")].find(h => /What to do next/.test(h.textContent))].map(e => e.getBoundingClientRect().top));
     assert.ok(next > dl, "below the download buttons");
   });
