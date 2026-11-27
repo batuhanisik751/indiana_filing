@@ -1,14 +1,15 @@
-// Shared helpers. Every test drives the real page in a real browser: Chromium, or WebKit with BROWSER=webkit.
+// Shared helpers. Every test drives the real page in a real browser: Chromium, or WebKit or Firefox with BROWSER=.
 // BASE_URL=https://... runs the tests against a hosted copy instead of the local file.
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// BROWSER=webkit runs them in WebKit, the engine inside Safari (install it with `npx playwright install webkit`).
+// BROWSER=webkit runs them in WebKit, the engine inside Safari (install it with `npx playwright install webkit`), and
+// BROWSER=firefox in Firefox (`npx playwright install firefox`). GitHub Actions runs all three on every push (TG19).
 export const BROWSER = process.env.BROWSER || "chromium";
+if (!["chromium", "webkit", "firefox"].includes(BROWSER)) throw new Error(`BROWSER must be chromium, webkit or firefox, not "${BROWSER}"`);
 const engine = createRequire(import.meta.url)("playwright")[BROWSER];
-if (!["chromium", "webkit"].includes(BROWSER)) throw new Error(`BROWSER must be chromium or webkit, not "${BROWSER}"`);
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const BASE_URL = process.env.BASE_URL || "";
 export const APP = BASE_URL || "file://" + path.join(ROOT, "form-builder-mvp.html");

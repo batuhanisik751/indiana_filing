@@ -1,0 +1,39 @@
+# Runs the whole test suite on every push to main and every pull request, in Chromium, WebKit (Safari's engine) and
+# Firefox (TG19). Vercel still builds each push; with Deployment Checks turned on in the Vercel project
+# (Settings > Build and Deployment > Deployment Checks, choosing these checks), a production deploy goes live only
+# once they pass.
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit, firefox]
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm test
+        env:
+          BROWSER: ${{ matrix.browser }}

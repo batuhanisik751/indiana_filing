@@ -106,7 +106,9 @@ cd tests && node --test features/07-email-check.test.mjs
 
 `tests/quality/` measures the checks on a fixed test set (item 18 on the MVP list): 117 filled-in forms, 74 with one planted mistake each and 43 with correct answers that look a little like mistakes. On the last run the checks caught all 74 mistakes and flagged none of the 43 correct cases. [quality/REPORT.md](tests/quality/REPORT.md) has the numbers by kind of check, what was missed and why the numbers may be better than real use. `quality.test.mjs` (part of `npm test`) fails if a change catches less or flags more; when a change does better, run `npm run quality` to make the report again.
 
-To run the same tests in WebKit, the engine inside Safari, install it once with `npx playwright install webkit`, then run `npm run webkit`. This is the closest these tests get to an iPhone; it isn't a real phone or screen reader.
+To run the same tests in WebKit, the engine inside Safari, install it once with `npx playwright install webkit`, then run `npm run webkit`. This is the closest these tests get to an iPhone; it isn't a real phone or screen reader. `BROWSER=firefox npm test` runs them in Firefox (`npx playwright install firefox` first).
+
+GitHub Actions runs the whole suite in all three browsers on every push to `main` and every pull request (`.github/workflows/tests.yml`). Vercel still builds every push, but with Deployment Checks turned on in the Vercel project (Settings, Build and Deployment, Deployment Checks, with the "Tests" checks chosen), a push reaches the live site only once its tests pass. A failing check can be skipped with Force Promote on the deployment's page.
 
 To test a hosted copy instead of the local file, give its address, for example `BASE_URL=https://indiana-court-form-helper.vercel.app/ npm test`. That also checks the site serves every file and asks search engines not to list it.
 
