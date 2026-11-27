@@ -1407,3 +1407,57 @@ describe("BT77. The PDF tools come from this site, and when they can't load the 
     await q.context().close();
   });
 });
+
+describe("TG20, the rest. Clear my data with storage failing, Try again after a damaged form, and appearance streams", () => {
+  test("Clear my data in a tab that can't write to storage still clears another open tab", async () => {
+    const ctx = await site();
+    const a = await ctx.open(), b = await ctx.open();
+    await inject(a, "respond"); await inject(b, "respond");
+    // Writing fails in the first tab, as when storage is full: the signal through storage can't go, so the channel carries it.
+    await a.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); }; });
+    await a.click("#clearData");
+    await b.waitForFunction(() => mode === "pick" && !hasAnswers(), null, { timeout: 10000 });
+    assert.equal(await b.evaluate(() => gonePageNote), "Your answers were deleted in another tab.");
+    await ctx.close();
+  });
+  test("Try again after a damaged official form downloads it again, and the PDF is made", async () => {
+    let damaged = true;
+    const ctx = await site({ change: (rel, read) => {
+      if (rel !== "forms/data/answerPacket.js" || !damaged) return null;
+      damaged = false;
+      return read().replace(/(window\.OFFICIAL_PDFS\.answerPacket = )"[^"]+"/, '$1"AAAA"');
+    } });
+    const q = await ctx.open();
+    q.allowErrors = true; // the damaged form is reported in the console on purpose
+    await inject(q, "respond");
+    await q.waitForSelector("#retryPdf", { timeout: 120000 });
+    assert.equal(await q.evaluate(() => pdfState.error), "form");
+    await q.click("#retryPdf");
+    await ready(q);
+    assert.equal(await q.evaluate(() => !!pdfState.result && !pdfState.error), true);
+    await ctx.close();
+  });
+  test("every form drawn into the filled PDF says it's a form, which some viewers need to show it", async () => {
+    for (const key of ["respond", "feewaiver", "continuance"]) {
+      await inject(p, key);
+      await ready(p);
+      const [forms, without] = await p.evaluate(async () => {
+        const { PDFDocument, PDFName, PDFDict, PDFRef } = PDFLib;
+        const d = await PDFDocument.load(pdfState.result.all);
+        let n = 0, missing = 0;
+        for (const page of d.getPages()) {
+          const x = page.node.Resources()?.lookupMaybe(PDFName.of("XObject"), PDFDict);
+          for (const [, ref] of x ? x.entries() : []) {
+            const s = ref instanceof PDFRef ? d.context.lookup(ref) : ref;
+            if (!s?.dict?.has(PDFName.of("BBox"))) continue; // an image, not a drawn form
+            n++;
+            if (!s.dict.has(PDFName.of("Subtype"))) missing++;
+          }
+        }
+        return [n, missing];
+      });
+      assert.ok(forms > 0, `${key}: the filled answers are drawn as forms`);
+      assert.equal(without, 0, `${key}: ${without} of ${forms} drawn forms don't say what they are`);
+    }
+  });
+});
